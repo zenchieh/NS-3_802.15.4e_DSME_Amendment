@@ -68,6 +68,16 @@ LrWpanNetDevice::GetTypeId()
                           BooleanValue(true),
                           MakeBooleanAccessor(&LrWpanNetDevice::m_useAcks),
                           MakeBooleanChecker())
+            .AddAttribute("UseGTS",
+                          "Send data packet in GTS period.",
+                          BooleanValue(false),
+                          MakeBooleanAccessor(&LrWpanNetDevice::m_useGTS),
+                          MakeBooleanChecker())
+            .AddAttribute("UseDirectTx",
+                          "Send data packet with direct tx.",
+                          BooleanValue(true),
+                          MakeBooleanAccessor(&LrWpanNetDevice::m_useDirectTx),
+                          MakeBooleanChecker())              
             .AddAttribute("PseudoMacAddressMode",
                           "Build the pseudo-MAC Address according to RFC 4944 or RFC 6282 "
                           "(default: RFC 6282).",
@@ -87,6 +97,18 @@ LrWpanNetDevice::LrWpanNetDevice()
     m_mac = CreateObject<LrWpanMac>();
     m_phy = CreateObject<LrWpanPhy>();
     m_csmaca = CreateObject<LrWpanCsmaCa>();
+    CompleteConfig();
+}
+
+LrWpanNetDevice::LrWpanNetDevice(bool dsmeOn)
+    : m_configComplete(false) {
+    NS_LOG_FUNCTION(this);
+    m_mac = CreateObject<LrWpanMac>();
+    m_phy = CreateObject<LrWpanPhy>();
+    m_csmaca = CreateObject<LrWpanCsmaCa>();
+
+    m_dsmeOn = dsmeOn;
+
     CompleteConfig();
 }
 
@@ -148,6 +170,16 @@ LrWpanNetDevice::CompleteConfig()
 
     m_csmaca->SetLrWpanMacStateCallback(MakeCallback(&LrWpanMac::SetLrWpanMacState, m_mac));
     m_phy->SetPlmeCcaConfirmCallback(MakeCallback(&LrWpanCsmaCa::PlmeCcaConfirm, m_csmaca));
+
+    // DSME
+    if (m_dsmeOn) {
+        m_mac->SetDsmeModeEnabled();
+        m_mac->SetChannelHoppingEnabled();
+
+        // DSME callback hook
+        // m_mac->SetMlmeDsmeGtsConfirmCallback(MakeCallback(&LrWpanNetDevice::MlmeDsmeGtsConfirm, this));
+    }
+
     m_configComplete = true;
 }
 
@@ -190,7 +222,7 @@ LrWpanNetDevice::GetMac() const
     // NS_LOG_FUNCTION (this);
     return m_mac;
 }
-
+ 
 Ptr<LrWpanPhy>
 LrWpanNetDevice::GetPhy() const
 {
@@ -414,12 +446,56 @@ LrWpanNetDevice::Send(Ptr<Packet> packet, const Address& dest, uint16_t protocol
     m_mcpsDataRequestParams.m_dstAddrMode = SHORT_ADDR;
     m_mcpsDataRequestParams.m_dstPanId = m_mac->GetPanId();
     m_mcpsDataRequestParams.m_srcAddrMode = SHORT_ADDR;
+
     // Using ACK requests for broadcast destinations is ok here. They are disabled
     // by the MAC.
-    if (m_useAcks)
-    {
+    if (m_useAcks) {
         m_mcpsDataRequestParams.m_txOptions = TX_OPTION_ACK;
     }
+
+    if (m_useGTS) {
+        m_mcpsDataRequestParams.m_txOptions |= TX_OPTION_GTS;
+    }
+
+    if (m_useDirectTx) {
+        m_mcpsDataRequestParams.m_txOptions |= TX_OPTION_DIRECT;
+    }
+
+    m_mcpsDataRequestParams.m_msduHandle = 0;
+    m_mac->McpsDataRequest(m_mcpsDataRequestParams, packet);
+    
+    return true;
+}
+
+bool LrWpanNetDevice::SendInGts(Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber) {
+    NS_LOG_FUNCTION(this << packet << dest << protocolNumber);
+
+    if (packet->GetSize() > GetMtu()) {
+        NS_LOG_ERROR("Fragmentation is needed for this packet, drop the packet ");
+        return false;
+    }
+
+    McpsDataRequestParams m_mcpsDataRequestParams;
+
+    Mac16Address dst16;
+
+    if (Mac48Address::IsMatchingType(dest)) {
+        uint8_t buf[6];
+        dest.CopyTo(buf);
+        dst16.CopyFrom(buf + 4);
+
+    } else {
+        dst16 = Mac16Address::ConvertFrom(dest);
+    }
+
+    m_mcpsDataRequestParams.m_dstAddr = dst16;
+    m_mcpsDataRequestParams.m_dstAddrMode = SHORT_ADDR;
+    m_mcpsDataRequestParams.m_dstPanId = m_mac->GetPanId();
+    m_mcpsDataRequestParams.m_srcAddrMode = SHORT_ADDR;
+
+    m_mcpsDataRequestParams.m_txOptions = TX_OPTION_ACK;
+    m_mcpsDataRequestParams.m_txOptions |= TX_OPTION_GTS;
+
     m_mcpsDataRequestParams.m_msduHandle = 0;
     m_mac->McpsDataRequest(m_mcpsDataRequestParams, packet);
     return true;
@@ -540,5 +616,25 @@ LrWpanNetDevice::AssignStreams(int64_t stream)
     NS_LOG_DEBUG("Number of assigned RV streams:  " << (streamIndex - stream));
     return (streamIndex - stream);
 }
+
+void LrWpanNetDevice::SetMcpsDataReqGts(bool enable) {
+    m_useGTS = enable;
+}
+
+void LrWpanNetDevice::SetChannelOffset(uint16_t offset) {
+    m_mac->SetChannelOffset(offset);
+}
+
+void LrWpanNetDevice::SetAsCoordinator() {
+    m_mac->SetAsCoordinator();
+}
+
+void LrWpanNetDevice::TrackCoordinatorBeacon(MlmeSyncRequestParams params) {
+    m_mac->MlmeSyncRequest(params);
+}
+
+void LrWpanNetDevice::PassRecordKeyAndValue(std::pair<Address, Address> recordkey, unsigned int recordValueIdx) {
+    m_mac->ReceiveRecordKeyAndValueIdx(recordkey, recordValueIdx);
+}   
 
 } // namespace ns3

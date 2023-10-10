@@ -22,6 +22,8 @@
 #include <ns3/address-utils.h>
 #include <ns3/log.h>
 
+#include <bitset>
+
 namespace ns3
 {
 
@@ -387,7 +389,7 @@ PendingAddrFields::AddAddress(Mac64Address extAddr)
 bool
 PendingAddrFields::SearchAddress(Mac16Address shortAddr)
 {
-    for (int j = 0; j <= m_pndAddrSpecNumShortAddr; j++)
+    for (int j = 0; j <= (m_pndAddrSpecNumShortAddr - 1); j++)
     {
         if (shortAddr == m_shortAddrList[j])
         {
@@ -401,7 +403,7 @@ PendingAddrFields::SearchAddress(Mac16Address shortAddr)
 bool
 PendingAddrFields::SearchAddress(Mac64Address extAddr)
 {
-    for (int j = 0; j <= m_pndAddrSpecNumExtAddr; j++)
+    for (int j = 0; j <= (m_pndAddrSpecNumExtAddr - 1); j++)
     {
         if (extAddr == m_extAddrList[j])
         {
@@ -410,6 +412,14 @@ PendingAddrFields::SearchAddress(Mac64Address extAddr)
     }
 
     return false;
+}
+
+void PendingAddrFields::SetNumOfShortAdrr(uint8_t num) {
+    m_pndAddrSpecNumShortAddr = num;
+}
+
+void PendingAddrFields::SetNumOfExtAdrr(uint8_t num) {
+    m_pndAddrSpecNumExtAddr = num;
 }
 
 void
@@ -480,6 +490,468 @@ operator<<(std::ostream& os, const PendingAddrFields& pendingAddrFields)
 }
 
 /***********************************************************
+ *              DSME Superframe Specification Fields
+ ***********************************************************/
+// DSME-TODO
+// Maybe Set according to IEEE 802.15.4e-2012 Section I.4.2 Table I.1?
+DsmeSuperFrameField::DsmeSuperFrameField() {
+    SetMultiSuperframeOrder(14);
+    SetChannelDiversityMode(0);
+    SetGACKFlag(0);
+    SetCAPReductionFlag(1);
+    SetDeferredBeaconFalg(0);
+}
+
+void DsmeSuperFrameField::SetDsmeSuperframe(uint16_t dsmeSuperFrm) {
+    m_sspecMultiSuperframeOrder = dsmeSuperFrm & (0x0F);          // Bit 0-3
+    m_sspecChannelDiversityMode = (dsmeSuperFrm >> 4) & (0x01);   // Bit 4
+    m_sspecGACKFlag = (dsmeSuperFrm >> 5) & (0x01);               // Bit 5
+    m_sspecCAPReductionFlag = (dsmeSuperFrm >> 6) & (0x01);       // Bit 6
+    m_sspecDeferredBcnFlag = (dsmeSuperFrm >> 7) & (0x01);        // Bit 7
+}
+
+void DsmeSuperFrameField::SetMultiSuperframeOrder(uint8_t multiBcnOrder) {
+    m_sspecMultiSuperframeOrder = multiBcnOrder;
+}
+
+void DsmeSuperFrameField::SetChannelDiversityMode(bool channelDiversityMode) {
+    m_sspecChannelDiversityMode = channelDiversityMode;
+}
+
+void DsmeSuperFrameField::SetGACKFlag(bool gACKFlag) {
+    m_sspecGACKFlag = gACKFlag;
+}
+
+void DsmeSuperFrameField::SetCAPReductionFlag(bool cAPReduction) {
+    m_sspecCAPReductionFlag = cAPReduction;
+}
+
+void DsmeSuperFrameField::SetDeferredBeaconFalg(bool deferredBcnFlag) {
+    m_sspecDeferredBcnFlag = deferredBcnFlag;
+}
+
+uint8_t DsmeSuperFrameField::GetDsmeSuperframe() const {
+    uint8_t superframe;
+
+    superframe = m_sspecMultiSuperframeOrder & (0x0F);
+    superframe |= (m_sspecChannelDiversityMode << 4) & (0x01 << 4);
+    superframe |= (m_sspecGACKFlag << 5) & (0x01 << 5);
+    superframe |= (m_sspecCAPReductionFlag << 6) & (0x01 << 6);
+    superframe |= (m_sspecDeferredBcnFlag << 7) & (0x01 << 7);
+
+    return superframe;
+}
+
+uint8_t DsmeSuperFrameField::GetMultiSuperframeOrder() const {
+    return m_sspecMultiSuperframeOrder;
+}
+
+bool DsmeSuperFrameField::GetChannelDiversityMode() const {
+    return m_sspecChannelDiversityMode;
+}
+
+bool DsmeSuperFrameField::GetGACKFlag() const {
+    return m_sspecGACKFlag;
+}
+
+bool DsmeSuperFrameField::GetCAPReductionFlag() const {
+    return m_sspecCAPReductionFlag;
+}
+
+bool DsmeSuperFrameField::GetDeferredBeaconFalg() const {
+    return m_sspecDeferredBcnFlag;
+}
+
+uint32_t DsmeSuperFrameField::GetSerializedSize() const {
+    return 1; // 1 Octets
+}
+
+Buffer::Iterator DsmeSuperFrameField::Serialize(Buffer::Iterator i) const {
+    i.WriteU8(GetDsmeSuperframe());
+    return i;
+}
+
+Buffer::Iterator DsmeSuperFrameField::Deserialize(Buffer::Iterator i) {
+    uint8_t superframe = i.ReadU8();
+    SetDsmeSuperframe(superframe);
+    return i;
+}
+
+std::ostream &operator << (std::ostream &os, const DsmeSuperFrameField& dsmeSperfrmField) {
+    os << " DSME Multi Beacon Order = "      << uint32_t(dsmeSperfrmField.GetMultiSuperframeOrder())
+     << ", DSME Channel Diversity mode = "   << bool(dsmeSperfrmField.GetChannelDiversityMode())
+     << ", DSME GACK = "                     << bool(dsmeSperfrmField.GetGACKFlag())
+     << ", DSME CAP Reduction = "            << bool(dsmeSperfrmField.GetCAPReductionFlag())
+     << ", DSME Deferred Beacon = "          << bool(dsmeSperfrmField.GetDeferredBeaconFalg());
+    return os;
+}
+
+/***********************************************************
+ *      DSME Time Synchronization Specification Fields
+ ***********************************************************/
+TimeSync::TimeSync() {
+    SetBeaconTimeStamp(0);
+    // SetBeaconOffsetTimeStamp(0);
+}
+
+void TimeSync::SetBeaconTimeStamp(uint64_t bcnTimestamp) {
+    m_sspecBcnTimestamp = bcnTimestamp;
+}
+
+void TimeSync::SetBeaconOffsetTimeStamp(uint16_t bcnOfsTimeStamp) {
+    m_sspecBcnOffsetTimestamp = bcnOfsTimeStamp;
+}
+
+uint64_t TimeSync::GetBeaconTimeStamp() const {
+    return m_sspecBcnTimestamp;
+}
+
+uint16_t TimeSync::GetBeaconOffsetTimeStamp() const {
+    return m_sspecBcnOffsetTimestamp;
+}
+
+uint32_t TimeSync::GetSerializedSize() const {
+    return 8;   // 8 Octets
+}
+
+Buffer::Iterator TimeSync::Serialize(Buffer::Iterator i) const {
+    // DSME-TODO
+    i.WriteHtolsbU64(GetBeaconTimeStamp());
+    // i.WriteHtolsbU16(GetBeaconOffsetTimeStamp());
+
+    return i;
+}
+
+Buffer::Iterator TimeSync::Deserialize(Buffer::Iterator i) {
+    // DSME-TODO
+    m_sspecBcnTimestamp = i.ReadLsbtohU64();
+    // m_sspecBcnOffsetTimestamp = i.ReadLsbtohU16();
+
+    return i;
+}
+
+std::ostream &
+operator << (std::ostream &os, const TimeSync &timeSynSpec) {
+    os << " Time Synchronization Beacon Timestamp = "     << uint32_t(timeSynSpec.GetBeaconTimeStamp())
+       << ", Time Synchronization Beacon Offset Timestamp = " << uint32_t(timeSynSpec.GetBeaconOffsetTimeStamp());
+    return os;
+}
+
+/***********************************************************
+ *              DSME Beacon Bitmap Fields
+ ***********************************************************/
+BeaconBitmap::BeaconBitmap() {
+    SetSDIndex(0);
+    SetBitmapLength(0);            // Set Default BO = 14 , SO = 14
+    ResetSDBitmap();
+}
+
+BeaconBitmap::BeaconBitmap(uint16_t sdIndex, uint16_t bitmapLen) {
+    SetSDIndex(sdIndex);
+    SetBitmapLength(bitmapLen);            
+    ResetSDBitmap();
+}
+
+void BeaconBitmap::SetSDIndex(uint16_t sdIndex) {
+    m_sspecSDIndex = sdIndex;
+}
+
+void BeaconBitmap::SetBitmapLength(uint16_t bitmapLen) {        
+    m_sspecSDBitmapLen = bitmapLen;
+}
+
+void BeaconBitmap::SetSDBitmap(uint16_t position) {
+    uint16_t idx = position / 16;
+
+    m_sspecSDBitmap[idx] |= 1 << (position % 16);
+}
+
+void BeaconBitmap::SetSDBitmap(std::vector<uint16_t>& sdBitmap) {
+    m_sspecSDBitmap = std::move(sdBitmap);
+}
+
+void BeaconBitmap::ResetSDBitmap() {
+    uint16_t len = ceil(m_sspecSDBitmapLen / 16.0);
+    
+    m_sspecSDBitmap = std::vector<uint16_t>(len, 0);
+}
+
+uint16_t BeaconBitmap::GetSDIndex() const {
+    return m_sspecSDIndex;
+}
+
+uint16_t BeaconBitmap::GetSDBitmapLength() const {
+    return m_sspecSDBitmapLen;
+}
+
+const std::vector<uint16_t> BeaconBitmap::GetSDBitmap() const {
+    return m_sspecSDBitmap;
+}
+
+uint32_t BeaconBitmap::GetSerializedSize() const {
+    uint32_t size = 0;
+    size += 2;                                // SD Index
+    size += 2;                                // SD Bitmap Length
+    // DSME-TODO
+    size += m_sspecSDBitmap.size() * 2;   // SD Bitmap           
+
+    return size;
+}
+
+Buffer::Iterator BeaconBitmap::Serialize(Buffer::Iterator i) const {
+    i.WriteHtolsbU16(GetSDIndex());
+    i.WriteHtolsbU16(GetSDBitmapLength());
+
+    // DSME-TODO
+    for (uint16_t j = 0; j < m_sspecSDBitmap.size(); j++) {
+        i.WriteHtolsbU16(m_sspecSDBitmap[j]);
+    }
+
+    return i;
+}
+
+Buffer::Iterator BeaconBitmap::Deserialize(Buffer::Iterator i) {
+    m_sspecSDIndex = i.ReadLsbtohU16();
+    m_sspecSDBitmapLen = i.ReadLsbtohU16();
+
+    ResetSDBitmap();
+    
+    // DSME-TODO
+    for (uint16_t j = 0; j < m_sspecSDBitmap.size(); j++) {
+        m_sspecSDBitmap[j] = i.ReadLsbtohU16();
+    }
+
+    return i;
+}
+
+void BeaconBitmap::PrintSDBitMap(std::ostream &os) const {
+    for (uint16_t i = 0 ; i < m_sspecSDBitmap.size() ; i++) {
+        os << " " << std::bitset<16>(m_sspecSDBitmap[i]); 
+        os << std::endl;
+    } 
+}
+
+std::ostream& operator << (std::ostream &os, const BeaconBitmap& beaconBitmap) {
+    os << "Beacon Bitmap SD Index = "  << uint32_t(beaconBitmap.GetSDIndex())
+        << ", SD Bitmap Length = "      << uint32_t(beaconBitmap.GetSDBitmapLength())
+        << ", SD bitmap =";
+
+    beaconBitmap.PrintSDBitMap(os);
+        
+    return os;
+}
+
+BeaconBitmap BeaconBitmap::operator| (const BeaconBitmap& beaconBitmap) const {
+    NS_ASSERT(GetSDBitmapLength() == beaconBitmap.GetSDBitmapLength());
+
+    BeaconBitmap result(0, GetSDBitmapLength());
+
+    std::vector<uint16_t> sdBitmap1 = GetSDBitmap();
+    std::vector<uint16_t> sdBitmap2 = beaconBitmap.GetSDBitmap();
+    std::vector<uint16_t> resultBitmap(ceil(GetSDBitmapLength() / 16.0), 0);
+
+    for (uint16_t i = 0 ; i < sdBitmap1.size() ; i++) {
+        resultBitmap[i] = sdBitmap1[i] | sdBitmap2[i];
+    }
+
+    result.SetSDBitmap(resultBitmap);
+
+    return result;
+}
+
+/***********************************************************
+ *      DSME Channel Hopping Specification Fields
+ ***********************************************************/
+ChannelHopping::ChannelHopping() {
+    SetHoppingSequenceID(0);
+    SetPANCoordinatorBSN(0);
+    SetChannelOffset(0);
+    SetChannelOffsetBitmapLength(16);
+    ResetChannelOffsetBitmap();
+}
+
+void ChannelHopping::SetHoppingSequenceID(uint8_t seqID) {
+    m_sspecHoppingSequenceID = seqID;
+}
+
+void ChannelHopping::SetPANCoordinatorBSN(uint8_t bcnSeqNum) {
+    m_sspecPANCoordBSN = bcnSeqNum;
+}
+
+void ChannelHopping::SetChannelOffset(uint16_t ofs) {
+    m_sspecChannelOfs = ofs;
+}
+
+void ChannelHopping::SetChannelOffsetBitmapLength(uint8_t bitmapLen) {
+    m_sspecChannelOfsBitmapLen = bitmapLen;
+}
+
+void ChannelHopping::SetChannelOffsetBitmap(std::vector<uint16_t> bitmap) {
+    m_sspecChannelOfsBitmap = bitmap;
+}
+
+void ChannelHopping::SetChannelOffsetBitmap(uint16_t position) {
+    uint16_t idx = position / 16;
+
+    m_sspecChannelOfsBitmap[idx] |= 1 << (position % 16);
+}
+
+void ChannelHopping::ResetChannelOffsetBitmap() {
+    uint16_t len = ceil(m_sspecChannelOfsBitmapLen / 16.0);
+    
+    m_sspecChannelOfsBitmap = std::vector<uint16_t>(len, 0);
+}
+
+uint8_t ChannelHopping::GetHoppingSequenceID() const {
+    return m_sspecHoppingSequenceID;
+}
+
+uint8_t ChannelHopping::GetPANCoordinatorBSN() const {
+    return m_sspecPANCoordBSN;
+}
+
+uint16_t ChannelHopping::GetChannelOffset() const {
+    return m_sspecChannelOfs;
+}
+
+uint8_t ChannelHopping::GetChannelOffsetBitmapLength() const {
+    return m_sspecChannelOfsBitmapLen;
+}
+
+const std::vector<uint16_t> ChannelHopping::GetChannelOffsetBitmap() const {
+    return m_sspecChannelOfsBitmap;
+}
+
+uint32_t ChannelHopping::GetSerializedSize() const {
+    uint32_t size = 0;
+    size = 1;
+    size += 1;
+    size += 2;
+    size += 1;
+    size += m_sspecChannelOfsBitmap.size() * 2;
+
+    return size;
+}
+
+Buffer::Iterator ChannelHopping::Serialize(Buffer::Iterator i) const {
+    i.WriteU8(GetHoppingSequenceID());
+    i.WriteU8(GetPANCoordinatorBSN());
+    i.WriteHtolsbU16(GetChannelOffset());
+    i.WriteU8(GetChannelOffsetBitmapLength());
+
+    for (uint8_t j = 0; j < m_sspecChannelOfsBitmap.size(); j++) {
+        i.WriteHtolsbU16(m_sspecChannelOfsBitmap[j]);
+    }
+
+    return i;
+}
+
+Buffer::Iterator ChannelHopping::Deserialize(Buffer::Iterator i) {
+    m_sspecHoppingSequenceID = i.ReadU8();
+    m_sspecPANCoordBSN = i.ReadU8();
+    m_sspecChannelOfs = i.ReadLsbtohU16();
+    m_sspecChannelOfsBitmapLen = i.ReadU8();
+
+    ResetChannelOffsetBitmap();
+
+    for (uint8_t j = 0; j < m_sspecChannelOfsBitmap.size(); j++) {
+        m_sspecChannelOfsBitmap[j] = i.ReadLsbtohU16();
+    }
+
+    return i;
+}
+
+void ChannelHopping::PrintChannelOffsetBitMap(std::ostream &os) const {
+    for (uint16_t i = 0 ; i < m_sspecChannelOfsBitmap.size() ; i++) {
+            os << " " << std::bitset<16>(m_sspecChannelOfsBitmap[i]); 
+            os << std::endl;
+    } 
+}
+
+std::ostream &operator << (std::ostream &os, const ChannelHopping& channelHopping) {
+    os << "Beacon Bitmap SD Index = "    << uint32_t(channelHopping.GetHoppingSequenceID())
+        << ", SD Bitmap Length = "        << uint32_t(channelHopping.GetPANCoordinatorBSN())
+        << ", Channel Offset = "          << uint32_t(channelHopping.GetChannelOffset())
+        << ", Channel Offset Length = "    << uint32_t(channelHopping.GetChannelOffsetBitmapLength())
+        << ", Channel Offset Bitmap = ";
+
+    channelHopping.PrintChannelOffsetBitMap(os);
+
+    return os;
+}
+
+/***********************************************************
+ *                  DSME Group ACK Fields
+ ***********************************************************/
+GroupACK::GroupACK() {
+    // DSME-TODO
+}
+
+void GroupACK::SetGACK1SuperframeID(uint16_t gack1superFrmID) {
+    m_sspecGACK1SuperfrmID = gack1superFrmID;
+}
+
+void GroupACK::SetGACK1SlotID(uint8_t gack1SlotID) {
+    m_sspecGACK1SlotID = gack1SlotID;
+}
+
+void GroupACK::SetGACK1ChannelID(uint8_t gack1ChannelID) {
+    m_sspecGACK1ChannelID = gack1ChannelID;
+}
+
+void GroupACK::SetGACK2SuperframeID(uint16_t gack2superFrmID) {
+    m_sspecGACK2SuperfrmID = gack2superFrmID;
+}
+
+void GroupACK::SetGACK2SlotID(uint16_t gack2SlotID) {
+    m_sspecGACK2SlotID = gack2SlotID;
+}
+
+void GroupACK::SetGACK2ChannelID(uint8_t gack2ChannelID) {
+    m_sspecGACK2ChannelID = gack2ChannelID;
+}
+
+uint16_t GroupACK::GetGACK1SuperframeID() const {
+    return m_sspecGACK1SuperfrmID;
+}
+
+uint8_t GroupACK::GetGACK1SlotID() const {
+    return m_sspecGACK1SlotID;
+}
+
+uint8_t GroupACK::GetGACK1ChannelID() const {
+    return m_sspecGACK1ChannelID;
+}
+
+uint16_t GroupACK::GetGACK2SuperframeID() const {
+    return m_sspecGACK2SuperfrmID;
+}
+
+uint8_t GroupACK::GetGACK2SlotID() const {
+    return m_sspecGACK2SlotID;
+}
+
+uint8_t GroupACK::GetGACK2ChannelID() const {
+    return m_sspecGACK2ChannelID;
+}
+
+uint32_t GroupACK::GetGetSerializedSize() const {
+    // DSME-TODO
+    return 7;  // 2 Octets
+}
+
+Buffer::Iterator GroupACK::Serialize(Buffer::Iterator i) const {
+    // DSME-TODO
+    return i;
+}
+
+Buffer::Iterator GroupACK::Deserialize(Buffer::Iterator i) {
+    // DSME-TODO
+    return i;
+}
+
+
+/***********************************************************
  *              Capability Information Field
  ***********************************************************/
 
@@ -501,28 +973,53 @@ CapabilityField::GetSerializedSize() const
 Buffer::Iterator
 CapabilityField::Serialize(Buffer::Iterator i) const
 {
+    // uint8_t capability;
+
+    // capability = 0;                                          //!< Bit 0 (reserved)
+    // capability = (m_deviceType << 1) & (0x01 << 1);          //!< Bit 1
+    // capability |= (m_powerSource << 2) & (0x01 << 2);        //!< Bit 2
+    // capability |= (m_receiverOnWhenIdle << 3) & (0x01 << 3); //!< Bit 3
+    //                                                          //!< Bit 4-5 (reserved)
+    // capability |= (m_securityCap << 6) & (0x01 << 6);        //!< Bit 6
+    // capability |= (m_allocAddr << 7) & (0x01 << 7);          //!< Bit 7
+    // i.WriteU8(capability);
+    // return i;
     uint8_t capability;
 
     capability = 0;                                          //!< Bit 0 (reserved)
     capability = (m_deviceType << 1) & (0x01 << 1);          //!< Bit 1
     capability |= (m_powerSource << 2) & (0x01 << 2);        //!< Bit 2
     capability |= (m_receiverOnWhenIdle << 3) & (0x01 << 3); //!< Bit 3
-                                                             //!< Bit 4-5 (reserved)
+    capability |= (m_associationType << 4) & (0x01 << 4);    //!< Bit 4
+                                                             //!< Bit 5 (reserved)
     capability |= (m_securityCap << 6) & (0x01 << 6);        //!< Bit 6
     capability |= (m_allocAddr << 7) & (0x01 << 7);          //!< Bit 7
+
     i.WriteU8(capability);
+
     return i;
 }
 
 Buffer::Iterator
 CapabilityField::Deserialize(Buffer::Iterator i)
 {
+    // uint8_t capability = i.ReadU8();
+    // //!< Bit 0 (reserved)
+    // m_deviceType = (capability >> 1) & (0x01);         //!< Bit 1
+    // m_powerSource = (capability >> 2) & (0x01);        //!< Bit 2
+    // m_receiverOnWhenIdle = (capability >> 3) & (0x01); //!< Bit 3
+    //                                                    //!< Bit 4-5 (reserved)
+    // m_securityCap = (capability >> 6) & (0x01);        //!< Bit 6
+    // m_allocAddr = (capability >> 7) & (0x01);          //!< Bit 7
+
+    // return i;
     uint8_t capability = i.ReadU8();
-    //!< Bit 0 (reserved)
+                                                       //!< Bit 0 (reserved)
     m_deviceType = (capability >> 1) & (0x01);         //!< Bit 1
     m_powerSource = (capability >> 2) & (0x01);        //!< Bit 2
     m_receiverOnWhenIdle = (capability >> 3) & (0x01); //!< Bit 3
-                                                       //!< Bit 4-5 (reserved)
+    m_associationType = (capability >> 4) & (0x01);    //!< Bit 4
+                                                       //!< Bit 5 (reserved)
     m_securityCap = (capability >> 6) & (0x01);        //!< Bit 6
     m_allocAddr = (capability >> 7) & (0x01);          //!< Bit 7
 
@@ -559,6 +1056,10 @@ CapabilityField::IsShortAddrAllocOn() const
     return m_allocAddr;
 }
 
+bool CapabilityField::IsFastAOn() const {
+    return m_associationType;
+}
+
 void
 CapabilityField::SetFfdDevice(bool devType)
 {
@@ -587,6 +1088,14 @@ void
 CapabilityField::SetShortAddrAllocOn(bool addrAlloc)
 {
     m_allocAddr = addrAlloc;
+}
+
+void CapabilityField::SetFastAOn() {
+    m_associationType = 1;
+}
+
+void CapabilityField::SetFastAOff() {
+    m_associationType = 0;
 }
 
 /**

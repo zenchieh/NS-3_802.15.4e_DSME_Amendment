@@ -348,6 +348,8 @@ class LrWpanCsmaCa : public Object
      * according to the target.
      */
     bool m_coorDest;
+
+    bool m_incCsma;
 };
 
 } // namespace ns3

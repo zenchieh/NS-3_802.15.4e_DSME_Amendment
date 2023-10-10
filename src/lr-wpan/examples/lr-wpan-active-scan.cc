@@ -86,10 +86,9 @@ ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams params)
     }
 }
 
-int
-main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
     LogComponentEnableAll(LogLevel(LOG_PREFIX_TIME | LOG_PREFIX_FUNC));
+    LogComponentEnable("LrWpanMac", LOG_LEVEL_INFO);
 
     // Create 2 PAN coordinator nodes, and 1 end device
     Ptr<Node> coord1 = CreateObject<Node>();

@@ -46,8 +46,7 @@ class MobilityModel;
  * or else the channel object must be replaced.
  */
 
-class LrWpanHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevice
-{
+class LrWpanHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevice {
   public:
     /**
      * \brief Create a LrWpan helper in an empty state.  By default, a
@@ -132,6 +131,12 @@ class LrWpanHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
                               Mac16Address coor,
                               uint8_t bcnOrd,
                               uint8_t sfrmOrd);
+    
+    void AssociateToBeaconPan(NetDeviceContainer c,
+                              Mac16Address coor,
+                              MlmeStartRequestParams params);
+    
+    void CoordBoostrap(Ptr<NetDevice> dev, PanDescriptor descriptor, uint16_t sdIndex, MlmeStartRequestParams params);
 
     /**
      * Helper to enable all LrWpan log components with one statement
@@ -164,6 +169,30 @@ class LrWpanHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * \return the number of stream indices assigned by this helper
      */
     int64_t AssignStreams(NetDeviceContainer c, int64_t stream);
+
+    /**
+      * @brief ConfigureSlotframeAllToPan: configure gts
+      * Automatically creates a star network with
+      * one timeslot for each node to send a packet to
+      * the PAN coordinator (which is the first node)
+      * Empty timeslots can also be defined
+    */
+    void ConfigureSlotframeAllToPan(NetDeviceContainer devs, int empty_timeslots);
+
+    void AddGtsInCfp(NetDeviceContainer nodes, uint8_t numSlot, uint16_t superframeID, uint8_t slotID);
+    void AddGtsInCfp(Ptr<NetDevice> dev, bool rx, uint8_t numSlot, uint16_t superframeID, uint8_t slotID);
+    void AddGtsInCfp(Ptr<NetDevice> dev, bool rx, uint8_t numSlot, uint16_t channelOfs, uint16_t superframeID, uint8_t slotID);
+
+    void AddGtsInCfp(Ptr<NetDevice> dev
+                    , Ptr<NetDevice> dev2
+                    , bool rx
+                    , uint8_t numSlot
+                    , uint16_t channelOfs
+                    , uint16_t superframeID
+                    , uint8_t slotID);
+
+    void GenerateTraffic(Ptr<NetDevice> dev, Address dst, int packet_size, double start, double duration, double interval);
+    void SendPacket(Ptr<NetDevice> dev, Address dst, int packet_size, double interval,double end);
 
   private:
     /**

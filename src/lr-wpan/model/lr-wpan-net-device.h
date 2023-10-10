@@ -57,6 +57,7 @@ class LrWpanNetDevice : public NetDevice
     static TypeId GetTypeId();
 
     LrWpanNetDevice();
+    LrWpanNetDevice(bool dsmeOn);
     ~LrWpanNetDevice() override;
 
     /**
@@ -159,6 +160,8 @@ class LrWpanNetDevice : public NetDevice
     void SetPromiscReceiveCallback(PromiscReceiveCallback cb) override;
     bool SupportsSendFrom() const override;
 
+    bool SendInGts(Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber);
+
     /**
      * The callback used by the MAC to hand over incoming packets to the
      * NetDevice. This callback will in turn use the ReceiveCallback set by
@@ -177,6 +180,16 @@ class LrWpanNetDevice : public NetDevice
      * \return the number of stream indices assigned by this model
      */
     int64_t AssignStreams(int64_t stream);
+
+    void SetMcpsDataReqGts(bool enable);
+
+    void SetChannelOffset(uint16_t offset);
+
+    void SetAsCoordinator();
+
+    void TrackCoordinatorBeacon(MlmeSyncRequestParams params);
+
+    void PassRecordKeyAndValue(std::pair<Address, Address> recordkey, unsigned int recordValueIdx);
 
   private:
     // Inherited from NetDevice/Object
@@ -244,6 +257,8 @@ class LrWpanNetDevice : public NetDevice
      */
     Ptr<Node> m_node;
 
+    bool m_dsmeOn = true;
+
     /**
      * True if MAC, PHY and CSMA/CA where successfully configured and the
      * NetDevice is ready for being used.
@@ -255,6 +270,16 @@ class LrWpanNetDevice : public NetDevice
      * packets using the Send() API.
      */
     bool m_useAcks;
+
+    /**
+     * Configure the NetDevice to sending packets in GTS period using the Send() API.
+     */
+    bool m_useGTS;
+
+    /**
+     * Configure the NetDevice to sending packets with direct tx using the Send() API.
+     */
+    bool m_useDirectTx;
 
     /**
      * Is the link/device currently up and running?

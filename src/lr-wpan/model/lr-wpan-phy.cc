@@ -691,6 +691,12 @@ LrWpanPhy::PlmeCcaRequest()
     }
 }
 
+void LrWpanPhy::CancelPdDataRequest() {
+    if (m_pdDataRequest.IsRunning()) {
+        m_pdDataRequest.Cancel();
+    }
+}
+
 void
 LrWpanPhy::CcaCancel()
 {
@@ -1482,6 +1488,11 @@ void
 LrWpanPhy::EndTx()
 {
     NS_LOG_FUNCTION(this);
+
+    if ((m_trxState != IEEE_802_15_4_PHY_BUSY_TX) &&
+         (m_trxState != IEEE_802_15_4_PHY_TRX_OFF)) {
+        return;
+    }
 
     NS_ABORT_IF((m_trxState != IEEE_802_15_4_PHY_BUSY_TX) &&
                 (m_trxState != IEEE_802_15_4_PHY_TRX_OFF));

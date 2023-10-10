@@ -25,6 +25,7 @@ namespace ns3
 
 NS_OBJECT_ENSURE_REGISTERED(LrWpanMacHeader);
 
+
 // TODO: Test Compressed PAN Id, Security Enabled, different size Key
 
 LrWpanMacHeader::LrWpanMacHeader()
@@ -35,9 +36,12 @@ LrWpanMacHeader::LrWpanMacHeader()
     SetNoAckReq();            // No Ack Frame will be expected from recipient
     SetNoPanIdComp();         // No PAN Id Compression since no addresses
     SetFrmCtrlRes(0);         // Initialize the 3 reserved bits to 0
+    SetNoSeqNumSup();
+    SetNoIEListPresent();
     SetDstAddrMode(NOADDR);   // Assume there will be no src and dst address
     SetSrcAddrMode(NOADDR);
-    SetFrameVer(1); // Indicates an IEEE 802.15.4 frame
+    // SetFrameVer(1); // Indicates an IEEE 802.15.4 frame
+    SetFrameVer(2);           // Indicates an IEEE 802.15.4e-2012 frame
 }
 
 LrWpanMacHeader::LrWpanMacHeader(enum LrWpanMacType wpanMacType, uint8_t seqNum)
@@ -49,9 +53,11 @@ LrWpanMacHeader::LrWpanMacHeader(enum LrWpanMacType wpanMacType, uint8_t seqNum)
     SetNoAckReq();          // No Ack Frame will be expected from recipient
     SetNoPanIdComp();       // No PAN Id Compression since no addresses
     SetFrmCtrlRes(0);       // Initialize the 3 reserved bits to 0
+    SetNoSeqNumSup();
+    SetNoIEListPresent();
     SetDstAddrMode(NOADDR); // Assume there will be no src and dst address
     SetSrcAddrMode(NOADDR);
-    SetFrameVer(1); // Indicates an IEEE 802.15.4 frame
+    SetFrameVer(0b01); // Indicates an IEEE 802.15.4 frame
 }
 
 LrWpanMacHeader::~LrWpanMacHeader()
@@ -75,6 +81,12 @@ LrWpanMacHeader::GetType() const
     case 3:
         return LRWPAN_MAC_COMMAND;
         break;
+    case 4:
+        return LRWPAN_MAC_LLDN;
+        break;
+    case 5:
+        return LRWPAN_MAC_MULTIPURPOSE;
+        break;
     default:
         return LRWPAN_MAC_RESERVED;
     }
@@ -90,7 +102,10 @@ LrWpanMacHeader::GetFrameControl() const
     val |= (m_fctrlFrmPending << 4) & (0x01 << 4);    // Bit 4
     val |= (m_fctrlAckReq << 5) & (0x01 << 5);        // Bit 5
     val |= (m_fctrlPanIdComp << 6) & (0x01 << 6);     // Bit 6
-    val |= (m_fctrlReserved << 7) & (0x07 << 7);      // Bit 7-9
+    val |= (m_fctrlReserved << 7) & (0x01 << 7);         // Bit 7        
+    val |= (m_fctrlSeqNumSup << 8) & (0x01 << 8);        // Bit 8       
+    val |= (m_fctrlIEListPresent << 9) & (0x01 << 9);    // Bit 9   
+    // val |= (m_fctrlReserved << 7) & (0x07 << 7);      // Bit 7-9
     val |= (m_fctrlDstAddrMode << 10) & (0x03 << 10); // Bit 10-11
     val |= (m_fctrlFrmVer << 12) & (0x03 << 12);      // Bit 12-13
     val |= (m_fctrlSrcAddrMode << 14) & (0x03 << 14); // Bit 14-15
@@ -121,11 +136,27 @@ LrWpanMacHeader::IsPanIdComp() const
     return (m_fctrlPanIdComp == 1);
 }
 
+bool LrWpanMacHeader::IsSeqNumSup() const {
+    return m_fctrlSeqNumSup;
+}
+
+bool LrWpanMacHeader::IsIEListPresent() const {
+    return m_fctrlIEListPresent;
+}
+
 uint8_t
 LrWpanMacHeader::GetFrmCtrlRes() const
 {
     return (m_fctrlReserved);
 }
+
+// uint8_t LrWpanMacHeader::GetSeqNumSup() const {
+//     return m_fctrlSeqNumSup;
+// }
+
+// uint8_t LrWpanMacHeader::GetIEListPresent() const {
+//     return m_fctrlIEListPresent;
+// }
 
 uint8_t
 LrWpanMacHeader::GetDstAddrMode() const
@@ -157,6 +188,10 @@ LrWpanMacHeader::GetDstPanId() const
     return (m_addrDstPanId);
 }
 
+Mac8Address LrWpanMacHeader::GetSimpleDstAddr() const {
+    return m_addrSimpleDstAddr;
+}
+
 Mac16Address
 LrWpanMacHeader::GetShortDstAddr() const
 {
@@ -173,6 +208,10 @@ uint16_t
 LrWpanMacHeader::GetSrcPanId() const
 {
     return (m_addrSrcPanId);
+}
+
+Mac8Address LrWpanMacHeader::GetSimpleSrcAddr() const {
+    return m_addrSimpleSrcAddr;
 }
 
 Mac16Address
@@ -194,12 +233,15 @@ LrWpanMacHeader::GetSecControl() const
 
     val = m_secctrlSecLevel & (0x7);               // Bit 0-2
     val |= (m_secctrlKeyIdMode << 3) & (0x3 << 3); // Bit 3-4
-    val |= (m_secctrlReserved << 5) & (0x7 << 5);  // Bit 5-7
+    val |= (m_sectrlFrmCntSup << 5) & (0x1 << 5);          // Bit 5
+    val |= (m_sectrlFrmCntSize << 6) & (0x1 << 6);         // Bit 6
+    val |= (m_secctrlReserved << 7) & (0x1 << 7);          // Bit 7
+    // val |= (m_secctrlReserved << 5) & (0x7 << 5);  // Bit 5-7
 
     return (val);
 }
 
-uint32_t
+uint64_t
 LrWpanMacHeader::GetFrmCounter() const
 {
     return (m_auxFrmCntr);
@@ -215,6 +257,14 @@ uint8_t
 LrWpanMacHeader::GetKeyIdMode() const
 {
     return (m_secctrlKeyIdMode);
+}
+
+bool LrWpanMacHeader::GetFrmCntSup() {
+    return m_sectrlFrmCntSup;
+}
+
+bool LrWpanMacHeader::GetFrmCntSize() {
+    return m_sectrlFrmCntSize;
 }
 
 uint8_t
@@ -265,6 +315,14 @@ LrWpanMacHeader::IsCommand() const
     return (m_fctrlFrmType == LRWPAN_MAC_COMMAND);
 }
 
+bool LrWpanMacHeader::IsLLDN() const {
+    return (m_fctrlFrmType == LRWPAN_MAC_LLDN);
+}
+
+bool LrWpanMacHeader::IsMultipurpose() const {
+    return (m_fctrlFrmType == LRWPAN_MAC_MULTIPURPOSE);
+}
+
 void
 LrWpanMacHeader::SetType(enum LrWpanMacType wpanMacType)
 {
@@ -279,7 +337,10 @@ LrWpanMacHeader::SetFrameControl(uint16_t frameControl)
     m_fctrlFrmPending = (frameControl >> 4) & (0x01);   // Bit 4
     m_fctrlAckReq = (frameControl >> 5) & (0x01);       // Bit 5
     m_fctrlPanIdComp = (frameControl >> 6) & (0x01);    // Bit 6
-    m_fctrlReserved = (frameControl >> 7) & (0x07);     // Bit 7-9
+    // m_fctrlReserved = (frameControl >> 7) & (0x07);     // Bit 7-9
+    m_fctrlReserved      = (frameControl >> 7) & (0x01);// Bit 7        
+    m_fctrlSeqNumSup     = (frameControl >> 8) & (0x01);// Bit 8       
+    m_fctrlIEListPresent = (frameControl >> 9) & (0x01);// Bit 9   
     m_fctrlDstAddrMode = (frameControl >> 10) & (0x03); // Bit 10-11
     m_fctrlFrmVer = (frameControl >> 12) & (0x03);      // Bit 12-13
     m_fctrlSrcAddrMode = (frameControl >> 14) & (0x03); // Bit 14-15
@@ -339,6 +400,22 @@ LrWpanMacHeader::SetFrmCtrlRes(uint8_t res)
     m_fctrlReserved = res;
 }
 
+void LrWpanMacHeader::SetSeqNumSup() {
+    m_fctrlSeqNumSup = 1;
+}
+
+void LrWpanMacHeader::SetNoSeqNumSup() {
+    m_fctrlSeqNumSup = 0;
+}
+
+void LrWpanMacHeader::SetIEListPresent() {
+    m_fctrlIEListPresent = 1;
+}
+
+void LrWpanMacHeader::SetNoIEListPresent() {
+    m_fctrlIEListPresent = 0;
+}
+
 void
 LrWpanMacHeader::SetDstAddrMode(uint8_t addrMode)
 {
@@ -363,6 +440,11 @@ LrWpanMacHeader::SetSeqNum(uint8_t seqNum)
     m_SeqNum = seqNum;
 }
 
+void LrWpanMacHeader::SetSrcAddrFields(uint16_t panId, Mac8Address addr) {
+    m_addrSrcPanId = panId;
+    m_addrSimpleSrcAddr = addr;
+}
+
 void
 LrWpanMacHeader::SetSrcAddrFields(uint16_t panId, Mac16Address addr)
 {
@@ -375,6 +457,11 @@ LrWpanMacHeader::SetSrcAddrFields(uint16_t panId, Mac64Address addr)
 {
     m_addrSrcPanId = panId;
     m_addrExtSrcAddr = addr;
+}
+
+void LrWpanMacHeader::SetDstAddrFields(uint16_t panId, Mac8Address addr) {
+    m_addrDstPanId = panId;
+    m_addrSimpleDstAddr = addr;
 }
 
 void
@@ -396,11 +483,14 @@ LrWpanMacHeader::SetSecControl(uint8_t secControl)
 {
     m_secctrlSecLevel = (secControl) & (0x07);       // Bit 0-2
     m_secctrlKeyIdMode = (secControl >> 3) & (0x03); // Bit 3-4
-    m_secctrlReserved = (secControl >> 5) & (0x07);  // Bit 5-7
+    m_sectrlFrmCntSup  = (secControl >> 5) & (0x01);          // Bit 5
+    m_sectrlFrmCntSize = (secControl >> 6) & (0x01);          // Bit 6
+    m_secctrlReserved  = (secControl >> 7) & (0x01);          // Bit 7
+    // m_secctrlReserved = (secControl >> 5) & (0x07);  // Bit 5-7
 }
 
 void
-LrWpanMacHeader::SetFrmCounter(uint32_t frmCntr)
+LrWpanMacHeader::SetFrmCounter(uint64_t frmCntr)
 {
     m_auxFrmCntr = frmCntr;
 }
@@ -467,6 +557,8 @@ LrWpanMacHeader::Print(std::ostream& os) const
        << ", Frame Pending = " << (uint32_t)m_fctrlFrmPending
        << ", Ack Request = " << (uint32_t)m_fctrlAckReq
        << ", PAN ID Compress = " << (uint32_t)m_fctrlPanIdComp
+       << ", Sequence Number Suppresion = " << (uint32_t) m_fctrlSeqNumSup
+       << ", IE List Present = " << (uint32_t) m_fctrlIEListPresent
        << ", Frame Vers = " << (uint32_t)m_fctrlFrmVer
        << ", Dst Addrs Mode = " << (uint32_t)m_fctrlDstAddrMode
        << ", Src Addr Mode = " << (uint32_t)m_fctrlSrcAddrMode;
@@ -476,6 +568,10 @@ LrWpanMacHeader::Print(std::ostream& os) const
     switch (m_fctrlDstAddrMode)
     {
     case NOADDR:
+        break;
+    case SIMPLEADDR:
+        os << ", Dst Addr Pan ID = " << static_cast<uint16_t>(m_addrDstPanId)
+           << ", m_addrSimpleDstAddr = " << m_addrSimpleDstAddr;
         break;
     case SHORTADDR:
         os << ", Dst Addr Pan ID = " << static_cast<uint16_t>(m_addrDstPanId)
@@ -490,6 +586,10 @@ LrWpanMacHeader::Print(std::ostream& os) const
     switch (m_fctrlSrcAddrMode)
     {
     case NOADDR:
+        break;
+    case SIMPLEADDR:
+        os << ", Src Addr Pan ID = " << static_cast<uint16_t>(m_addrSrcPanId)
+           << ", m_addrShortSrcAddr = " << m_addrSimpleSrcAddr;
         break;
     case SHORTADDR:
         os << ", Src Addr Pan ID = " << static_cast<uint16_t>(m_addrSrcPanId)
@@ -524,6 +624,8 @@ LrWpanMacHeader::Print(std::ostream& os) const
             break;
         }
     }
+
+    os << std::endl;
 }
 
 uint32_t
@@ -534,10 +636,11 @@ LrWpanMacHeader::GetSerializedSize() const
      * Frame Control      : 2 octet
      * Sequence Number    : 1 Octet
      * Dst PAN Id         : 0/2 Octet
-     * Dst Address        : 0/2/8 octet
+     * Dst Address        : 0/1/2/8 octet
      * Src PAN Id         : 0/2 octet
-     * Src Address        : 0/2/8 octet
-     * Aux Sec Header     : 0/5/6/10/14 octet
+     * Src Address        : 0/1/2/8 octet
+     * Aux Sec Header     : 0/1/5/6/10/14 octet
+     * Header IEs         : Variable
      */
 
     uint32_t size = 3;
@@ -545,6 +648,9 @@ LrWpanMacHeader::GetSerializedSize() const
     switch (m_fctrlDstAddrMode)
     {
     case NOADDR:
+        break;
+    case SIMPLEADDR:
+        size += 3;          // Dst Pan Id + simple addr
         break;
     case SHORTADDR:
         size += 4;
@@ -558,6 +664,17 @@ LrWpanMacHeader::GetSerializedSize() const
     {
     case NOADDR:
         break;
+
+    case SIMPLEADDR:
+        // check if PAN Id compression is enabled
+        if (!IsPanIdComp()) {
+            size += 3;
+        } else {
+            size += 1;
+        }
+
+        break;
+        
     case SHORTADDR:
         // check if PAN Id compression is enabled
         if (!IsPanIdComp())
@@ -585,7 +702,16 @@ LrWpanMacHeader::GetSerializedSize() const
     // check if security is enabled
     if (IsSecEnable())
     {
-        size += 5;
+        size += 1;                      // Security Control fields 
+
+        if (!m_sectrlFrmCntSup) {
+            if (m_sectrlFrmCntSize) { 
+                size += 5;              // frame counter size = 5 octets
+            } else {
+                size += 4;              // frame counter size = 4 octets
+            }
+        }
+
         switch (m_secctrlKeyIdMode)
         {
         case IMPLICIT:
@@ -601,13 +727,19 @@ LrWpanMacHeader::GetSerializedSize() const
             break;
         }
     }
-    return (size);
+
+    return size;
 }
 
 void
 LrWpanMacHeader::Serialize(Buffer::Iterator start) const
 {
+    // std::cout << "LrWpanMacHeader::Serialize Start" << std::endl; // debug
+
     Buffer::Iterator i = start;
+
+    // std::cout << i.GetDistanceFrom(start) << std::endl;   // debug
+
     uint16_t frameControl = GetFrameControl();
 
     i.WriteHtolsbU16(frameControl);
@@ -617,6 +749,14 @@ LrWpanMacHeader::Serialize(Buffer::Iterator start) const
     {
     case NOADDR:
         break;
+
+    case SIMPLEADDR:
+        i.WriteHtolsbU16(GetDstPanId());
+
+        // DSME-TODO
+        WriteTo(i, m_addrSimpleDstAddr);
+        break;
+
     case SHORTADDR:
         i.WriteHtolsbU16(GetDstPanId());
         WriteTo(i, m_addrShortDstAddr);
@@ -631,6 +771,16 @@ LrWpanMacHeader::Serialize(Buffer::Iterator start) const
     {
     case NOADDR:
         break;
+
+    case SIMPLEADDR:
+        if (!IsPanIdComp()) {
+            i.WriteHtolsbU16(GetSrcPanId());
+        }
+
+        // DSME-TODO
+        // WriteTo(i, m_addrSimpleSrcAddr);
+        break;
+
     case SHORTADDR:
         if (!IsPanIdComp())
         {
@@ -679,24 +829,46 @@ LrWpanMacHeader::Deserialize(Buffer::Iterator start)
     SetFrameControl(frameControl);
 
     SetSeqNum(i.ReadU8());
-    switch (m_fctrlDstAddrMode)
-    {
-    case NOADDR:
-        break;
-    case SHORTADDR:
-        m_addrDstPanId = i.ReadLsbtohU16();
-        ReadFrom(i, m_addrShortDstAddr);
-        break;
-    case EXTADDR:
-        m_addrDstPanId = i.ReadLsbtohU16();
-        ReadFrom(i, m_addrExtDstAddr);
-        break;
+    switch (m_fctrlDstAddrMode) {
+        case NOADDR:
+            break;
+
+        case SIMPLEADDR:
+            i.WriteHtolsbU16(GetDstPanId());
+
+            // DSME-TODO
+            // ReadFrom(i, m_addrSimpleDstAddr);
+            break;
+
+        case SHORTADDR:
+            m_addrDstPanId = i.ReadLsbtohU16();
+            ReadFrom(i, m_addrShortDstAddr);
+            break;
+            
+        case EXTADDR:
+            m_addrDstPanId = i.ReadLsbtohU16();
+            ReadFrom(i, m_addrExtDstAddr);
+            break;
     }
 
     switch (m_fctrlSrcAddrMode)
     {
     case NOADDR:
         break;
+
+    case SIMPLEADDR:
+        if (!IsPanIdComp()) {
+            m_addrSrcPanId = i.ReadLsbtohU16();
+        } else {
+            if (m_fctrlDstAddrMode > 0) {
+                m_addrSrcPanId = m_addrDstPanId;
+            }
+        }
+
+        // DSME-TODO
+        // ReadFrom(i, m_addrSimpleSrcAddr);
+        break;
+
     case SHORTADDR:
         if (!IsPanIdComp())
         {
@@ -747,6 +919,7 @@ LrWpanMacHeader::Deserialize(Buffer::Iterator start)
             break;
         }
     }
+
     return i.GetDistanceFrom(start);
 }
 

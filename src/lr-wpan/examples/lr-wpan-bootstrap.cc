@@ -49,33 +49,33 @@ using namespace ns3;
 
 NodeContainer nodes;
 NodeContainer coordinators;
-AnimationInterface* anim = nullptr;
+// AnimationInterface* anim = nullptr;
 
-static void
-UpdateAnimation()
-{
-    std::cout << Simulator::Now().As(Time::S) << " | Animation Updated, End of simulation.\n";
-    for (uint32_t i = 0; i < nodes.GetN(); ++i)
-    {
-        anim->UpdateNodeSize(i, 5, 5);
-        Ptr<Node> node = nodes.Get(i);
-        Ptr<NetDevice> netDevice = node->GetDevice(0);
-        Ptr<LrWpanNetDevice> lrwpanDevice = DynamicCast<LrWpanNetDevice>(netDevice);
-        int panId = lrwpanDevice->GetMac()->GetPanId();
+// static void
+// UpdateAnimation()
+// {
+//     std::cout << Simulator::Now().As(Time::S) << " | Animation Updated, End of simulation.\n";
+//     for (uint32_t i = 0; i < nodes.GetN(); ++i)
+//     {
+//         anim->UpdateNodeSize(i, 5, 5);
+//         Ptr<Node> node = nodes.Get(i);
+//         Ptr<NetDevice> netDevice = node->GetDevice(0);
+//         Ptr<LrWpanNetDevice> lrwpanDevice = DynamicCast<LrWpanNetDevice>(netDevice);
+//         int panId = lrwpanDevice->GetMac()->GetPanId();
 
-        switch (panId)
-        {
-        case 5:
-            anim->UpdateNodeColor(node, 0, 0, 255);
-            break;
-        case 7:
-            anim->UpdateNodeColor(node, 0, 51, 102);
-            break;
-        default:
-            break;
-        }
-    }
-}
+//         switch (panId)
+//         {
+//         case 5:
+//             anim->UpdateNodeColor(node, 0, 0, 255);
+//             break;
+//         case 7:
+//             anim->UpdateNodeColor(node, 0, 51, 102);
+//             break;
+//         default:
+//             break;
+//         }
+//     }
+// }
 
 static void
 ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams params)
@@ -385,11 +385,12 @@ main(int argc, char* argv[])
         scanParams.m_chPage = 0;
         scanParams.m_scanChannels = 0x7800;
         scanParams.m_scanDuration = 14;
-        scanParams.m_scanType = MLMESCAN_PASSIVE;
+        // scanParams.m_scanType = MLMESCAN_PASSIVE;
+        scanParams.m_scanType = MLMESCAN_ACTIVE;
 
-        // We start the scanning process 100 milliseconds apart for each device
+        // We start the scanning process 200 milliseconds apart for each device
         // to avoid a storm of association requests with the coordinators
-        Time jitter = Seconds(2) + MilliSeconds(std::distance(nodes.Begin(), i) * 100);
+        Time jitter = Seconds(2) + MilliSeconds(std::distance(nodes.Begin(), i) * 200);
         Simulator::ScheduleWithContext(node->GetId(),
                                        jitter,
                                        &LrWpanMac::MlmeScanRequest,
@@ -445,20 +446,20 @@ main(int argc, char* argv[])
                                    coor2Device->GetMac(),
                                    params2);
 
-    anim = new AnimationInterface("lrwpan-bootstrap.xml");
-    anim->SkipPacketTracing();
-    anim->UpdateNodeDescription(coordinators.Get(0), "Coordinator (PAN 5)");
-    anim->UpdateNodeDescription(coordinators.Get(1), "Coordinator (PAN 7)");
-    anim->UpdateNodeColor(coordinators.Get(0), 0, 0, 255);
-    anim->UpdateNodeColor(coordinators.Get(1), 0, 51, 102);
-    anim->UpdateNodeSize(nodes.GetN(), 9, 9);
-    anim->UpdateNodeSize(nodes.GetN() + 1, 9, 9);
+    // anim = new AnimationInterface("lrwpan-bootstrap.xml");
+    // anim->SkipPacketTracing();
+    // anim->UpdateNodeDescription(coordinators.Get(0), "Coordinator (PAN 5)");
+    // anim->UpdateNodeDescription(coordinators.Get(1), "Coordinator (PAN 7)");
+    // anim->UpdateNodeColor(coordinators.Get(0), 0, 0, 255);
+    // anim->UpdateNodeColor(coordinators.Get(1), 0, 51, 102);
+    // anim->UpdateNodeSize(nodes.GetN(), 9, 9);
+    // anim->UpdateNodeSize(nodes.GetN() + 1, 9, 9);
 
-    Simulator::Schedule(Seconds(1499), &UpdateAnimation);
+    // Simulator::Schedule(Seconds(1499), &UpdateAnimation);
     Simulator::Stop(Seconds(1500));
     Simulator::Run();
 
     Simulator::Destroy();
-    delete anim;
+    // delete anim;
     return 0;
 }

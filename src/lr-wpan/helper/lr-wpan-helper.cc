@@ -230,6 +230,116 @@ LrWpanHelper::AssignStreams(NetDeviceContainer c, int64_t stream)
     return (currentStream - stream);
 }
 
+void LrWpanHelper::ConfigureSlotframeAllToPan(NetDeviceContainer devs, int empty_timeslots) {
+
+}
+
+void LrWpanHelper::AddGtsInCfp(NetDeviceContainer nodes, uint8_t numSlot, uint16_t superframeID, uint8_t slotID) {
+    macDSMEACTEntity entity;
+}
+
+void LrWpanHelper::AddGtsInCfp(Ptr<NetDevice> dev
+                                , bool rx
+                                , uint8_t numSlot
+                                , uint16_t superframeID
+                                , uint8_t slotID) {
+    macDSMEACTEntity entity;
+
+    entity.m_superframeID = superframeID;
+    entity.m_slotID = slotID;
+    entity.m_numSlot = numSlot;
+    entity.m_direction = rx;
+    entity.m_type = 0x00;
+    entity.m_prioritizedChAccess = 1;
+
+    // if (entity.m_direction) {
+    //     entity.m_srcAddr = receivedMacHdr.GetShortSrcAddr();
+    // } else {
+    //     entity.m_dstAddr = receivedMacHdr.GetShortSrcAddr();
+    // }
+
+    entity.m_cnt = 0;
+
+    dev->GetObject<LrWpanNetDevice>()->GetMac()->AddDsmeACTEntity(superframeID, entity);
+}
+
+void LrWpanHelper::AddGtsInCfp(Ptr<NetDevice> dev
+                                , bool rx
+                                , uint8_t numSlot
+                                , uint16_t channelOfs
+                                , uint16_t superframeID
+                                , uint8_t slotID) {
+    macDSMEACTEntity entity;
+
+    entity.m_superframeID = superframeID;
+    entity.m_slotID = slotID;
+    entity.m_numSlot = numSlot;
+    entity.m_channelID = channelOfs;
+    entity.m_direction = rx;
+    entity.m_type = 0x00;
+    entity.m_prioritizedChAccess = 1;
+
+    if (rx) {
+        entity.m_srcAddr = dev->GetObject<LrWpanNetDevice>()->GetMac()->GetShortAddress();
+    } else {
+        entity.m_dstAddr = dev->GetObject<LrWpanNetDevice>()->GetMac()->GetShortAddress();
+    }
+
+    entity.m_cnt = 0;
+
+    dev->GetObject<LrWpanNetDevice>()->GetMac()->AddDsmeACTEntity(superframeID, entity);
+}
+
+void LrWpanHelper::AddGtsInCfp(Ptr<NetDevice> dev
+                                , Ptr<NetDevice> dev2
+                                , bool rx
+                                , uint8_t numSlot
+                                , uint16_t channelOfs
+                                , uint16_t superframeID
+                                , uint8_t slotID) {
+    macDSMEACTEntity entity;
+
+    entity.m_superframeID = superframeID;
+    entity.m_slotID = slotID;
+    entity.m_numSlot = numSlot;
+    entity.m_channelID = channelOfs;
+    entity.m_direction = rx;
+    entity.m_type = 0x00;
+    entity.m_prioritizedChAccess = 1;
+
+    if (rx) {
+        entity.m_srcAddr = dev2->GetObject<LrWpanNetDevice>()->GetMac()->GetShortAddress();
+    } else {
+        entity.m_dstAddr = dev2->GetObject<LrWpanNetDevice>()->GetMac()->GetShortAddress();
+    }
+
+    entity.m_cnt = 0;
+
+    dev->GetObject<LrWpanNetDevice>()->GetMac()->AddDsmeACTEntity(superframeID, entity);                                
+} 
+
+void LrWpanHelper::GenerateTraffic(Ptr<NetDevice> dev, Address dst, int packet_size, double start, double duration, double interval) {
+    double end = start + duration;
+
+    Simulator::Schedule(Seconds(start), &LrWpanHelper::SendPacket, this, dev, dst, packet_size, interval, end);
+}
+
+void LrWpanHelper::SendPacket(Ptr<NetDevice> dev, Address dst, int packet_size, double interval, double end) {
+    NS_LOG_DEBUG("Sending Packet");
+
+    if (Simulator::Now().GetSeconds() <= end) {
+        Ptr<Packet> pkt = Create<Packet> (packet_size);
+        // dev->Send(pkt, dst, 0x86DD);
+
+        Ptr<LrWpanNetDevice> device = DynamicCast<LrWpanNetDevice>(dev);
+        device->SendInGts(pkt, dst, 0x86DD);
+    }
+
+    if (Simulator::Now().GetSeconds() <= (end + interval)) {
+        Simulator::Schedule(Seconds(interval), &LrWpanHelper::SendPacket, this, dev, dst, packet_size, interval, end);
+    }
+}
+
 void
 LrWpanHelper::AssociateToPan(NetDeviceContainer c, uint16_t panId)
 {
@@ -283,7 +393,7 @@ LrWpanHelper::AssociateToBeaconPan(NetDeviceContainer c,
     {
         Ptr<LrWpanNetDevice> device = DynamicCast<LrWpanNetDevice>(*i);
         if (device)
-        {
+    {
             idBuf[0] = (id >> 8) & 0xff;
             idBuf[1] = (id >> 0) & 0xff;
             address.CopyFrom(idBuf);
@@ -313,6 +423,63 @@ LrWpanHelper::AssociateToBeaconPan(NetDeviceContainer c,
             id++;
         }
     }
+}
+
+void LrWpanHelper::AssociateToBeaconPan(NetDeviceContainer c,
+                              Mac16Address coor,
+                              MlmeStartRequestParams params) {
+
+    NetDeviceContainer devices;
+    uint16_t id = 1;
+    uint8_t idBuf[2];
+    Mac16Address address;
+
+    for (NetDeviceContainer::Iterator i = c.Begin(); i != c.End(); i++) {
+        Ptr<LrWpanNetDevice> device = DynamicCast<LrWpanNetDevice>(*i);
+
+        if (device) {
+            idBuf[0] = (id >> 8) & 0xff;
+            idBuf[1] = (id >> 0) & 0xff;
+            address.CopyFrom(idBuf);
+
+            device->GetMac()->SetShortAddress(address);
+
+            if (address == coor) {
+                Ptr<UniformRandomVariable> uniformRandomVariable =
+                    CreateObject<UniformRandomVariable>();
+                ;
+                // Time jitter = Time(MilliSeconds(uniformRandomVariable->GetInteger(0, 10)));
+
+                // Simulator::Schedule(jitter, &LrWpanMac::MlmeStartRequest, device->GetMac(), params);
+
+                Simulator::ScheduleNow(&LrWpanMac::MlmeStartRequest, device->GetMac(), params);
+                
+            } else {
+                device->GetMac()->SetPanId(params.m_PanId);
+                device->GetMac()->SetAssociatedCoor(coor);
+            }
+
+            id++;
+        }
+    }                            
+}
+
+void LrWpanHelper::CoordBoostrap(Ptr<NetDevice> dev, PanDescriptor descriptor, uint16_t sdIndex, MlmeStartRequestParams params) {
+    Ptr<LrWpanNetDevice> device = DynamicCast<LrWpanNetDevice>(dev);
+
+    device->GetMac()->AddPanDescriptor(descriptor);
+    device->GetMac()->SetDescIndexOfAssociatedPan(0);
+    device->GetMac()->SetTimeSlotToSendBcn(sdIndex);
+
+    Ptr<UniformRandomVariable> uniformRandomVariable =
+                    CreateObject<UniformRandomVariable>();
+    Time jitter = Time(MilliSeconds(uniformRandomVariable->GetInteger(10, 20)));       
+
+    // Simulator::Schedule(jitter, &LrWpanMac::SetAsCoordinator, device->GetMac());
+    // Simulator::Schedule(jitter, &LrWpanMac::MlmeStartRequest, device->GetMac(), params);
+
+    Simulator::ScheduleNow(&LrWpanMac::SetAsCoordinator, device->GetMac());
+    Simulator::ScheduleNow(&LrWpanMac::MlmeStartRequest, device->GetMac(), params);
 }
 
 /**

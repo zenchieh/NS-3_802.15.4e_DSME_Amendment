@@ -47,6 +47,12 @@ enum DeviceType
 
 /**
  * \ingroup lr-wpan
+ * Represent the DSME PAN Descriptor IE that shall be included in enhanced beacons that are sent every beacon interval in a DSME-enabled PAN.
+ * See IEEE 802.15.4e-2012   Section 5.2.4.9 Figure 48v
+ */
+
+/**
+ * \ingroup lr-wpan
  * Represent the Superframe Specification information field.
  * See IEEE 802.15.4-2011   Section 5.2.2.1.2 Figure 41
  */
@@ -249,12 +255,91 @@ class GtsFields
  * \param [in] gtsFields The GTS fields.
  * \returns The reference to the output stream.
  */
-std::ostream& operator<<(std::ostream& os, const GtsFields& gtsFields);
+std::ostream& operator << (std::ostream& os, const GtsFields& gtsFields);
 
 /**
  * \ingroup lr-wpan
- * Represent the Pending Address Specification field.
- * See IEEE 802.15.4-2011   Section 5.2.2.1.6. Figure 45
+ * Represent the DSME Superframe Specification information field in DSME PAN Descriptor IE.
+ * See IEEE Std 802.15.4e-2012 Section 5.2.4.9.1 Figure 48w
+ */
+class DsmeSuperFrameField {
+public:
+    DsmeSuperFrameField();
+
+    /**
+    * Set the whole Superframe Specification Information field.
+    * \param dsmeSuperFrm The Superframe Specification information field.
+    */
+    void SetDsmeSuperframe(uint16_t dsmeSuperFrm);
+
+    void SetMultiSuperframeOrder(uint8_t multiBcnOrder);
+
+    void SetChannelDiversityMode(bool channelDiversityMode);
+
+    void SetGACKFlag(bool gACKFlag);
+
+    void SetCAPReductionFlag(bool cAPReduction);
+
+    void SetDeferredBeaconFalg(bool deferredBcnFlag);
+
+    /**
+    * Get the Superframe specification information field.
+    * \return the Superframe Specification Information field bits.
+    */
+    uint8_t GetDsmeSuperframe() const;
+
+    uint8_t GetMultiSuperframeOrder() const;
+
+    bool GetChannelDiversityMode() const;
+
+    bool GetGACKFlag() const;
+
+    bool GetCAPReductionFlag() const;
+
+    bool GetDeferredBeaconFalg() const;
+
+    /**
+    * Get the size of the serialized Superframe specification information field.
+    * \return the size of the serialized field.
+    */
+    uint32_t GetSerializedSize(void) const;
+
+    /**
+     * Serialize the entire superframe specification field.
+     * \param i an iterator which points to where the superframe specification field should be written.
+     * \return an iterator.
+     */
+    Buffer::Iterator Serialize(Buffer::Iterator i) const;
+
+    /**
+     * Deserialize the entire superframe specification field.
+     * \param i an iterator which points to where the superframe specification field should be read.
+     * \return an iterator.
+     */
+    Buffer::Iterator Deserialize(Buffer::Iterator i);
+
+private:
+    uint8_t m_sspecMultiSuperframeOrder;    // DSME superframe specification field Multi Beacon Order (Bit 0-3)
+    bool    m_sspecChannelDiversityMode;    // DSME superframe specification field Channel Diversity Mode (Bit 4)
+    bool    m_sspecGACKFlag;                // DSME superframe specification field GACK Flag (Bit 5)
+    bool    m_sspecCAPReductionFlag;        // DSME superframe specification field CAP Reduction (Bit 6)
+    bool    m_sspecDeferredBcnFlag;         // DSME superframe specification field Deferred Beacon (Bit 7)
+};
+
+/**
+ * \brief Stream insertion operator.
+ *
+ * \param [in] os The reference to the output stream.
+ * \param [in] DsmeSuperFrameField The Pending Address fields.
+ * \returns The reference to the output stream.
+ */
+std::ostream &operator << (std::ostream &os, const DsmeSuperFrameField& dsmeSperfrmField);
+
+/**
+ * \ingroup lr-wpan
+ * Represent the Pending Address Specification field in DSME PAN Descriptor IE.
+ * See IEEE 802.15.4-2011   Section 5.2.2.1 Beacon frame format Figure 40 
+ * , Section 5.2.2.1.6 Figure 45 and Section 5.2.2.1.7 
  */
 class PendingAddrFields
 {
@@ -305,6 +390,10 @@ class PendingAddrFields
      * \param pndAddrSpecField The Pending Address Specification Field
      */
     void SetPndAddrSpecField(uint8_t pndAddrSpecField);
+
+    void SetNumOfShortAdrr(uint8_t num);
+    void SetNumOfExtAdrr(uint8_t num);
+
     /**
      * Get the size of the serialized Pending Address Fields.
      * \return the size of the serialized fields.
@@ -325,10 +414,10 @@ class PendingAddrFields
 
   private:
     // Pending Address Specification Field
-    uint8_t m_pndAddrSpecNumShortAddr; //!< Pending Address Specification field Number of Short
+    uint8_t m_pndAddrSpecNumShortAddr = 0; //!< Pending Address Specification field Number of Short
                                        //!< Address (Bits 0-2) Pending Address Specification field
                                        //!< Reserved (Not Necessary)(Bit  3)
-    uint8_t m_pndAddrSpecNumExtAddr;   //!< Pending Address Specification field Number of Extended
+    uint8_t m_pndAddrSpecNumExtAddr = 0;   //!< Pending Address Specification field Number of Extended
                                        //!< Address (Bits 4-6) Pending Address Specification field
                                        //!< Reserved (Not Necessary) (Bit  7)
     // Address List
@@ -347,9 +436,191 @@ std::ostream& operator<<(std::ostream& os, const PendingAddrFields& pendingAddrF
 
 /**
  * \ingroup lr-wpan
+ * Represent the DSME Superframe Specification information field in DSME PAN Descriptor IE.
+ * See IEEE Std 802.15.4e-2012 Section 5.2.4.9.1 Figure 48w
+ */
+class DsmeGtsFields {
+
+};
+
+/**
+ * \ingroup lr-wpan
+ * Represent the DSME Time Synchronization Specification information field in DSME PAN descriptor IE.
+ * See IEEE Std 802.15.4e-2012 Section 5.2.4.9.2 Figure 48x
+ */
+class TimeSync {
+public:
+    TimeSync();
+
+    void SetBeaconTimeStamp(uint64_t bcnTimestamp);
+
+    void SetBeaconOffsetTimeStamp(uint16_t bcnOfsTimeStamp);
+
+    uint64_t GetBeaconTimeStamp() const;
+
+    uint16_t GetBeaconOffsetTimeStamp() const;
+
+    uint32_t GetSerializedSize() const;
+
+    Buffer::Iterator Serialize(Buffer::Iterator i) const;
+
+    Buffer::Iterator Deserialize(Buffer::Iterator i);
+
+private:
+    uint64_t m_sspecBcnTimestamp;           // DSME time synchronization field Beacon TimeStamp (6 Octets)
+    uint16_t m_sspecBcnOffsetTimestamp;     // DSME time synchronization field Beacon Offset TimeStamp (2 Octets)
+};
+
+std::ostream& operator << (std::ostream &os, const TimeSync& timeSynSpec);
+
+/**
+ * \ingroup lr-wpan
+ * Represent the DSME Beacon Bitmap Specification information field in DSME PAN descriptor IE.
+ * See IEEE Std 802.15.4e-2012 Section 5.2.4.9.3 Figure 48y
+ */
+class BeaconBitmap {
+public:
+    BeaconBitmap();
+    BeaconBitmap(uint16_t sdIndex, uint16_t bitmapLen);
+
+    void SetSDIndex(uint16_t sdIndex);
+
+    void SetBitmapLength(uint16_t bitmapLen);
+
+    void SetSDBitmap(uint16_t position);
+
+    void SetSDBitmap(std::vector<uint16_t>& sdBitmap);
+
+    void ResetSDBitmap();
+
+    uint16_t GetSDIndex() const;
+
+    uint16_t GetSDBitmapLength() const;
+
+    const std::vector<uint16_t> GetSDBitmap() const;
+
+    uint32_t GetSerializedSize() const;
+
+    Buffer::Iterator Serialize(Buffer::Iterator i) const;
+
+    Buffer::Iterator Deserialize(Buffer::Iterator i);
+
+    void PrintSDBitMap(std::ostream &os) const;
+
+    BeaconBitmap operator| (const BeaconBitmap& beaconBitmap) const;
+
+private:
+    uint16_t             m_sspecSDIndex = 0;            // beacon bitmap field SD Index (2 Octets)
+    uint16_t             m_sspecSDBitmapLen = 0;        // beacon bitmap field SD Bitmap Length (2 Octets)
+    std::vector<uint16_t> m_sspecSDBitmap;              // beacon bitmap field SD Bitmap (Variable Length)
+};
+
+std::ostream& operator << (std::ostream &os, const BeaconBitmap& beaconBitmap);
+
+/**
+ * \ingroup lr-wpan
+ * Represent the DSME Channel Hopping Specification information field in DSME PAN descriptor IE.
+ * See IEEE Std 802.15.4e-2012 Section 5.2.4.9.4 Figure 48z
+ */
+class ChannelHopping {
+public:
+    ChannelHopping();
+
+    void SetHoppingSequenceID(uint8_t seqID);
+
+    void SetPANCoordinatorBSN(uint8_t bcnSeqNum);
+
+    void SetChannelOffset(uint16_t ofs);
+
+    void SetChannelOffsetBitmapLength(uint8_t bitmapLen);
+
+    void SetChannelOffsetBitmap(std::vector<uint16_t> bitmap);
+    void SetChannelOffsetBitmap(uint16_t position);
+
+    void ResetChannelOffsetBitmap();
+
+    uint8_t GetHoppingSequenceID() const;
+
+    uint8_t GetPANCoordinatorBSN() const;
+
+    uint16_t GetChannelOffset() const;
+
+    uint8_t GetChannelOffsetBitmapLength() const;
+
+    const std::vector<uint16_t> GetChannelOffsetBitmap() const;
+
+    uint32_t GetSerializedSize() const;
+
+    Buffer::Iterator Serialize(Buffer::Iterator i) const;
+
+    Buffer::Iterator Deserialize(Buffer::Iterator i);
+
+    void PrintChannelOffsetBitMap(std::ostream &os) const;
+
+private:
+    uint8_t m_sspecHoppingSequenceID;               // Channel hopping sepcification hopping sequence ID (1 Octets)
+    uint8_t m_sspecPANCoordBSN;                     // Channel hopping sepcification PAN coordinator beacon sequence number (1 Octets)
+    uint16_t m_sspecChannelOfs;                     // Channel hopping sepcification channel offset (2 Octets)
+    uint8_t m_sspecChannelOfsBitmapLen;             // Channel hopping sepcification channel offset bitmap length (1 Octets)
+    std::vector<uint16_t> m_sspecChannelOfsBitmap;  // Channel hopping sepcification channel offset bitmap (variable)
+};
+
+std::ostream &operator << (std::ostream &os, const ChannelHopping& channelHopping);
+
+/**
+ * \ingroup lr-wpan
+ * Represent the DSME Group ACK Specification information field in DSME PAN descriptor IE.
+ * See IEEE Std 802.15.4e-2012 Section 5.2.4.9.5 Figure 48aa
+ */
+class GroupACK {
+public:
+    GroupACK();
+    
+    void SetGACK1SuperframeID(uint16_t gack1superFrmID);
+
+    void SetGACK1SlotID(uint8_t gack1SlotID);
+
+    void SetGACK1ChannelID(uint8_t gack1ChannelID);
+
+    void SetGACK2SuperframeID(uint16_t gack2superFrmID);
+
+    void SetGACK2SlotID(uint16_t gack2SlotID);
+
+    void SetGACK2ChannelID(uint8_t gack2ChannelID);
+
+    uint16_t GetGACK1SuperframeID() const;
+
+    uint8_t GetGACK1SlotID() const;
+
+    uint8_t GetGACK1ChannelID() const;
+
+    uint16_t GetGACK2SuperframeID() const;
+
+    uint8_t GetGACK2SlotID() const;
+
+    uint8_t GetGACK2ChannelID() const;
+
+    uint32_t GetGetSerializedSize() const;
+
+    Buffer::Iterator Serialize(Buffer::Iterator i) const;
+
+    Buffer::Iterator Deserialize(Buffer::Iterator i);
+
+private:
+    uint16_t m_sspecGACK1SuperfrmID;            // Group ACK sepcification GACK1 superframe ID (Bit 0-15)
+    uint8_t  m_sspecGACK1SlotID;                // Group ACK sepcification GACK1 Slot ID (Bit 16-19)
+    uint8_t  m_sspecGACK1ChannelID;             // Group ACK sepcification GACK1 Channel ID (Bit 20-27)
+
+    uint16_t m_sspecGACK2SuperfrmID;            // Group ACK sepcification GACK2 superframe ID (Bit 28-43)
+    uint8_t  m_sspecGACK2SlotID;                // Group ACK sepcification GACK2 Slot ID (Bit 44-47)
+    uint8_t  m_sspecGACK2ChannelID;             // Group ACK sepcification GACK2 Channel ID (Bit 48-55)
+};
+
+/**
+ * \ingroup lr-wpan
  *
  * Represent the Capability Information Field.
- * See IEEE 802.15.4-2011   Section 5.3.1.2 Figure 50
+ * See IEEE 802.15.4-2011   Section 5.3.1.2 Figure 50 ans IEEE 802.15.4e-2012 Figure 50a for FastA
  */
 class CapabilityField
 {
@@ -405,6 +676,12 @@ class CapabilityField
      * the association procedure.
      */
     bool IsShortAddrAllocOn() const;
+
+    /**
+     * True if the device wishes the coordinator to associate with a coordinator with FastA
+     */
+    bool IsFastAOn() const;
+
     /**
      * Set the Device type in the Capability Information Field.
      * True = full functional device (FFD)  False = reduced functional device (RFD).
@@ -433,10 +710,18 @@ class CapabilityField
      */
     void SetShortAddrAllocOn(bool addrAlloc);
 
+    void SetFastAOn();
+
+    void SetFastAOff();
+
   private:
+    // bool m_alterPANCoord;      //!< Capability Information Field, Reserved or Alternate PAN Coordinator (bit 0)
+
     bool m_deviceType;         //!< Capability Information Field, Device Type  (bit 1)
     bool m_powerSource;        //!< Capability Information Field, Power Source (bit 2)
     bool m_receiverOnWhenIdle; //!< Capability Information Field, Receiver On When Idle (bit 3)
+    bool m_associationType;    //!< Capability Information Field, Reserved or Association Type (bit 4)
+                               //!< Capability Information Field, Reserved (not necessary) (Bit 5)
     bool m_securityCap;        //!< Capability Information Field, Security Capability (bit 6)
     bool m_allocAddr;          //!< Capability Information Field, Allocate Address (bit 7)
 };

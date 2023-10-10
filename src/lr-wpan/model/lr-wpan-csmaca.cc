@@ -65,6 +65,7 @@ LrWpanCsmaCa::LrWpanCsmaCa()
     m_ccaRequestRunning = false;
     m_randomBackoffPeriodsLeft = 0;
     m_coorDest = false;
+    m_incCsma = false;
 }
 
 LrWpanCsmaCa::~LrWpanCsmaCa()
@@ -201,7 +202,23 @@ LrWpanCsmaCa::GetTimeToNextSlot() const
         (uint64_t)m_mac->GetPhy()->GetDataOrSymbolRate(false); // symbols per second
     Time timeAtBoundary;
 
-    if (m_coorDest)
+    // if (m_coorDest)
+    // {
+    //     // Take the Incoming Frame Reference
+    //     elapsedSuperframe = currentTime - m_mac->m_macBeaconRxTime;
+
+    //     Time beaconTime [[maybe_unused]] = Seconds((double)m_mac->m_rxBeaconSymbols / symbolRate);
+    //     Time elapsedCap [[maybe_unused]] = elapsedSuperframe - beaconTime;
+    //     NS_LOG_DEBUG("Elapsed incoming CAP symbols: " << (elapsedCap.GetSeconds() * symbolRate)
+    //                                                   << " (" << elapsedCap.As(Time::S) << ")");
+    // }
+    // else
+    // {
+    //     // Take the Outgoing Frame Reference
+    //     elapsedSuperframe = currentTime - m_mac->m_macBeaconTxTime;
+    // }
+
+    if (m_incCsma)
     {
         // Take the Incoming Frame Reference
         elapsedSuperframe = currentTime - m_mac->m_macBeaconRxTime;
@@ -264,7 +281,9 @@ LrWpanCsmaCa::Start()
         }
 
         // m_coorDest to decide between incoming and outgoing superframes times
-        m_coorDest = m_mac->isCoordDest();
+        // m_coorDest = m_mac->isCoordDest();
+        // m_coorDest = !m_mac->IsCoord();
+        m_incCsma = m_mac->IsIncomingSuperframe();
 
         // Locate backoff period boundary. (i.e. a time delay to align with the next backoff period
         // boundary)
@@ -364,18 +383,42 @@ LrWpanCsmaCa::GetTimeLeftInCap()
     currentTime = Simulator::Now();
     symbolRate = (uint64_t)m_mac->GetPhy()->GetDataOrSymbolRate(false); // symbols per second
 
-    if (m_coorDest)
+    // if (m_coorDest)
+    // { // Take Incoming frame reference
+    //     activeSlot = m_mac->m_incomingSuperframeDuration / 16;
+    //     capSymbols = activeSlot * (m_mac->m_incomingFnlCapSlot + 1);
+    //     endCapTime = m_mac->m_macBeaconRxTime + Seconds((double)capSymbols / symbolRate);
+    // }
+    // else
+    // { // Take Outgoing frame reference
+    //     activeSlot = m_mac->m_superframeDuration / 16;
+    //     capSymbols = activeSlot * (m_mac->m_fnlCapSlot + 1);
+    //     endCapTime = m_mac->m_macBeaconTxTime + Seconds((double)capSymbols / symbolRate);
+    // }
+
+    if (!m_mac->IsCoord())
     { // Take Incoming frame reference
         activeSlot = m_mac->m_incomingSuperframeDuration / 16;
         capSymbols = activeSlot * (m_mac->m_incomingFnlCapSlot + 1);
-        endCapTime = m_mac->m_macBeaconRxTime + Seconds((double)capSymbols / symbolRate);
+
+        if (m_incCsma) {
+            endCapTime = m_mac->m_macBeaconRxTime + Seconds((double)capSymbols / symbolRate);
+        } else {
+            endCapTime = m_mac->m_macBeaconTxTime + Seconds((double)capSymbols / symbolRate);
+        }
     }
     else
     { // Take Outgoing frame reference
         activeSlot = m_mac->m_superframeDuration / 16;
         capSymbols = activeSlot * (m_mac->m_fnlCapSlot + 1);
-        endCapTime = m_mac->m_macBeaconTxTime + Seconds((double)capSymbols / symbolRate);
+        
+        if (m_incCsma) {
+            endCapTime = m_mac->m_macBeaconRxTime + Seconds((double)capSymbols / symbolRate);
+        } else {
+            endCapTime = m_mac->m_macBeaconTxTime + Seconds((double)capSymbols / symbolRate);
+        }
     }
+
 
     return (endCapTime - currentTime);
 }

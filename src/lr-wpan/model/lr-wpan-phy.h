@@ -345,6 +345,8 @@ class LrWpanPhy : public SpectrumPhy
      */
     void PdDataRequest(const uint32_t psduLength, Ptr<Packet> p);
 
+    void CancelPdDataRequest();
+
     /**
      * IEEE 802.15.4-2006 section 6.2.2.1
      * PLME-CCA.request
