@@ -1118,7 +1118,8 @@ Buffer::Iterator DSMESABSpecificationField::Deserialize(Buffer::Iterator i) {
 void DSMESABSpecificationField::Print(std::ostream& os) const {
     os << " CAP Reduction : " << m_capReduction << " | "
        << " SAB Sub-Block Index : " << m_dsmeSABSubBlkIdx << " | "
-       << " SAB Sub-Block Length : " << (uint16_t) m_dsmeSABSubBlkLen << " | \n";
+       << " SAB Sub-Block Length : " << (uint16_t) m_dsmeSABSubBlkLen << " | "
+       << " DSME SAB sub block : ";
     
     for (int i = 0; i < GetSABSubBlkLen(); ++i) {
         if (isCAPReduction()) {

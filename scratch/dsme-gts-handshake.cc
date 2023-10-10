@@ -94,18 +94,38 @@ StartConfirm(MlmeStartConfirmParams params)
 }
 
 static void MlmeDsmeGtsIndication(Ptr<LrWpanNetDevice> device, MlmeDsmeGtsIndicationParams params) {
+
+    /**
+     *  DSME GTS allocation handshaking Flow
+     *  Stack : 
+     *  -------------------------------------------------------
+     *  |[device - HigherLayer]   |  [PAN-C - HigherLayerMAC] | 
+     *  |[device - MAC]           |  [PAN-C - MAC]            |
+     *  -------------------------------------------------------
+     * 
+     *  1. [device -  HigherLayer]  ->  [device -  MAC]          :  MLME-DSME-GTS.request    
+     *  2. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Request command 
+     *? 3. [PAN-C  -  MAC]          ->  [PAN-C  -  HigherLayer]  :  MLME-DSME-GTS.indication 
+     *  4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response
+     *  5. [PAN-C  -  MAC]          ->  [device -  MAC]          :  DSME GTS Reponse command
+     *  6. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-COMM-STATUS.indication
+     *  7. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Notify command
+     *  8. [device -  MAC]          ->  [device -  HigherLayer]  :  MLME-DSME-GTS.confirm 
+     */ 
+
     // 檢查參數
-    std::cout << Simulator::Now().As(Time::S) << " Coordinator " << device->GetNode()->GetId()
-              << " [" << device->GetMac()->GetShortAddress() << "]"
-              << " MLME-DSME-GTS.indication: " << " | "
+    std::cout << Simulator::Now().As(Time::S)
+              << " Coordinator " << device->GetNode()->GetId() << "\n"
+              << " [MLME-DSME-GTS.indication] "
+              << " Device short address : " << " [" << device->GetMac()->GetShortAddress() << "]" << " | "
               << " Manage Type : " << (uint16_t) params.m_manageType << " | "
               << " Direction : " << (uint16_t) params.m_direction << " | "
               << " Priority : " << (uint16_t) params.m_prioritizedChAccess << " | "
               << " Num Of Slots : " << (uint16_t) params.m_numSlot << " | "
               << " Preferred Superframe ID : " << params.m_preferredSuperframeID << " | "
               << " Preferred Slot ID : " << (uint16_t) params.m_preferredSlotID << " | \n" 
-              << " SAB Spec: " 
-              << "\n";
+              << " SAB Spec :";
+
     
     params.m_dsmeSABSpec.Print(std::cout);
 
@@ -145,13 +165,33 @@ static void MlmeDsmeGtsIndication(Ptr<LrWpanNetDevice> device, MlmeDsmeGtsIndica
 }
 
 static void MlmeDsmeGtsConfirm(Ptr<LrWpanNetDevice> device, MlmeDsmeGtsConfirmParams params) {
+    
+    /**
+     *  DSME GTS allocation handshaking Flow
+     *  Stack : 
+     *  -------------------------------------------------------
+     *  |[device - HigherLayer]   |  [PAN-C - HigherLayerMAC] | 
+     *  |[device - MAC]           |  [PAN-C - MAC]            |
+     *  -------------------------------------------------------
+     * 
+     *  1. [device -  HigherLayer]  ->  [device -  MAC]          :  MLME-DSME-GTS.request    
+     *  2. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Request command 
+     *  3. [PAN-C  -  MAC]          ->  [PAN-C  -  HigherLayer]  :  MLME-DSME-GTS.indication 
+     *  4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response
+     *  5. [PAN-C  -  MAC]          ->  [device -  MAC]          :  DSME GTS Reponse command
+     *  6. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-COMM-STATUS.indication
+     *  7. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Notify command
+     *? 8. [device -  MAC]          ->  [device -  HigherLayer]  :  MLME-DSME-GTS.confirm 
+     */ 
+
     if (params.m_status == MLMEDSMEGTS_REQ_SUCCESS) {
-        std::cout << Simulator::Now().As(Time::S) << " Coordinator " << device->GetNode()->GetId()
-              << " [" << device->GetMac()->GetShortAddress() << " | "
-              << device->GetMac()->GetExtendedAddress() << "]"
-              << " MLME-DSME-GTS.confirm: MLMEDSMEGTS_REQ_SUCCESS " 
-              << " new Dsme SAB is : "
-              << "\n";
+        std::cout << Simulator::Now().As(Time::S) << " Coordinator " 
+              << device->GetNode()->GetId() << "\n"
+              << " [MLME-DSME-GTS.confirm]"
+              << " Device short address : " << "[" << device->GetMac()->GetShortAddress() << "]" << " | "
+              << " Device extended address : "<< "[" << device->GetMac()->GetExtendedAddress() << "]" << " | "
+              << " MLME-DSME-GTS.confirm Status : MLMEDSMEGTS_REQ_SUCCESS " << "\n"
+              << " new Dsme SAB is : ";
 
               params.m_dsmeSABSpec.Print(std::cout);
 
@@ -175,6 +215,23 @@ static void MlmeDsmeGtsConfirm(Ptr<LrWpanNetDevice> device, MlmeDsmeGtsConfirmPa
 //     // Used by coordinator higher layer to inform results of a
 //     // association procedure from its mac layer.This is implemented by other protocol stacks
 //     // and is only here for demonstration purposes.
+    /**
+     *  DSME GTS allocation handshaking Flow
+     *  Stack : 
+     *  -------------------------------------------------------
+     *  |[device - HigherLayer]   |  [PAN-C - HigherLayerMAC] | 
+     *  |[device - MAC]           |  [PAN-C - MAC]            |
+     *  -------------------------------------------------------
+     * 
+     *  1. [device -  HigherLayer]  ->  [device -  MAC]          :  MLME-DSME-GTS.request    
+     *  2. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Request command 
+     *  3. [PAN-C  -  MAC]          ->  [PAN-C  -  HigherLayer]  :  MLME-DSME-GTS.indication 
+     *  4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response
+     *  5. [PAN-C  -  MAC]          ->  [device -  MAC]          :  DSME GTS Reponse command
+     *? 6. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-COMM-STATUS.indication
+     *  7. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Notify command
+     *  8. [device -  MAC]          ->  [device -  HigherLayer]  :  MLME-DSME-GTS.confirm 
+     */
 
 //     switch (params.m_status) {
 //         case LrWpanMlmeCommStatus::MLMECOMMSTATUS_TRANSACTION_EXPIRED:
@@ -363,6 +420,25 @@ main(int argc, char* argv[])
     dev1->GetMac()->ResizeScheduleGTSsEvent(14, 12, 6);
 
     ///////////////////// Gsme Gts Handshake ////////////////////////
+
+    /**
+     *  DSME GTS allocation handshaking Flow
+     *  Stack : 
+     *  -------------------------------------------------------
+     *  |[device - HigherLayer]   |  [PAN-C - HigherLayerMAC] | 
+     *  |[device - MAC]           |  [PAN-C - MAC]            |
+     *  -------------------------------------------------------
+     * 
+     *? 1. [device -  HigherLayer]  ->  [device -  MAC]          :  MLME-DSME-GTS.request    
+     *  2. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Request command 
+     *  3. [PAN-C  -  MAC]          ->  [PAN-C  -  HigherLayer]  :  MLME-DSME-GTS.indication 
+     *  4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response
+     *  5. [PAN-C  -  MAC]          ->  [device -  MAC]          :  DSME GTS Reponse command
+     *  6. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-COMM-STATUS.indication
+     *  7. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Notify command
+     *  8. [device -  MAC]          ->  [device -  HigherLayer   :  MLME-DSME-GTS.confirm 
+     */ 
+
     MlmeDsmeGtsRequestParams params2;
     params2.m_devAddr = Mac16Address("00:01");
     params2.m_manageType = GTS_ALLOCATION;

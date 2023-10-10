@@ -1107,6 +1107,24 @@ void LrWpanMac::MlmeDsmeGtsRequest(MlmeDsmeGtsRequestParams params) {
 
     m_dsmeGtsReqParams = params;
 
+    /**
+     *  DSME GTS allocation handshaking Flow
+     *  Stack : 
+     *  -------------------------------------------------------
+     *  |[device - HigherLayer]   |  [PAN-C - HigherLayerMAC] | 
+     *  |[device - MAC]           |  [PAN-C - MAC]            |
+     *  -------------------------------------------------------
+     * 
+     *  1. [device -  HigherLayer]  ->  [device -  MAC]          :  MLME-DSME-GTS.request    
+     *? 2. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Request command 
+     *  3. [PAN-C  -  MAC]          ->  [PAN-C  -  HigherLayer]  :  MLME-DSME-GTS.indication 
+     *  4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response
+     *  5. [PAN-C  -  MAC]          ->  [device -  MAC]          :  DSME GTS Reponse command
+     *  6. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-COMM-STATUS.indication
+     *  7. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Notify command
+     *  8. [device -  MAC]          ->  [device -  HigherLayer]  :  MLME-DSME-GTS.confirm 
+     */ 
+
     // Send GTS Request Command
     LrWpanMacHeader macHdr(LrWpanMacHeader::LRWPAN_MAC_COMMAND, m_macDsn.GetValue());
     m_macDsn++;
@@ -1204,6 +1222,25 @@ void LrWpanMac::MlmeDsmeGtsRequest(MlmeDsmeGtsRequestParams params) {
 }
 
 void LrWpanMac::MlmeDsmeGtsResponse(MlmeDsmeGtsResponseParams params) {
+
+    /**
+     *  DSME GTS allocation handshaking Flow
+     *  Stack : 
+     *  -------------------------------------------------------
+     *  |[device - HigherLayer]   |  [PAN-C - HigherLayerMAC] | 
+     *  |[device - MAC]           |  [PAN-C - MAC]            |
+     *  -------------------------------------------------------
+     * 
+     *  1. [device -  HigherLayer]  ->  [device -  MAC]          :  MLME-DSME-GTS.request    
+     *  2. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Request command 
+     *  3. [PAN-C  -  MAC]          ->  [PAN-C  -  HigherLayer]  :  MLME-DSME-GTS.indication 
+     *? 4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response
+     *  5. [PAN-C  -  MAC]          ->  [device -  MAC]          :  DSME GTS Reponse command
+     *  6. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-COMM-STATUS.indication
+     *  7. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Notify command
+     *  8. [device -  MAC]          ->  [device -  HigherLayer]  :  MLME-DSME-GTS.confirm 
+     */ 
+
     NS_LOG_FUNCTION(this);
 
     NS_ASSERT(m_macDSMEenabled);
@@ -1214,6 +1251,24 @@ void LrWpanMac::MlmeDsmeGtsResponse(MlmeDsmeGtsResponseParams params) {
     NS_LOG_DEBUG(" Prepare GTS Reply Command and Add it to Queue"); // debug
 
     m_dsmeGtsRespParams = params;
+
+    /**
+     *  DSME GTS allocation handshaking Flow
+     *  Stack : 
+     *  -------------------------------------------------------
+     *  |[device - HigherLayer]   |  [PAN-C - HigherLayerMAC] | 
+     *  |[device - MAC]           |  [PAN-C - MAC]            |
+     *  -------------------------------------------------------
+     * 
+     *  1. [device -  HigherLayer]  ->  [device -  MAC]          :  MLME-DSME-GTS.request    
+     *  2. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Request command 
+     *  3. [PAN-C  -  MAC]          ->  [PAN-C  -  HigherLayer]  :  MLME-DSME-GTS.indication 
+     *  4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response
+     *? 5. [PAN-C  -  MAC]          ->  [device -  MAC]          :  DSME GTS Reponse command
+     *  6. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-COMM-STATUS.indication
+     *  7. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Notify command
+     *  8. [device -  MAC]          ->  [device -  HigherLayer]  :  MLME-DSME-GTS.confirm 
+     */
 
     // Send GTS Reply Command
     LrWpanMacHeader macHdr(LrWpanMacHeader::LRWPAN_MAC_COMMAND, m_macDsn.GetValue());
@@ -2189,6 +2244,23 @@ void LrWpanMac::SendDsmeBeaconAllocNotifyCommand() {
 }
 
 void LrWpanMac::SendDsmeGtsNotifyCommand(Mac16Address srcAddr, CommandPayloadHeader rxDsmeGtsReplyPayload) {
+    /**
+     *  DSME GTS allocation handshaking Flow
+     *  Stack : 
+     *  -------------------------------------------------------
+     *  |[device - HigherLayer]   |  [PAN-C - HigherLayerMAC] | 
+     *  |[device - MAC]           |  [PAN-C - MAC]            |
+     *  -------------------------------------------------------
+     * 
+     *  1. [device -  HigherLayer]  ->  [device -  MAC]          :  MLME-DSME-GTS.request    
+     *  2. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Request command 
+     *  3. [PAN-C  -  MAC]          ->  [PAN-C  -  HigherLayer]  :  MLME-DSME-GTS.indication 
+     *  4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response
+     *  5. [PAN-C  -  MAC]          ->  [device -  MAC]          :  DSME GTS Reponse command
+     *  6. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-COMM-STATUS.indication
+     *? 7. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Notify command
+     *  8. [device -  MAC]          ->  [device -  HigherLayer]  :  MLME-DSME-GTS.confirm 
+     */
     NS_LOG_FUNCTION(this);
 
     NS_ASSERT(GetShortAddress() != Mac16Address("ff:ff"));
