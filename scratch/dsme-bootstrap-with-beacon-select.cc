@@ -18,11 +18,6 @@
  */
 
 /*
- *      [00:01]                   [00:02]                                   [00:03]
- *  PAN Coordinator 1 (PAN: 5)       End Device                        PAN Coordinator 2 (PAN: 7)
- *       |--------100 m----------------|----------106 m -----------------------|
- *  Channel 12               (Active Scan channels 11-14)                 Channel 14
- *
  *
  * This example demonstrate the usage of the MAC MLME-SCAN.request (ACTIVE scan) primitive as
  * described by IEEE 802.15.4-2011.
@@ -313,7 +308,19 @@ int main(int argc, char* argv[]) {
     // LogComponentEnable("DefaultSimulatorImpl", LOG_LEVEL_ALL);
     // LogComponentEnable("LrWpanCsmaCa", LOG_LEVEL_ALL);
 
-
+/**                  
+ *  This program try to simulate beacon scheduling manually, there are two coordinators in the simulation.
+ *  1st coordinator [00:01] already running in PAN.
+ *  2nd coordinator [00:02](the other one) will try to join the PAN by SCAN.request, SYNC.request and Start request. 
+ * 
+ *                          Topology
+ * 
+ *      [00:01]                                 [00:02]                                
+ *  PAN Coordinator 1st (PAN: 5)        PAN Coordinator 2nd (PAN: 7)                       
+ *       |----------------- 100 m -----------------|
+ *  Channel 12                          (Active Scan channels 11-14)     
+ * 
+ */
     // Create 1 PAN coordinator node, and 1 end device
     Ptr<Node> coord = CreateObject<Node>();
     Ptr<Node> secondCoord = CreateObject<Node>();
@@ -364,12 +371,66 @@ int main(int argc, char* argv[]) {
     secondCoordNetDevice->GetMac()->SetMlmeAssociateConfirmCallback(MakeBoundCallback(&AssociateConfirm, secondCoordNetDevice));
     secondCoordNetDevice->GetMac()->SetMlmePollConfirmCallback(MakeBoundCallback(&PollConfirm, secondCoordNetDevice));
 
-    // End device N1 broadcast a single BEACON REQUEST for each channel (11, 12, 13, and 14).
-    // If a coordinator is present and in range, it will respond with a beacon broadcast.
-    // Scan Channels are represented by bits 0-26  (27 LSB)
-    //                            ch 14  
-    //                              |  
-    // 0x7800  = 0000000000000000111100000000000
+    /** 
+     *      [00:01]                                 [00:02]                                
+     *  PAN Coordinator 1st (PAN: 5)        PAN Coordinator 2nd (PAN: 7)                       
+     *       |----------------- 100 m -----------------|
+     *  Channel 12                          (Active Scan channels 11-14)     
+     * 
+     * Start Setting PAN coordinator 1st (PAN 5)
+     * PAN coordinator 1st (PAN 5) is set to channel 14 in beacon mode requests.
+     */
+
+    MlmeStartRequestParams params;
+    params.m_panCoor = true;
+    params.m_PanId = 5;
+    params.m_bcnOrd = 12;
+    params.m_sfrmOrd = 4;
+    params.m_logCh = 14;
+
+    // Beacon Bitmap
+    BeaconBitmap bitmap(0, 1 << (12 - 4));
+    bitmap.SetSDBitmap(0);                  // SD = 0 , set beacon send in SDindex = 0
+    params.m_bcnBitmap = bitmap;
+
+    // Hopping Descriptor
+    HoppingDescriptor hoppingDescriptor;
+    hoppingDescriptor.m_HoppingSequenceID = 0x00;
+    hoppingDescriptor.m_hoppingSeqLen = 0;
+    hoppingDescriptor.m_channelOfs = 1;
+    hoppingDescriptor.m_channelOfsBitmapLen = 16;
+    hoppingDescriptor.m_channelOfsBitmap.resize(1, 2);    // offset = 1 目前占用
+
+    params.m_hoppingDescriptor = hoppingDescriptor;
+
+    // DSME SuperframeSpec
+    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(10); // SO
+    params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
+    params.m_dsmeSuperframeSpec.SetCAPReductionFlag(true);   // CAP reduction 
+
+    Simulator::ScheduleWithContext(coordNetDevice->GetNode()->GetId(),
+                                   Seconds(2.0),
+                                   &LrWpanMac::MlmeStartRequest,
+                                   coordNetDevice->GetMac(),
+                                   params);
+
+
+
+    /** 
+     *      [00:01]                                 [00:02]                                
+     *  PAN Coordinator 1st (PAN: 5)        PAN Coordinator 2nd (PAN: 7)                       
+     *       |----------------- 100 m -----------------|
+     *  Channel 12                          (Active Scan channels 11-14)     
+     * 
+
+     * PAN Coordinator 2nd broadcast a single BEACON REQUEST for each channel (11, 12, 13, and 14).
+     * If a coordinator is present and in range, it will respond with a beacon broadcast.
+     * Scan Channels are represented by bits 0-26  (27 LSB)
+     *                            ch 14  
+     *                              |  
+     * 0x7800  = 0000000000000000111100000000000
+     */
+
     MlmeScanRequestParams scanParams;
     scanParams.m_scanType = MLMESCAN_ENHANCED_ACTIVE_SCAN;
     scanParams.m_scanChannels = 0x7800;
@@ -393,41 +454,6 @@ int main(int argc, char* argv[]) {
     coordNetDevice->GetMac()->SetDsmeModeEnabled();
     coordNetDevice->GetMac()->SetMlmeAssociateIndicationCallback(MakeBoundCallback(&AssociateIndication, coordNetDevice));
     coordNetDevice->GetMac()->SetMlmeCommStatusIndicationCallback(MakeBoundCallback(&CommStatusIndication, coordNetDevice));
-
-    // PAN coordinator N0 (PAN 5) is set to channel 14 in beacon mode
-    // requests.
-    MlmeStartRequestParams params;
-    params.m_panCoor = true;
-    params.m_PanId = 5;
-    params.m_bcnOrd = 12;
-    params.m_sfrmOrd = 4;
-    params.m_logCh = 14;
-
-    // Beacon Bitmap
-    BeaconBitmap bitmap(0, 1 << (12 - 4));
-    bitmap.SetSDBitmap(0);                  // SD = 0 目前占用
-    params.m_bcnBitmap = bitmap;
-
-    // Hopping Descriptor
-    HoppingDescriptor hoppingDescriptor;
-    hoppingDescriptor.m_HoppingSequenceID = 0x00;
-    hoppingDescriptor.m_hoppingSeqLen = 0;
-    hoppingDescriptor.m_channelOfs = 1;
-    hoppingDescriptor.m_channelOfsBitmapLen = 16;
-    hoppingDescriptor.m_channelOfsBitmap.resize(1, 2);    // offset = 1 目前占用
-
-    params.m_hoppingDescriptor = hoppingDescriptor;
-
-    // DSME
-    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(10);
-    params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
-    params.m_dsmeSuperframeSpec.SetCAPReductionFlag(true);
-
-    Simulator::ScheduleWithContext(coordNetDevice->GetNode()->GetId(),
-                                   Seconds(2.0),
-                                   &LrWpanMac::MlmeStartRequest,
-                                   coordNetDevice->GetMac(),
-                                   params);
 
     // Synchronization
     MlmeSyncRequestParams syncParams;
