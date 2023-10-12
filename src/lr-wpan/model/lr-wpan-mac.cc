@@ -1234,7 +1234,7 @@ void LrWpanMac::MlmeDsmeGtsResponse(MlmeDsmeGtsResponseParams params) {
      *  1. [device -  HigherLayer]  ->  [device -  MAC]          :  MLME-DSME-GTS.request    
      *  2. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Request command 
      *  3. [PAN-C  -  MAC]          ->  [PAN-C  -  HigherLayer]  :  MLME-DSME-GTS.indication 
-     *? 4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response
+     *? 4. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-DSME-GTS.response      (Broadcast)
      *  5. [PAN-C  -  MAC]          ->  [device -  MAC]          :  DSME GTS Reponse command
      *  6. [PAN-C  -  HigherLayer]  ->  [PAN-C  -  MAC]          :  MLME-COMM-STATUS.indication
      *  7. [device -  MAC]          ->  [PAN-C  -  MAC]          :  DSME GTS Notify command
@@ -1283,7 +1283,7 @@ void LrWpanMac::MlmeDsmeGtsResponse(MlmeDsmeGtsResponseParams params) {
     macHdr.SetSrcAddrFields(GetPanId(), GetShortAddress());
 
     macHdr.SetDstAddrMode(LrWpanMacHeader::SHORTADDR);
-    macHdr.SetDstAddrFields(GetPanId(), Mac16Address("ff:ff"));
+    macHdr.SetDstAddrFields(GetPanId(), Mac16Address("ff:ff")); // Broadcast to others device
 
     macHdr.SetSecDisable();
 
@@ -1646,8 +1646,12 @@ void LrWpanMac::SendOneEnhancedBeacon() {
 
     m_startOfBcnSlot = Simulator::Now();
 
-    LrWpanMacHeader macHdr;
+    LrWpanMacHeader macHdr;                         // Enhanced Beacon MDR
+    BeaconPayloadHeader macPayload;                 // Enhanced Beacon payload
+    Ptr<Packet> beaconPacket = Create<Packet>();
+    LrWpanMacTrailer macTrailer;
 
+    // Set MHD Frame control field
     if (m_panCoor) {
         macHdr.SetType(LrWpanMacHeader::LRWPAN_MAC_BEACON);
         macHdr.SetSeqNum(m_macPANCoordinatorBSN.GetValue());
@@ -1659,16 +1663,14 @@ void LrWpanMac::SendOneEnhancedBeacon() {
         m_macEbsn++;
     }
 
-    BeaconPayloadHeader macPayload;
-
-    Ptr<Packet> beaconPacket = Create<Packet>();
-    LrWpanMacTrailer macTrailer;
+    macHdr.SetSecDisable();
+    macHdr.SetNoAckReq();
 
     // DSME: indicate this is a enhanced beacon
     macHdr.SetFrameVer(LrWpanMacHeader::IEEE_802_15_4);
 
     macHdr.SetDstAddrMode(LrWpanMacHeader::SHORTADDR);
-    macHdr.SetDstAddrFields(GetPanId(), Mac16Address("ff:ff"));
+    macHdr.SetDstAddrFields(GetPanId(), Mac16Address("ff:ff")); // broadcast packet
 
     // see IEEE 802.15.4-2011 Section 5.1.2.4
     if (GetShortAddress() == Mac16Address("ff:fe")) {
@@ -1678,9 +1680,6 @@ void LrWpanMac::SendOneEnhancedBeacon() {
         macHdr.SetSrcAddrMode(LrWpanMacHeader::SHORTADDR);
         macHdr.SetSrcAddrFields(GetPanId(), GetShortAddress());
     }
-
-    macHdr.SetSecDisable();
-    macHdr.SetNoAckReq();
 
     // If a broadcast data or command frame is pending
     //, the Frame Pending field shall be set to one
@@ -2947,6 +2946,8 @@ LrWpanMac::EndStartRequest()
             //  In the current implementation the value of the final cap slot is equal to
             //  the total number of possible slots in the superframe (15).
             // m_fnlCapSlot = 15;
+
+            // Setting final cap timeslot 
             m_fnlCapSlot = 8;
 
             m_beaconInterval =
@@ -2960,16 +2961,17 @@ LrWpanMac::EndStartRequest()
             Time superfmTime = Seconds((double)m_superframeDuration / symbolRate);
 
             NS_LOG_DEBUG("**********************************************************************************************");
-            NS_LOG_DEBUG("                  Beacon Interval: " 
+            NS_LOG_DEBUG(" Beacon Interval: " 
                         << m_beaconInterval << " symbols, " 
                         << bcnTime << " seconds");
 
-            NS_LOG_DEBUG("                  Superframe duration: " 
+            NS_LOG_DEBUG(" Superframe duration: " 
                         << m_superframeDuration << " symbols, " 
                         << superfmTime << " seconds");
             
             if (m_macDSMEenabled) {
                 // Dsme superframe specification 
+                //!< set parameters  from the * Next higher layer * to the * MAC layer * 
                 if (m_panCoor) {
                     m_macMultisuperframeOrder = m_startParams.m_dsmeSuperframeSpec.GetMultiSuperframeOrder();
                     m_macChannelDiversityMode = m_startParams.m_dsmeSuperframeSpec.GetChannelDiversityMode();
@@ -2977,10 +2979,10 @@ LrWpanMac::EndStartRequest()
                     m_macCAPReductionFlag = m_startParams.m_dsmeSuperframeSpec.GetCAPReductionFlag();
                     m_macDeferredBcnUsed = m_startParams.m_dsmeSuperframeSpec.GetDeferredBeaconFalg();
 
-                    NS_LOG_DEBUG("                  Dsme Superframe Spec: " 
+                    NS_LOG_DEBUG(" Dsme Superframe Spec: " 
                                 << m_startParams.m_dsmeSuperframeSpec);
 
-                    // BeaconBitmap
+                    // BeaconBitmap 
                     m_macSDBitmap = m_startParams.m_bcnBitmap;
 
                     m_macSDindex = m_macSDBitmap.GetSDIndex();
@@ -3011,7 +3013,7 @@ LrWpanMac::EndStartRequest()
 
                     NS_LOG_DEBUG("                  Dsme Superframe Spec: " 
                                 << dsmeSuperframeField);
-
+                    // Update Beacon bitmap
                     m_macSDBitmap = 
                         m_panDescriptorList[m_descIdxOfAssociatedPan].m_bcnBitmap;
                     
@@ -3081,18 +3083,18 @@ LrWpanMac::EndStartRequest()
 
                 Time multisuperfmTime = Seconds((double)m_multiSuperframeDuration / symbolRate);
 
-                NS_LOG_DEBUG("                  Multisuperframe duration: " 
+                NS_LOG_DEBUG(" Multisuperframe duration: " 
                             << m_multiSuperframeDuration << " symbols, " 
                             << multisuperfmTime << " seconds");
                             
-                NS_LOG_DEBUG("                  Num of Multisuperframe in a beacon interval " 
+                NS_LOG_DEBUG(" Num of Multisuperframe in a beacon interval " 
                             << m_numOfMultisuperframes);
 
-                NS_LOG_DEBUG("                  Num of Superframe in a beacon interval " 
+                NS_LOG_DEBUG(" Num of Superframe in a beacon interval " 
                             << m_numOfSuperframes);
                 
-                NS_LOG_DEBUG("                  SD Bitmap " << m_macSDBitmap);
-                NS_LOG_DEBUG("                  Channel Hopping " << channelHoppingField);
+                NS_LOG_DEBUG(" SD Bitmap infos : " << m_macSDBitmap);
+                NS_LOG_DEBUG(" Channel Hopping infos : " << channelHoppingField);
 
                 m_scheduleGTSsEvent.resize(m_numOfSuperframes / m_numOfMultisuperframes);
             }  
@@ -3777,7 +3779,7 @@ void LrWpanMac::ScheduleGts(bool indication) {
     }
 
     if (m_macDsmeACT.size()) {
-        uint64_t symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false);
+        uint64_t symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false); // 62500 symbols/sec by default
 
         for (auto it = m_macDsmeACT.begin(); it != m_macDsmeACT.end(); ++it) {
             for (unsigned int i = 0; i < it->second.size(); ++i) {
@@ -3791,15 +3793,14 @@ void LrWpanMac::ScheduleGts(bool indication) {
                     Time startGtsTime;
 
                     if (m_coord) {
-                        activeSlot = m_superframeDuration / 16;
-                        capDuration = activeSlot * (m_fnlCapSlot + 1);
-                        endCapTime = Seconds((double)capDuration / symbolRate);
+                        activeSlot = m_superframeDuration / 16;                 // calculate slot time per active timeslot
+                        capDuration = activeSlot * (m_fnlCapSlot + 1);          // calculate CAP duration period, timeslot 0(Beacon) ~ timeslot 8, so we need to plus one
+                        endCapTime = Seconds((double)capDuration / symbolRate); // calculate when the CAP end
                         // endCapTime -= (Simulator::Now() - m_macBeaconTxTime);
                         // superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
-                        superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) 
-                                                * m_superframeDuration;
+                        NS_LOG_DEBUG("it->second[i].m_superframeID = " << it->second[i].m_superframeID);
+                        superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration;
                         endCapUntilTheGtsDuration = activeSlot * it->second[i].m_slotID;
-
                     } else {
                         activeSlot = m_incomingSuperframeDuration / 16;
                         capDuration = activeSlot * (m_incomingFnlCapSlot + 1);
@@ -4151,23 +4152,28 @@ void LrWpanMac::StartMultisuperframe(SuperframeType superframeType) {
 
     symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false); // symbols per second
 
-    if (superframeType == OUTGOING) {
+    if (superframeType == OUTGOING) 
+    {
         endMultisuperframeTime = Seconds((double) m_multiSuperframeDuration / symbolRate);
 
+        NS_LOG_DEBUG("Start a OUTGOING Multisuperframe");
         NS_LOG_DEBUG("Outgoing multisuperframe Active Portion (Beacon + CAP + CFP) + (Beacon + CAP + CFP)...: "
                     << m_multiSuperframeDuration << " symbols"
                     << "(" << endMultisuperframeTime.As(Time::S) << ")");
         
+        // Schedule next multisuperframe start timing, and keep calculating next time , run forever
         m_multisuperframeEndEvent = Simulator::Schedule(endMultisuperframeTime, 
                                                         &LrWpanMac::StartMultisuperframe,
                                                         this,
                                                         SuperframeType::OUTGOING);
-    } else {
+    } 
+    else // INCOMING superframe 
+    {
         endMultisuperframeTime = Seconds((double) m_incomingMultisuperframeDuration / symbolRate);
 
         // substract the Beacon Rx Time slots
         endMultisuperframeTime -= (Simulator::Now() - m_macBeaconRxTime);
-
+        NS_LOG_DEBUG("Start a INCOMING Multisuperframe");
         NS_LOG_DEBUG("Incoming multisuperframe Active Portion (Beacon + CAP + CFP) + (Beacon + CAP + CFP)...: "
                     << m_incomingMultisuperframeDuration << " symbols"
                     << "(" << endMultisuperframeTime.As(Time::S) << ")");

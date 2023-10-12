@@ -132,6 +132,13 @@ int main(int argc, char* argv[]) {
     endNode->AddDevice(endNodeNetDevice);
     coord2->AddDevice(coord2NetDevice);
 
+/**
+ *      [00:01]                   [00:02]                                   [00:03]
+ *  PAN Coordinator 1 (PAN: 5)       End Device                        PAN Coordinator 2 (PAN: 7)
+ *       |--------100 m----------------|----------106 m -----------------------|
+ *  Channel 12               (Active Scan channels 11-14)                 Channel 14
+ * 
+ */
     // Mobility
     Ptr<ConstantPositionMobilityModel> coord1Mobility =
         CreateObject<ConstantPositionMobilityModel>();

@@ -408,7 +408,7 @@ main(int argc, char* argv[])
     hoppingDescriptor.m_channelOfsBitmap.resize(1, 2);    // offset = 1 目前占用
 
     params.m_hoppingDescriptor = hoppingDescriptor;
-    
+    // MLME-START.request primitive is used by the PAN coordinator to initiate a new PAN or to begin using a new superframe configuration.
     Simulator::ScheduleWithContext(1,
                                    Seconds(2.0),
                                    &LrWpanMac::MlmeStartRequest,
