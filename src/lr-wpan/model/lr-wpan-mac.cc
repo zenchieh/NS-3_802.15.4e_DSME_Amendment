@@ -794,7 +794,7 @@ LrWpanMac::MlmeScanRequest(MlmeScanRequestParams params)
 
     // Temporary store macPanId and set macPanId to 0xFFFF to accept all beacons.
     m_macPanIdScan = m_macPanId;
-    m_macPanId = 0xFFFF;
+    m_macPanId = 0xFFFF; // Set addr to broadcast address to receive all beacon frames.
 
     m_panDescriptorList.clear();
     m_energyDetectList.clear();
@@ -2199,6 +2199,8 @@ void LrWpanMac::SendDsmeAssocResponseCommand(Ptr<Packet> rxDataReqPkt) {
     }
 }
 
+// The DSME beacon allocation notification command is used by a device that selects vacant Superframe
+// Duration (SD) for using transmission of beacon frame.
 void LrWpanMac::SendDsmeBeaconAllocNotifyCommand() {
     NS_LOG_FUNCTION(this);
 
@@ -5062,6 +5064,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     // 應該是要 coordinator 有想要挑 beacon timeslot 就要發送
                     if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::DSME_ASSOCIATION_RESP
                         && m_coord) {
+                        // The DSME beacon allocation notification command is used by a device that selects vacant Superframe
+                        // Duration (SD) for using transmission of beacon frame.
                         m_sendDsmeBcnAllocNotifiCmd = Simulator::ScheduleNow(&LrWpanMac::SendDsmeBeaconAllocNotifyCommand
                                                                              , this);   
                     }                                                 
@@ -5133,6 +5137,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
 
                         panDescriptor.m_dsmeSuperframeSpec = receivedDsmePANDescriptorIEHeaderIE.GetDsmeSuperFrameField();
                         panDescriptor.m_timeSyncSpec = receivedDsmePANDescriptorIEHeaderIE.GetTimeSync();
+                        //!< Received beacon bitmap from one beacon
                         panDescriptor.m_bcnBitmap = receivedDsmePANDescriptorIEHeaderIE.GetBeaconBitmap();
                         panDescriptor.m_channelHoppingSpec = receivedDsmePANDescriptorIEHeaderIE.GetChannelHopping();
                         panDescriptor.m_gACKSpec = receivedDsmePANDescriptorIEHeaderIE.GetGroupACK();
@@ -5149,6 +5154,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
 
                         // BeaconBitmap
                         // DSME-TODO
+                        //!< Need to modify here to select a vacant beacon slot
+                        // TODO : Design a algorithm to implement beacon scheduling efficientlly.
                         m_incomingSDBitmap = panDescriptor.m_bcnBitmap;
 
                         // DSME-TODO
