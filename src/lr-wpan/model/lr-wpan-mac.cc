@@ -2971,6 +2971,7 @@ LrWpanMac::EndStartRequest()
             Time superfmTime = Seconds((double)m_superframeDuration / symbolRate);
 
             NS_LOG_DEBUG("**********************************************************************************************");
+            NS_LOG_DEBUG(" m_coord = " << m_coord);
             NS_LOG_DEBUG(" Beacon Interval: " 
                         << m_beaconInterval << " symbols, " 
                         << bcnTime << " seconds");

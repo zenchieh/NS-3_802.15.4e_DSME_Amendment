@@ -112,6 +112,8 @@ static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams param
                     //!< Set what timeslot to TX beacon (Beacon scheduling)
                     // TODO : Need to peek current beacon bitmap in order to choose a vacant time slot for transmitting a beacon.   
                     
+                    //device->GetMac()->SetAsCoordinator(); // TODO : set coord here will assert, need to fix or workaround
+
                     uint8_t vacantTimeSlotToSendBcn;
                     // random every time
                     srand(time(0)); 
