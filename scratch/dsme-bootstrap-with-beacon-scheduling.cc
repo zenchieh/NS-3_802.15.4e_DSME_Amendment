@@ -48,6 +48,8 @@
 
 using namespace ns3;
 
+#define SLOT_VACANT 0
+
 static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams params) {
     // The algorithm to select which coordinator to associate is not
     // covered by the standard. In this case, we use the coordinator
@@ -141,9 +143,25 @@ static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams param
 
                     std::cout << "Beacon bitmap infos in Pan " << params.m_panDescList[panDescIndex].m_coorPanId << " : "
                               << bitmap
-                              << "\n";                
+                              << "\n";
+                    
+                    //!< Set what timeslot to TX beacon (Beacon scheduling)
+                    // TODO : Need to peek current beacon bitmap in order to choose a vacant time slot for transmitting a beacon.   
+                    uint8_t vacantTimeSlotToSendBcn;
+                    // random every time
+                    srand(time(0)); 
+                    // Get number of superframe, can be calculate by 2^(BO-SO)
+                    vacantTimeSlotToSendBcn = rand() % (1 <<  (params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
+                                                             - params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));   
+                    // Check timeslot vacant
+                    std::vector<uint16_t> currentSDBitmap = bitmap.GetSDBitmap();
+                    if(currentSDBitmap[vacantTimeSlotToSendBcn] == SLOT_VACANT)
+                    {
+                        device->GetMac()->SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
+                    }
 
-                    device->GetMac()->SetTimeSlotToSendBcn(8);
+
+                    // device->GetMac()->SetTimeSlotToSendBcn(8);
                     std::cout << "Doing beacon scheduling now .. , choose timeslot [" << device->GetMac()->GetTimeSlotToSendBcn() << "]" << "\n";
                     device->GetMac()->SetDescIndexOfAssociatedPan(panDescIndex);
 

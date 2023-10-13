@@ -4636,6 +4636,9 @@ void LrWpanMac::SetMlmeDsmeGtsConfirmCallback(MlmeDsmeGtsConfirmCallback c) {
 }
 
 void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi) {
+
+    // This indication occur when phy layer received a packet and transfer the packet to MAC the layer.
+
     NS_ASSERT(m_lrWpanMacState == MAC_IDLE || m_lrWpanMacState == MAC_ACK_PENDING ||
               m_lrWpanMacState == MAC_CSMA || m_lrWpanMacState == MAC_GTS);
     NS_LOG_FUNCTION(this << psduLength << p << (uint16_t)lqi);
@@ -5066,6 +5069,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         && m_coord) {
                         // The DSME beacon allocation notification command is used by a device that selects vacant Superframe
                         // Duration (SD) for using transmission of beacon frame.
+                        std::cout << Simulator::Now().As(Time::S) << "Send DsmeBeaconAllocNotifyCommand" << "\n";                          
                         m_sendDsmeBcnAllocNotifiCmd = Simulator::ScheduleNow(&LrWpanMac::SendDsmeBeaconAllocNotifyCommand
                                                                              , this);   
                     }                                                 
@@ -5525,11 +5529,32 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         NS_LOG_DEBUG("Received Dsme beacon allocation notification with SD index: " 
                                     << receivedMacPayload.GetAllocationBcnSDIndex());
 
-                        // DSME-TODO
-                        // Update beacon bitmap?
-                        m_macSDBitmap.SetSDBitmap(receivedMacPayload.GetAllocationBcnSDIndex());
+                        /** 
+                         * Need to check if there is a beacon bitmap collision occured. 
+                         * If collision occured, need to send DSME beacon-collision notification command.
+                         * If collision free, need to update the beacon bitmap.
+                         */ 
 
-                        NS_LOG_DEBUG("Current mac SD Bitmap is updated as: " << m_macSDBitmap);
+                        // Check the incoming beacon allocation is collision with the current beacon bitmap or not
+                        std::vector<uint16_t> currentBitmap = m_macSDBitmap.GetSDBitmap();
+                        if(currentBitmap[receivedMacPayload.GetAllocationBcnSDIndex()] == 1) // if the expected slit has already allocated
+                        {
+                            NS_LOG_INFO(" Beacon bitmap allocation collision !!" << "\n" 
+                                     << " Current Dsme beacon bitmap : " << m_macSDBitmap << "\n"
+                                     << " Expected allocation SDidx = " << receivedMacPayload.GetAllocationBcnSDIndex() << "\n");   
+
+                            // TODO : Need to Send DSME beacon-collision notification command here to pedding allocation to next beacon cycle.
+
+
+                        }
+                        else  // Collision free, Update beacon bitmap
+                        {
+                            m_macSDBitmap.SetSDBitmap(receivedMacPayload.GetAllocationBcnSDIndex());
+                            NS_LOG_DEBUG("Current mac SD Bitmap is updated as: " << m_macSDBitmap);
+                        }
+
+                        
+
 
                     } else if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::COOR_REALIGN) {
                         // DSME-TODO:
@@ -6727,10 +6752,13 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
     m_txPkt->PeekHeader(macHdr);
 
     if (status == IEEE_802_15_4_PHY_SUCCESS) {
-        if (!macHdr.IsAcknowledgment()) {
-            if (macHdr.IsBeacon()) {
+        if (!macHdr.IsAcknowledgment()) 
+        {
+            if (macHdr.IsBeacon()) 
+            {
                 // Start CAP only if we are in beacon mode (i.e. if slotted csma-ca is running)
-                if (m_csmaCa->IsSlottedCsmaCa()) {
+                if (m_csmaCa->IsSlottedCsmaCa()) 
+                {
                     // The Tx Beacon in symbols
                     // Beacon = 5 bytes Sync Header (SHR) +  1 byte PHY header (PHR) + PSDU (default
                     // 17 bytes)
@@ -6784,7 +6812,9 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                 ifsWaitTime = Seconds(static_cast<double>(GetIfsSize()) / symbolRate);
                 m_txPkt = nullptr;
 
-            } else if (macHdr.IsAckReq()) { 
+            } 
+            else if (macHdr.IsAckReq()) 
+            { 
                 // We have sent a regular data packet, check if we have to
                 // wait  for an ACK.
             
@@ -6922,7 +6952,9 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                 RemoveFirstTxQElement();
             }
 
-        } else {
+        }
+        else 
+        {
             // The packet sent was a successful ACK
 
             // Check the received frame before the transmission of the ACK,
