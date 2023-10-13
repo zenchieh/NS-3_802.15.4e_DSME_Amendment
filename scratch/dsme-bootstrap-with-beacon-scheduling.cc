@@ -1,39 +1,3 @@
-/*
- * Copyright (c) 2022 Tokushima University, Japan.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Author:  Alberto Gallegos Ramonet <alramonet@is.tokushima-u.ac.jp>
- */
-
-/*
- *
- * This example demonstrate the usage of the MAC MLME-SCAN.request (ACTIVE scan) primitive as
- * described by IEEE 802.15.4-2011.
- * At the beginning of the simulation, PAN coordinators are set to
- * non-beacon enabled mode and wait for any beacon requests.
- *
- * The end device initiate an Active scan where a beacon request command is transmitted on
- * on each channel. If a beacon coordinator is present and in range in the channel, it responds with
- * a beacon which contains the PAN descriptor with useful information for the association process
- * (channel number, Pan ID, coord address, link quality indicator).
- *
- * LQI range: 0 - 255
- * Where 255 is the MAX possible value used to described how clearly the packet was heard.
- * Typically, a value below 127 is considered a link with poor quality.
- */
-
 #include <ns3/constant-position-mobility-model.h>
 #include <ns3/core-module.h>
 #include <ns3/log.h>
@@ -147,22 +111,26 @@ static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams param
                     
                     //!< Set what timeslot to TX beacon (Beacon scheduling)
                     // TODO : Need to peek current beacon bitmap in order to choose a vacant time slot for transmitting a beacon.   
+                    
                     uint8_t vacantTimeSlotToSendBcn;
                     // random every time
                     srand(time(0)); 
-                    // Get number of superframe, can be calculate by 2^(BO-SO)
-                    vacantTimeSlotToSendBcn = rand() % (1 <<  (params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
-                                                             - params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));   
-                    // Check timeslot vacant
+                    // vacantTimeSlotToSendBcn = rand() % (1 <<  ((uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
+                    //                                          - (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));
+
+                    vacantTimeSlotToSendBcn = rand() % (8) +1; 
+
+                    std::cout << "BO = " << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
+                              << "SO = "   << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
+                    std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
+                    
+                    // Check timeslot is vacant or not
                     std::vector<uint16_t> currentSDBitmap = bitmap.GetSDBitmap();
                     if(currentSDBitmap[vacantTimeSlotToSendBcn] == SLOT_VACANT)
                     {
                         device->GetMac()->SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
                     }
 
-
-                    // device->GetMac()->SetTimeSlotToSendBcn(8);
-                    std::cout << "Doing beacon scheduling now .. , choose timeslot [" << device->GetMac()->GetTimeSlotToSendBcn() << "]" << "\n";
                     device->GetMac()->SetDescIndexOfAssociatedPan(panDescIndex);
 
                 } else {
@@ -422,7 +390,7 @@ int main(int argc, char* argv[]) {
     params.m_hoppingDescriptor = hoppingDescriptor;
 
     // DSME SuperframeSpec
-    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(10); // SO
+    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(10); // MO
     params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
     params.m_dsmeSuperframeSpec.SetCAPReductionFlag(true);   // CAP reduction 
 
@@ -436,12 +404,12 @@ int main(int argc, char* argv[]) {
 
     /** 
      *      [00:01]                                 [00:02]                                
-     *  PAN Coordinator 1st (PAN: 5)        PAN Coordinator 2nd (PAN: 7)                       
+     *  PAN Coordinator 1st (PAN: 5)         Coordinator 2nd (PAN: 7)                       
      *       |----------------- 100 m -----------------|
      *  Channel 12                          (Active Scan channels 11-14)     
      * 
 
-     * PAN Coordinator 2nd broadcast a single BEACON REQUEST for each channel (11, 12, 13, and 14).
+     * Coordinator 2nd broadcast a single BEACON REQUEST for each channel (11, 12, 13, and 14).
      * If a coordinator is present and in range, it will respond with a beacon broadcast.
      * Scan Channels are represented by bits 0-26  (27 LSB)
      *                            ch 14  
@@ -490,29 +458,32 @@ int main(int argc, char* argv[]) {
     MlmeStartRequestParams params2;
     params2.m_panCoor = false;
     params2.m_PanId = 5;
-    params2.m_bcnOrd = 6;
-    params2.m_sfrmOrd = 3;
+
+    //? Note : Some params no need to set here because the coordinator has associated with the PAN-C, the params will extract at EndStartRequest().
+
+    // params2.m_bcnOrd = 6;
+    // params2.m_sfrmOrd = 3;
     params2.m_logCh = 14;
 
-    // Beacon Bitmap
-    BeaconBitmap bitmap2(0, 1 << (6 - 3));
-    bitmap2.SetSDIndex(8);                  // SD = 8 目前占用
-    params2.m_bcnBitmap = bitmap2;
+    // // Beacon Bitmap
+    // BeaconBitmap bitmap2(0, 1 << (6 - 3));
+    // bitmap2.SetSDIndex(8);                  // SD = 8 目前占用
+    // params2.m_bcnBitmap = bitmap2;
 
     // Hopping Descriptor
-    HoppingDescriptor hoppingDescriptor2;
-    hoppingDescriptor2.m_HoppingSequenceID = 0x00;
-    hoppingDescriptor2.m_hoppingSeqLen = 0;
-    hoppingDescriptor2.m_channelOfs = 5;
-    hoppingDescriptor2.m_channelOfsBitmapLen = 16;
-    hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
+    // HoppingDescriptor hoppingDescriptor2;
+    // hoppingDescriptor2.m_HoppingSequenceID = 0x00;
+    // hoppingDescriptor2.m_hoppingSeqLen = 0;
+    // hoppingDescriptor2.m_channelOfs = 5;
+    // hoppingDescriptor2.m_channelOfsBitmapLen = 16;
+    // hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
 
-    params2.m_hoppingDescriptor = hoppingDescriptor2;
+    // params2.m_hoppingDescriptor = hoppingDescriptor2;
 
-    // DSME
-    params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
-    params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
-    params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
+    // // DSME
+    // params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
+    // params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
+    // params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
 
     Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
                                    Seconds(1100.0),

@@ -2204,7 +2204,7 @@ void LrWpanMac::SendDsmeAssocResponseCommand(Ptr<Packet> rxDataReqPkt) {
 void LrWpanMac::SendDsmeBeaconAllocNotifyCommand() {
     NS_LOG_FUNCTION(this);
 
-    NS_LOG_DEBUG("Send Dsme Beacon Allocation Notification Command");  // debug
+    NS_LOG_INFO("Send Dsme Beacon Allocation Notification Command");
 
     LrWpanMacHeader macHdr(LrWpanMacHeader::LRWPAN_MAC_COMMAND, m_macDsn.GetValue());
     m_macDsn++;
@@ -2894,9 +2894,12 @@ LrWpanMac::EndStartRequest()
 
         NS_ASSERT(m_startParams.m_PanId != 0xffff);
 
-        if (m_panCoor) {
+        if (m_panCoor) 
+        {
             m_macBeaconOrder = m_startParams.m_bcnOrd;
-        } else {
+        } else 
+        {
+            // Extract BO infos from associated PAN-C
             m_macBeaconOrder = m_panDescriptorList[m_descIdxOfAssociatedPan].m_superframeSpec
                                                                             .GetBeaconOrder();
         }
@@ -2927,12 +2930,17 @@ LrWpanMac::EndStartRequest()
 
             m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_RX_ON);
 
-        } else {
-            if (m_panCoor) {
+        }
+        else 
+        {
+            if (m_panCoor) 
+            {
                 m_macSuperframeOrder = m_startParams.m_sfrmOrd;
                 m_csmaCa->SetBatteryLifeExtension(m_startParams.m_battLifeExt);
 
-            } else {
+            } 
+            else {
+                // Because the device has associated already, here just to extract the superframe infos (BO, SO, etc.)
                 m_macSuperframeOrder = 
                         m_panDescriptorList[m_descIdxOfAssociatedPan].m_superframeSpec.GetFrameOrder();
 
@@ -3013,8 +3021,7 @@ LrWpanMac::EndStartRequest()
                     m_macCAPReductionFlag = dsmeSuperframeField.GetCAPReductionFlag();
                     m_macDeferredBcnUsed = dsmeSuperframeField.GetDeferredBeaconFalg();
 
-                    NS_LOG_DEBUG("                  Dsme Superframe Spec: " 
-                                << dsmeSuperframeField);
+                    NS_LOG_DEBUG(" Dsme Superframe Spec: " << dsmeSuperframeField);
                     // Update Beacon bitmap
                     m_macSDBitmap = 
                         m_panDescriptorList[m_descIdxOfAssociatedPan].m_bcnBitmap;
@@ -3039,7 +3046,7 @@ LrWpanMac::EndStartRequest()
 
                 // 增加 DSME PAN descriptro IE 進 Header IEs
                 m_dsmePanDescriptorIE = DsmePANDescriptorIE();
-
+                NS_LOG_DEBUG(" Extract from asscoiated  = " << (uint32_t)m_macBeaconOrder << ", SO = " << (uint32_t)m_macSuperframeOrder << "\n");
                 m_dsmePanDescriptorIE.SetSuperframeField(m_macBeaconOrder,
                                                         m_macSuperframeOrder,
                                                         m_fnlCapSlot,
@@ -5552,9 +5559,6 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             m_macSDBitmap.SetSDBitmap(receivedMacPayload.GetAllocationBcnSDIndex());
                             NS_LOG_DEBUG("Current mac SD Bitmap is updated as: " << m_macSDBitmap);
                         }
-
-                        
-
 
                     } else if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::COOR_REALIGN) {
                         // DSME-TODO:
