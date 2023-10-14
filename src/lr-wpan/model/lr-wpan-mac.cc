@@ -8231,6 +8231,71 @@ LrWpanMac::SetLrWpanMacState(LrWpanMacState macState)
     }
 }
 
+void 
+LrWpanMac::BeaconScheduling(MlmeScanConfirmParams params,int panDescIndex)
+{
+    //!< Set what timeslot to TX beacon (Beacon scheduling)
+    // TODO : Need to peek current beacon bitmap in order to choose a vacant time slot for transmitting a beacon.   
+    
+    //device->GetMac()->SetAsCoordinator(); // TODO : set coord here will assert, need to fix or workaround
+
+    BeaconBitmap bitmap(0, 1 << (params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
+                                    - params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));
+    
+    for (uint32_t i = 0; i < params.m_panDescList.size(); i++) {
+        if (params.m_panDescList[i].m_coorPanId == params.m_panDescList[panDescIndex].m_coorPanId) {
+            bitmap = bitmap | params.m_panDescList[i].m_bcnBitmap;
+        }
+    }
+
+    std::cout << "Beacon bitmap infos in Pan " << params.m_panDescList[panDescIndex].m_coorPanId << " : "
+                << bitmap
+                << "\n";
+
+    uint8_t vacantTimeSlotToSendBcn;
+    // random every time
+    srand(time(0)); 
+    // vacantTimeSlotToSendBcn = rand() % (1 <<  ((uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
+    //                                          - (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));
+
+    vacantTimeSlotToSendBcn = rand() % (8) +1; 
+
+    std::cout << "BO = " << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
+              << "SO = "   << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
+    std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
+
+    SetDescIndexOfAssociatedPan(panDescIndex);
+
+    // Check timeslot is vacant or not
+    std::vector<uint16_t> currentSDBitmap = bitmap.GetSDBitmap();
+    switch (currentSDBitmap[vacantTimeSlotToSendBcn]) // Check the expected timslot status
+    {
+        case SLOT_VACANT: 
+            SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
+            SendDsmeBeaconAllocNotifyCommand();
+
+            // Wait for a sec, there may be received beacon allocation collsion command
+            // If collision , await for the next beacon period
+            // Time nextBeaconTime; // TODO : How to get next bcn time?
+            // Simulator::Schedule(nextBeaconTime,
+            //                     &LrWpanMac::BeaconScheduling,
+            //                     this,
+            //                     params,
+            //                     panDescIndex);
+
+            break;
+        
+        case SLOT_ALLOCATED:
+            // TODO : Slot is allocated. Should we do random here again (Write a API to random)? Or wait for the next beacon?           
+
+            break;
+        
+        default:
+            NS_LOG_DEBUG("Invalid Timeslot Status for beacon scheduling \n");
+            break;
+    }
+}
+
 LrWpanAssociationStatus
 LrWpanMac::GetAssociationStatus() const
 {

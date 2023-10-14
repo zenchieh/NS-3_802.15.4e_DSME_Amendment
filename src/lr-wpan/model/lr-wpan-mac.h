@@ -479,6 +479,16 @@ typedef enum
 
 /**
  * \ingroup lr-wpan
+ * Self-define enum for beacon scheduling timeslot status
+ */
+typedef enum 
+{
+    SLOT_VACANT = 0,
+    SLOT_ALLOCATED = 1
+} LrWpanBeaconSchedulingStatus;
+
+/**
+ * \ingroup lr-wpan
  *
  * MCPS-DATA.request params. See 802.15.4-2011 Section 6.3.1 and 802.15.4e-2012 Section 6.3.1
  */
@@ -2814,6 +2824,8 @@ class LrWpanMac : public Object
     void ReceiveRecordKeyAndValueIdx(std::pair<Address, Address> recordkey, unsigned int recordValueIdx);
 
     void SetBecomeCoordAfterAssociation(bool on);
+
+    void BeaconScheduling(MlmeScanConfirmParams params, int panDescIndex);
 
   protected:
     // Inherited from Object.
