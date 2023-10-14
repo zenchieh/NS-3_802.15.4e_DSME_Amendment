@@ -485,7 +485,14 @@ typedef enum
 {
     SLOT_VACANT = 0,
     SLOT_ALLOCATED = 1
-} LrWpanBeaconSchedulingStatus;
+} LrWpanBeaconSchedulingTimeslotStatus;
+
+typedef enum 
+{
+    ALLOC_COLLISION = 0,
+    ALLOC_SUCCESS = 1,
+    ALLOC_UNDIFINE_ERROR = 2
+} LrWpanBeaconSchedulingAllocStatus;
 
 /**
  * \ingroup lr-wpan
@@ -2008,6 +2015,10 @@ class LrWpanMac : public Object
      */
     void SetIndTxQMaxSize(uint32_t queueSize);
 
+    // Beacon scheduling 
+
+    void SetBcnSchedulingAllocStatus(uint8_t allocStatus);
+    uint8_t GetBcnSchedulingAllocStatus() const;
     // MAC PIB attributes
 
     /**
@@ -2634,6 +2645,10 @@ class LrWpanMac : public Object
     // Beacon Sequence Number used for Enhanced Beacon Frames (separate from BSN).
     SequenceNumber8 m_macEbsn;
 
+    // Beacon scheduling allocation status
+
+    uint8_t m_macBcnSchedulingAllocStatus;
+
     typedef enum {
         EBAutoSA_NONE = 0,
         EBAutoSA_SHORT = 1,
@@ -2944,6 +2959,12 @@ class LrWpanMac : public Object
      * Called to send an DSME-Beacon allocation notification command.
      */
     void SendDsmeBeaconAllocNotifyCommand();
+
+    /**
+     * Called to send an DSME-Beacon collision notification command.
+     */
+
+    void SendDsmeBeaconCollisionNotifyCommand(Mac16Address dstAddr, uint16_t collisionSDIndex);
 
     /**
      * Called to send an DSME-GTS notify command.

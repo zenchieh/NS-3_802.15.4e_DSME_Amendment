@@ -12,8 +12,6 @@
 
 using namespace ns3;
 
-#define SLOT_VACANT 0
-
 static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams params) {
     // The algorithm to select which coordinator to associate is not
     // covered by the standard. In this case, we use the coordinator
@@ -121,7 +119,7 @@ static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams param
                     // //!< Set what timeslot to TX beacon (Beacon scheduling)
                     // // TODO : Need to peek current beacon bitmap in order to choose a vacant time slot for transmitting a beacon.   
                     
-                    // //device->GetMac()->SetAsCoordinator(); // TODO : set coord here will assert, need to fix or workaround
+                    // //device->GetMac()->SetAsCoordinator(); // TODO : set panCoord here will assert, need to fix or workaround
 
                     // uint8_t vacantTimeSlotToSendBcn;
                     // // random every time
@@ -306,31 +304,37 @@ int main(int argc, char* argv[]) {
     // LogComponentEnable("LrWpanCsmaCa", LOG_LEVEL_ALL);
 
 /**                  
- *  This program try to simulate beacon scheduling manually, there are two coordinators in the simulation.
- *  1st coordinator [00:01] already running in PAN.
- *  2nd coordinator [00:02](the other one) will try to join the PAN by SCAN.request, SYNC.request and Start request. 
+ *  This program try to simulate beacon scheduling manually, there are three coordinators in the simulation.
+ *  This example will cause Hidden Node Problem !!
+ *  Pan coordinator [00:01] already running in PAN.
+ *  1st coordinator [00:02] will try to join the PAN by SCAN.request, SYNC.request and Start request. 
+ *  2nd coordinator [00:03] will try to join the PAN by SCAN.request, SYNC.request and Start request.
  * 
- *                          Topology
+ *                                              Topology
  * 
- *      [00:01]                                 [00:02]                                
- *  PAN Coordinator 1st (PAN: 5)        PAN Coordinator 2nd (PAN: 7)                       
- *       |----------------- 100 m -----------------|
- *  Channel 14                          (Active Scan channels 11-14)     
+ *    [00:02]                                   [00:01]                                   [00:03]                                                 
+ *  Coordinator 1st (PAN: 5)            PAN Coordinator (PAN: 5)                   Coordinator 2nd (PAN: 5) 
+ *       |----------------- 100 m -----------------|----------------- 100 m -----------------|
+ *  (Active Scan channels 11-14)              channel - 14                      (Active Scan channels 11-14)
  * 
  */
     // Create 1 PAN coordinator node, and 1 end device
-    Ptr<Node> coord = CreateObject<Node>();
+    Ptr<Node> panCoord = CreateObject<Node>();
+    Ptr<Node> firstCoord = CreateObject<Node>();
     Ptr<Node> secondCoord = CreateObject<Node>();
 
-    Ptr<LrWpanNetDevice> coordNetDevice = CreateObject<LrWpanNetDevice>();
+    Ptr<LrWpanNetDevice> panCoordNetDevice = CreateObject<LrWpanNetDevice>();
+    Ptr<LrWpanNetDevice> firstCoordNetDevice = CreateObject<LrWpanNetDevice>();
     Ptr<LrWpanNetDevice> secondCoordNetDevice = CreateObject<LrWpanNetDevice>();
 
-    coordNetDevice->SetAddress(Mac16Address("00:01"));
-    secondCoordNetDevice->SetAddress(Mac16Address("00:02"));
+    panCoordNetDevice->SetAddress(Mac16Address("00:01"));
+    firstCoordNetDevice->SetAddress(Mac16Address("00:02"));
+    secondCoordNetDevice->SetAddress(Mac16Address("00:03"));
 
     LrWpanHelper lrWpanHelper;
     
-    lrWpanHelper.EnablePcap(std::string("dsme-bootstrap-with-beacon-select-coordNetDevice.pcap"), coordNetDevice, true, true);
+    lrWpanHelper.EnablePcap(std::string("dsme-bootstrap-with-beacon-select-panCoordNetDevice.pcap"), panCoordNetDevice, true, true);
+    lrWpanHelper.EnablePcap(std::string("dsme-bootstrap-with-beacon-select-firstCoordNetDevice.pcap"), firstCoordNetDevice, true, true);
     lrWpanHelper.EnablePcap(std::string("dsme-bootstrap-with-beacon-select-secondCoordNetDevice.pcap"), secondCoordNetDevice, true, true);
 
     // Configure Spectrum channel
@@ -360,47 +364,60 @@ int main(int argc, char* argv[]) {
     channel->AddPropagationLossModel(propModel);
     channel->SetPropagationDelayModel(delayModel);
 
-    coordNetDevice->SetChannel(channel);
+    panCoordNetDevice->SetChannel(channel);
+    firstCoordNetDevice->SetChannel(channel);
     secondCoordNetDevice->SetChannel(channel);
 
-    coord->AddDevice(coordNetDevice);
+    panCoord->AddDevice(panCoordNetDevice);
+    firstCoord->AddDevice(firstCoordNetDevice);
     secondCoord->AddDevice(secondCoordNetDevice);
 
     // Mobility
-    Ptr<ConstantPositionMobilityModel> coordMobility =
+    Ptr<ConstantPositionMobilityModel> panCoordMobility =
         CreateObject<ConstantPositionMobilityModel>();
-    coordMobility->SetPosition(Vector(0, 0, 0));
-    coordNetDevice->GetPhy()->SetMobility(coordMobility);
+    panCoordMobility->SetPosition(Vector(100, 0, 0));
+    panCoordNetDevice->GetPhy()->SetMobility(panCoordMobility);
+
+    Ptr<ConstantPositionMobilityModel> firstCoordMobility =
+        CreateObject<ConstantPositionMobilityModel>();
+    firstCoordMobility->SetPosition(Vector(0, 0, 0));
+    firstCoordNetDevice->GetPhy()->SetMobility(firstCoordMobility);
 
     Ptr<ConstantPositionMobilityModel> secondCoordMobility =
         CreateObject<ConstantPositionMobilityModel>();
-    secondCoordMobility->SetPosition(Vector(100, 0, 0));
+    secondCoordMobility->SetPosition(Vector(200, 0, 0));
     secondCoordNetDevice->GetPhy()->SetMobility(secondCoordMobility);
 
     // Devices hooks & MAC MLME-scan primitive set
+    firstCoordNetDevice->GetMac()->SetDsmeModeEnabled();
+    firstCoordNetDevice->GetMac()->SetBecomeCoordAfterAssociation(true);
+    
+    firstCoordNetDevice->GetMac()->SetMlmeScanConfirmCallback(MakeBoundCallback(&ScanConfirm, firstCoordNetDevice));
+    firstCoordNetDevice->GetMac()->SetMlmeAssociateConfirmCallback(MakeBoundCallback(&AssociateConfirm, firstCoordNetDevice));
+    firstCoordNetDevice->GetMac()->SetMlmePollConfirmCallback(MakeBoundCallback(&PollConfirm, firstCoordNetDevice));
+
     secondCoordNetDevice->GetMac()->SetDsmeModeEnabled();
-    // secondCoordNetDevice->GetMac()->SetAsCoordinator();
     secondCoordNetDevice->GetMac()->SetBecomeCoordAfterAssociation(true);
     
     secondCoordNetDevice->GetMac()->SetMlmeScanConfirmCallback(MakeBoundCallback(&ScanConfirm, secondCoordNetDevice));
     secondCoordNetDevice->GetMac()->SetMlmeAssociateConfirmCallback(MakeBoundCallback(&AssociateConfirm, secondCoordNetDevice));
     secondCoordNetDevice->GetMac()->SetMlmePollConfirmCallback(MakeBoundCallback(&PollConfirm, secondCoordNetDevice));
 
-    /** 
-     *      [00:01]                                 [00:02]                                
-     *  PAN Coordinator 1st (PAN: 5)        PAN Coordinator 2nd (PAN: 7)                       
-     *       |----------------- 100 m -----------------|
-     *  Channel 14                          (Active Scan channels 11-14)     
+    /**
+     *    [00:02]                                   [00:01]                                   [00:03]                                                 
+     *  Coordinator 1st (PAN: 5)            PAN Coordinator (PAN: 5)                   Coordinator 2nd (PAN: 5) 
+     *       |----------------- 100 m -----------------|----------------- 100 m -----------------|
+     *  (Active Scan channels 11-14)              channel - 14                      (Active Scan channels 11-14)
      * 
-     * Start Setting PAN coordinator 1st (PAN 5)
-     * PAN coordinator 1st (PAN 5) is set to channel 14 in beacon mode requests.
+     *  Start Setting PAN coordinator 
+     *  PAN coordinator 1st (PAN 5) is set to channel 14 in beacon mode requests.
      */
 
-    // Coordinator hooks
-    coordNetDevice->GetMac()->SetDsmeModeEnabled();
-    coordNetDevice->GetMac()->SetMlmeAssociateIndicationCallback(MakeBoundCallback(&AssociateIndication, coordNetDevice));
-    coordNetDevice->GetMac()->SetMlmeCommStatusIndicationCallback(MakeBoundCallback(&CommStatusIndication, coordNetDevice));
-    
+    // PAN Coordinator hooks
+    panCoordNetDevice->GetMac()->SetDsmeModeEnabled();
+    panCoordNetDevice->GetMac()->SetMlmeAssociateIndicationCallback(MakeBoundCallback(&AssociateIndication, panCoordNetDevice));
+    panCoordNetDevice->GetMac()->SetMlmeCommStatusIndicationCallback(MakeBoundCallback(&CommStatusIndication, panCoordNetDevice));
+
     MlmeStartRequestParams params;
     params.m_panCoor = true;
     params.m_PanId = 5;
@@ -428,27 +445,29 @@ int main(int argc, char* argv[]) {
     params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
     params.m_dsmeSuperframeSpec.SetCAPReductionFlag(true);   // CAP reduction 
 
-    Simulator::ScheduleWithContext(coordNetDevice->GetNode()->GetId(),
+    Simulator::ScheduleWithContext(panCoordNetDevice->GetNode()->GetId(),
                                    Seconds(2.0),
                                    &LrWpanMac::MlmeStartRequest,
-                                   coordNetDevice->GetMac(),
+                                   panCoordNetDevice->GetMac(),
                                    params);
 
 
-
     /** 
-     *      [00:01]                                 [00:02]                                
-     *  PAN Coordinator 1st (PAN: 5)         Coordinator 2nd (PAN: 5)                       
-     *       |----------------- 100 m -----------------|
-     *  Channel 14                          (Active Scan channels 11-14)     
-     * 
 
-     * Coordinator 2nd broadcast a single BEACON REQUEST for each channel (11, 12, 13, and 14).
-     * If a coordinator is present and in range, it will respond with a beacon broadcast.
-     * Scan Channels are represented by bits 0-26  (27 LSB)
+     *    [00:02]                                   [00:01]                                   [00:03]                                                 
+     *  Coordinator 1st (PAN: 5)            PAN Coordinator (PAN: 5)                   Coordinator 2nd (PAN: 5) 
+     *       |----------------- 100 m -----------------|----------------- 100 m -----------------|
+     *  (Active Scan channels 11-14)              channel - 14                      (Active Scan channels 11-14)
+     * 
+     *  Start Setting coordinator 1st and 2nd
+     *  PAN coordinator 1st (PAN 5) is set to channel 14 in beacon mode requests.
+
+     *  Coordinator 1st and 2nd broadcast a single BEACON REQUEST for each channel (11, 12, 13, and 14).
+     *  If a coordinator is present and in range, it will respond with a beacon broadcast.
+     *  Scan Channels are represented by bits 0-26  (27 LSB)
      *                            ch 14  
      *                              |  
-     * 0x7800  = 0000000000000000111100000000000
+     *  0x7800  = 0000000000000000111100000000000
      */
 
     MlmeScanRequestParams scanParams;
@@ -464,8 +483,13 @@ int main(int argc, char* argv[]) {
     scanParams.m_frameCtrlOptions[1] = false;    // IES_INCLUDED
     scanParams.m_frameCtrlOptions[2] = false;    // SEQ_#_SUPPRESSED
 
-    Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
+    Simulator::ScheduleWithContext(firstCoordNetDevice->GetNode()->GetId(),
                                    Seconds(3.0),
+                                   &LrWpanMac::MlmeScanRequest,
+                                   firstCoordNetDevice->GetMac(),
+                                   scanParams);
+    Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
+                                   Seconds(6.0),
                                    &LrWpanMac::MlmeScanRequest,
                                    secondCoordNetDevice->GetMac(),
                                    scanParams);
@@ -476,14 +500,19 @@ int main(int argc, char* argv[]) {
     syncParams.m_logChPage = 0; 
     syncParams.m_trackBcn = true; 
 
-    Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
+
+    Simulator::ScheduleWithContext(firstCoordNetDevice->GetNode()->GetId(),
                                    Seconds(1050.001),
+                                   &LrWpanMac::MlmeSyncRequest,
+                                   firstCoordNetDevice->GetMac(),
+                                   syncParams);  
+    Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
+                                   Seconds(1055.001),
                                    &LrWpanMac::MlmeSyncRequest,
                                    secondCoordNetDevice->GetMac(),
                                    syncParams);  
 
-    // PAN coordinator N1 (PAN 5) is set to channel 14 in beacon mode
-    // requests.
+
     MlmeStartRequestParams params2;
     params2.m_panCoor = false;
     params2.m_PanId = 5;
@@ -514,13 +543,20 @@ int main(int argc, char* argv[]) {
     // params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
     // params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
 
-    Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
-                                   Seconds(1100.0),
-                                   &LrWpanMac::MlmeStartRequest,
-                                   secondCoordNetDevice->GetMac(),
-                                   params2);
 
-    Simulator::Stop(Seconds(1300));
+    Simulator::ScheduleWithContext(firstCoordNetDevice->GetNode()->GetId(),
+                                Seconds(1100.0),
+                                &LrWpanMac::MlmeStartRequest,
+                                firstCoordNetDevice->GetMac(),
+                                params2);
+
+    Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
+                                Seconds(1105.0),
+                                &LrWpanMac::MlmeStartRequest,
+                                secondCoordNetDevice->GetMac(),
+                                params2);
+ 
+    Simulator::Stop(Seconds(1500));
     Simulator::Run();
 
     Simulator::Destroy();

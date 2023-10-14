@@ -744,6 +744,8 @@ class CommandPayloadHeader : public Header
 
     void SetAllocationBcnSDIndex(uint16_t idx);
 
+    void SetCollisionBcnSDIndex(uint16_t idx);
+
     /**
      * Setter for Dsme Info Request Command
      */
@@ -818,6 +820,8 @@ class CommandPayloadHeader : public Header
     Mac16Address GetDsmeGtsDestAddress() const;
 
     uint16_t GetAllocationBcnSDIndex() const;
+
+    uint16_t GetACollisionBcnSDIndex() const;
 
     /**
      * Getter for Dsme Info Request Command
@@ -949,6 +953,7 @@ class CommandPayloadHeader : public Header
      * See Section 5.3.11.10 Figure 59t
      */
 
+    uint16_t m_collisionSDIndex;
 
     /**
      * DSME-Link status report command

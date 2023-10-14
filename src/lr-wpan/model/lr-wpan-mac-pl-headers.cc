@@ -242,7 +242,7 @@ CommandPayloadHeader::GetSerializedSize() const
             break;
 
         case DSME_BEACON_COLLISION_NOTIF:
-            // size += 2;
+            size += 2;
             break;
 
         case DSME_LINK_STATUS_REPORT:
@@ -360,7 +360,7 @@ void CommandPayloadHeader::Serialize(Buffer::Iterator start) const {
             break;
             
         case DSME_BEACON_COLLISION_NOTIF:
-
+            i.WriteU16(m_collisionSDIndex);
             break;
         case DSME_LINK_STATUS_REPORT:
             // i = m_dsmeLinkStatusSpecField.Serialize(i);
@@ -476,7 +476,7 @@ CommandPayloadHeader::Deserialize(Buffer::Iterator start)
             break;
 
         case DSME_BEACON_COLLISION_NOTIF:
-
+            m_collisionSDIndex = i.ReadU16();
             break;
 
         case DSME_LINK_STATUS_REPORT:
@@ -760,6 +760,10 @@ void CommandPayloadHeader::SetAllocationBcnSDIndex(uint16_t idx) {
     m_allocationBcnSDIndex = idx;
 }
 
+void CommandPayloadHeader::SetCollisionBcnSDIndex(uint16_t idx) {
+    m_collisionSDIndex = idx;
+}
+
 void CommandPayloadHeader::SetDsmeInfoType(uint8_t type) {
     m_infoType = type;
 }
@@ -868,6 +872,11 @@ Mac16Address CommandPayloadHeader::GetDsmeGtsDestAddress() const {
 
 uint16_t CommandPayloadHeader::GetAllocationBcnSDIndex() const {
     return m_allocationBcnSDIndex;
+}
+
+uint16_t CommandPayloadHeader::GetACollisionBcnSDIndex() const
+{
+    return m_collisionSDIndex;
 }
 
 uint8_t CommandPayloadHeader::GetDsmeInfoType() const {
