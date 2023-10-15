@@ -1356,6 +1356,16 @@ typedef Callback<void, MlmeDsmeLinkStatusRptIndicationParams> MlmeDsmeLinkStatus
  */
 typedef Callback<void, MlmeDsmeLinkStatusRptConfirmParams> MlmeDsmeLinkStatusRptConfirmCallback;
 
+/**
+ * \ingroup lr-wpan
+ *
+ * This callback is called after a MlmeDsmeLinkStatusRequest has been called from
+ * the higher layer. It returns a status of the outcome of the
+ * MLME-DSME-LINKSTATUSRPT request
+ * 
+ *  See 802.15.4e-2012   Section 6.2.21.3.3
+ */
+typedef Callback<void, MlmeStartRequestParams> MlmeStartRequestCallback;
 
 /**
  * \ingroup lr-wpan
@@ -1767,6 +1777,8 @@ class LrWpanMac : public Object
      * \param c the callback
      */
     void SetMlmeCommStatusIndicationCallback(MlmeCommStatusIndicationCallback c);
+
+    void SetMlmeStartRequestCallback(MlmeStartRequestCallback c);
 
     /**
      * Set the callback for the confirmation of a data transmission request.
@@ -3599,6 +3611,9 @@ class LrWpanMac : public Object
      * See IEEE 802.15.4-2006, section 7.1.1.2.
      */
     McpsDataConfirmCallback m_mcpsDataConfirmCallback;
+
+
+    MlmeStartRequestCallback m_mlmeStartRequestCallback;
 
     /**
      * The current state of the MAC layer.

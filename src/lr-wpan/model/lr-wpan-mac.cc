@@ -361,6 +361,8 @@ LrWpanMac::DoDispose()
     m_mlmeDsmeLinkStatusReportIndicationCallback = MakeNullCallback<void, MlmeDsmeLinkStatusReportIndicationCallback>();
     m_mlmeDsmeLinkStatusRptConfirmCallback = MakeNullCallback<void, MlmeDsmeLinkStatusRptConfirmParams>();
 
+    m_mlmeStartRequestCallback = MakeNullCallback<void, MlmeStartRequestParams>();
+
     m_beaconEvent.Cancel();
 
     Object::DoDispose();
@@ -4619,6 +4621,12 @@ LrWpanMac::SetMlmeCommStatusIndicationCallback(MlmeCommStatusIndicationCallback 
 }
 
 void
+LrWpanMac::SetMlmeStartRequestCallback(MlmeStartRequestCallback c)
+{
+    m_mlmeStartRequestCallback = c;
+}
+
+void
 LrWpanMac::SetMcpsDataConfirmCallback(McpsDataConfirmCallback c)
 {
     m_mcpsDataConfirmCallback = c;
@@ -5209,6 +5217,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         // DSME-TODO
                         m_incomingSDBitmap = panDescriptor.m_bcnBitmap;
 
+                        //NS_LOG_DEBUG("Received beacon , Current beacon bitmap = " << m_incomingSDBitmap);
+
                         // DSME-TODO
                         // 這個應該是要從 m_incomingSDBitmap 取出來
                         m_incSDindex = panDescriptor.m_bcnBitmap.GetSDIndex();
@@ -5588,7 +5598,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         int allocArrIdx = receivedMacPayload.GetAllocationBcnSDIndex() / 16;
                         int allocBitmapPosition = receivedMacPayload.GetAllocationBcnSDIndex() % 16;
 
-                        if((currentBitmap[allocArrIdx] & (1 << (allocBitmapPosition))) > 0) // if the expected slit has already allocated
+                        if((currentBitmap[allocArrIdx] & (1 << (allocBitmapPosition))) > 0) // if the expected slot has already allocated
                         {
                             NS_LOG_INFO("Check beacon scheduling ... Result = [ " << "Device : " << params.m_srcAddr << " " 
                                      << "Beacon bitmap allocation collision" << " ]" << "\n"
@@ -5599,8 +5609,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             SetBcnSchedulingAllocStatus(ALLOC_COLLISION);
                             
                             /**
-                             *  Send DSME beacon-collision notification command to the device who cause the collision , (aka who send the DSME_BEACON_ALLOC_NOTIF command)
-                             *  pedding the allocation to next beacon cycle.
+                             *  Send DSME beacon-collision notification command to the device who cause the collision
+                             *  TODO : pedding the allocation to next beacon cycle.
                             */
                             SendDsmeBeaconCollisionNotifyCommand(params.m_srcAddr,receivedMacPayload.GetAllocationBcnSDIndex());
 
@@ -8345,7 +8355,7 @@ LrWpanMac::BeaconScheduling(MlmeScanConfirmParams params,int panDescIndex)
     vacantTimeSlotToSendBcn = distribution(generator);
 
 
-    vacantTimeSlotToSendBcn = rand() % (8) +1; 
+    //vacantTimeSlotToSendBcn = rand() % (8) +1; 
 
     std::cout << "BO = " << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
               << "SO = "   << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
@@ -8646,7 +8656,6 @@ LrWpanMac::SetBcnSchedulingAllocStatus(uint8_t allocStatus)
 {
     m_macBcnSchedulingAllocStatus = allocStatus;
 }
-
 uint8_t
 LrWpanMac::GetBcnSchedulingAllocStatus() const
 {

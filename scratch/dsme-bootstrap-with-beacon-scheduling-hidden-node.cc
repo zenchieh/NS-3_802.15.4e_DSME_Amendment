@@ -12,6 +12,13 @@
 
 using namespace ns3;
 
+static void StartRequest(Ptr<LrWpanNetDevice> device, MlmeStartRequestParams params)
+{
+    Simulator::ScheduleNow(&LrWpanMac::MlmeStartRequest,
+                            device->GetMac(),
+                            params);
+}
+
 static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams params) {
     // The algorithm to select which coordinator to associate is not
     // covered by the standard. In this case, we use the coordinator
@@ -273,6 +280,37 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
                   << device->GetMac()->GetExtendedAddress() << "]"
                   << " MLME-associate.confirm: Association with coordinator FAILED.\n";
     }
+    
+    MlmeStartRequestParams params2;
+    params2.m_panCoor = false;
+    params2.m_PanId = 5;
+
+    params2.m_bcnOrd = 6;
+    params2.m_sfrmOrd = 3;
+    params2.m_logCh = 14;
+
+    // Beacon Bitmap
+    BeaconBitmap bitmap2(0, 1 << (6 - 3));
+    bitmap2.SetSDIndex(8);                  // SD = 8 目前占用
+    params2.m_bcnBitmap = bitmap2;
+
+    HoppingDescriptor hoppingDescriptor2;
+    hoppingDescriptor2.m_HoppingSequenceID = 0x00;
+    hoppingDescriptor2.m_hoppingSeqLen = 0;
+    hoppingDescriptor2.m_channelOfs = 5;
+    hoppingDescriptor2.m_channelOfsBitmapLen = 16;
+    hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
+
+    params2.m_hoppingDescriptor = hoppingDescriptor2;
+
+    // // DSME
+    params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
+    params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
+    params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
+
+    StartRequest(device,params2);
+
+    // TODO : add StartRequest here
 }
 
 static void PollConfirm(Ptr<LrWpanNetDevice> device, MlmePollConfirmParams params) {
@@ -296,6 +334,7 @@ static void PollConfirm(Ptr<LrWpanNetDevice> device, MlmePollConfirmParams param
                   << " MLME-poll.confirm: Data Request command FAILED.\n";
     }
 }
+
 
 int main(int argc, char* argv[]) {
     LogComponentEnableAll(LogLevel(LOG_PREFIX_TIME | LOG_PREFIX_FUNC | LOG_PREFIX_NODE));
@@ -395,6 +434,7 @@ int main(int argc, char* argv[]) {
     firstCoordNetDevice->GetMac()->SetMlmeScanConfirmCallback(MakeBoundCallback(&ScanConfirm, firstCoordNetDevice));
     firstCoordNetDevice->GetMac()->SetMlmeAssociateConfirmCallback(MakeBoundCallback(&AssociateConfirm, firstCoordNetDevice));
     firstCoordNetDevice->GetMac()->SetMlmePollConfirmCallback(MakeBoundCallback(&PollConfirm, firstCoordNetDevice));
+    firstCoordNetDevice->GetMac()->SetMlmeStartRequestCallback(MakeBoundCallback(&StartRequest, firstCoordNetDevice));
 
     secondCoordNetDevice->GetMac()->SetDsmeModeEnabled();
     secondCoordNetDevice->GetMac()->SetBecomeCoordAfterAssociation(true);
@@ -402,6 +442,7 @@ int main(int argc, char* argv[]) {
     secondCoordNetDevice->GetMac()->SetMlmeScanConfirmCallback(MakeBoundCallback(&ScanConfirm, secondCoordNetDevice));
     secondCoordNetDevice->GetMac()->SetMlmeAssociateConfirmCallback(MakeBoundCallback(&AssociateConfirm, secondCoordNetDevice));
     secondCoordNetDevice->GetMac()->SetMlmePollConfirmCallback(MakeBoundCallback(&PollConfirm, secondCoordNetDevice));
+    secondCoordNetDevice->GetMac()->SetMlmeStartRequestCallback(MakeBoundCallback(&StartRequest, secondCoordNetDevice));
 
     /**
      *    [00:02]                                   [00:01]                                   [00:03]                                                 
@@ -489,7 +530,7 @@ int main(int argc, char* argv[]) {
                                    firstCoordNetDevice->GetMac(),
                                    scanParams);
     Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
-                                   Seconds(6.0),
+                                   Seconds(3.0),
                                    &LrWpanMac::MlmeScanRequest,
                                    secondCoordNetDevice->GetMac(),
                                    scanParams);
@@ -507,7 +548,7 @@ int main(int argc, char* argv[]) {
                                    firstCoordNetDevice->GetMac(),
                                    syncParams);  
     Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
-                                   Seconds(1055.001),
+                                   Seconds(1050.001),
                                    &LrWpanMac::MlmeSyncRequest,
                                    secondCoordNetDevice->GetMac(),
                                    syncParams);  
@@ -541,17 +582,17 @@ int main(int argc, char* argv[]) {
     params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
 
 
-    Simulator::ScheduleWithContext(firstCoordNetDevice->GetNode()->GetId(),
-                                Seconds(1100.0),
-                                &LrWpanMac::MlmeStartRequest,
-                                firstCoordNetDevice->GetMac(),
-                                params2);
+    // Simulator::ScheduleWithContext(firstCoordNetDevice->GetNode()->GetId(),
+    //                             Seconds(1100.0),
+    //                             &LrWpanMac::MlmeStartRequest,
+    //                             firstCoordNetDevice->GetMac(),
+    //                             params2);
 
-    Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
-                                Seconds(1105.0),
-                                &LrWpanMac::MlmeStartRequest,
-                                secondCoordNetDevice->GetMac(),
-                                params2);
+    // Simulator::ScheduleWithContext(secondCoordNetDevice->GetNode()->GetId(),
+    //                             Seconds(1105.0),
+    //                             &LrWpanMac::MlmeStartRequest,
+    //                             secondCoordNetDevice->GetMac(),
+    //                             params2);
  
     Simulator::Stop(Seconds(1500));
     Simulator::Run();
