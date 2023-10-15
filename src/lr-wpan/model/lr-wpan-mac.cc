@@ -36,7 +36,7 @@
 #include <ns3/random-variable-stream.h>
 #include <ns3/simulator.h>
 #include <ns3/uinteger.h>
-
+#include <random>
 
 
 
@@ -2277,7 +2277,8 @@ void LrWpanMac::SendDsmeBeaconCollisionNotifyCommand(Mac16Address dstAddr, uint1
     }
 
     commandPacket->AddTrailer(macTrailer);
-    NS_LOG_INFO("Send Dsme Beacon collision notification command" << "collision slot (SDIdx) : " << collisionSDIndex);
+    NS_LOG_INFO("Send Dsme Beacon collision notification command to " << dstAddr 
+             << " collision slot (SDIdx) : " << collisionSDIndex);
     Ptr<TxQueueElement> txQElement = Create<TxQueueElement>();
     txQElement->txQPkt = commandPacket;
     EnqueueTxQElement(txQElement);
@@ -5614,6 +5615,14 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             NS_LOG_DEBUG("Current mac SD Bitmap is updated as: " << m_macSDBitmap);
                         }
 
+                    }  else if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::DSME_BEACON_COLLISION_NOTIF) {
+
+                        NS_LOG_DEBUG("Received Dsme beacon allocation collision " 
+                                  << " Send from " << receivedMacHdr.GetShortSrcAddr() << " with SD index: " 
+                                  << receivedMacPayload.GetCollisionBcnSDIndex());
+
+
+
                     } else if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::COOR_REALIGN) {
                         // DSME-TODO:
                         // the device shall ensure that its own beacons do not overlap 
@@ -8307,12 +8316,34 @@ LrWpanMac::BeaconScheduling(MlmeScanConfirmParams params,int panDescIndex)
 
     uint8_t vacantTimeSlotToSendBcn;
     uint32_t seed;
-    seed = (unsigned)time(NULL); // 取得時間序列
-    srand(seed); // 以時間序列當亂數種子
+    // seed = (unsigned)time(NULL); // 取得時間序列
+    // srand(seed); // 以時間序列當亂數種子
     // random every time
     // srand(time(0)); // As(Time::S)
     // vacantTimeSlotToSendBcn = rand() % (1 <<  ((uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
     //                                          - (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));
+
+    // Ptr<UniformRandomVariable> randomVariable = CreateObject<UniformRandomVariable>();
+    // seed = randomVariable->GetInteger();
+    // srand(seed); // 以時間序列當亂數種子
+
+
+    std::random_device rd;
+    std::default_random_engine generator(rd());
+
+    // 定義隨機數的分佈範圍，這裡是1到100
+    std::uniform_int_distribution<int> distribution(1, 8);
+
+    // // 第一次呼叫，生成隨機數
+    // int random_number1 = distribution(generator);
+    // std::cout << "隨機數1: " << random_number1 << std::endl;
+
+    // // 第二次呼叫，生成另一個隨機數
+    // int random_number2 = distribution(generator);
+    // std::cout << "隨機數2: " << random_number2 << std::endl;
+
+    vacantTimeSlotToSendBcn = distribution(generator);
+
 
     vacantTimeSlotToSendBcn = rand() % (8) +1; 
 
@@ -8323,11 +8354,11 @@ LrWpanMac::BeaconScheduling(MlmeScanConfirmParams params,int panDescIndex)
     SetDescIndexOfAssociatedPan(panDescIndex);
 
     // Check timeslot is vacant or not
-    std::vector<uint16_t> currentSDBitmap = bitmap.GetSDBitmap(); // Get whole bitmap
+    std::vector<uint16_t> currentSDBitmap = bitmap.GetSDBitmap(); // Get whole bitmap array, 16bit element for each
     int bitmapArrIdx = vacantTimeSlotToSendBcn / 16; // calculate the vacantTimeSlotToSendBcn belongs to which bitmap
     switch (currentSDBitmap[bitmapArrIdx] & (1 << (vacantTimeSlotToSendBcn % 16))) // Check the expected timslot status
     {
-        case SLOT_VACANT: 
+        case SLOT_VACANT: // 0 , not used
             SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
             SendDsmeBeaconAllocNotifyCommand();
 
@@ -8342,7 +8373,7 @@ LrWpanMac::BeaconScheduling(MlmeScanConfirmParams params,int panDescIndex)
 
             break;
         
-        case SLOT_ALLOCATED:
+        case SLOT_ALLOCATED: // 1 , there is a coord send beacon at this SDIndex
             // TODO : Slot is allocated. Should we do random here again (Write a API to random)? Or wait for the next beacon?           
 
             break;

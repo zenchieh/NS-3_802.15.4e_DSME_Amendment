@@ -821,7 +821,7 @@ class CommandPayloadHeader : public Header
 
     uint16_t GetAllocationBcnSDIndex() const;
 
-    uint16_t GetACollisionBcnSDIndex() const;
+    uint16_t GetCollisionBcnSDIndex() const;
 
     /**
      * Getter for Dsme Info Request Command

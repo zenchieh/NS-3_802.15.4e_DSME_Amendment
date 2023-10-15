@@ -517,31 +517,28 @@ int main(int argc, char* argv[]) {
     params2.m_panCoor = false;
     params2.m_PanId = 5;
 
-    //? Note : Some params no need to set here because the coordinator has associated with the PAN-C, the params will extract at EndStartRequest().
-
-    // params2.m_bcnOrd = 6;
-    // params2.m_sfrmOrd = 3;
+    params2.m_bcnOrd = 6;
+    params2.m_sfrmOrd = 3;
     params2.m_logCh = 14;
 
-    // // Beacon Bitmap
-    // BeaconBitmap bitmap2(0, 1 << (6 - 3));
-    // bitmap2.SetSDIndex(8);                  // SD = 8 目前占用
-    // params2.m_bcnBitmap = bitmap2;
+    // Beacon Bitmap
+    BeaconBitmap bitmap2(0, 1 << (6 - 3));
+    bitmap2.SetSDIndex(8);                  // SD = 8 目前占用
+    params2.m_bcnBitmap = bitmap2;
 
-    // Hopping Descriptor
-    // HoppingDescriptor hoppingDescriptor2;
-    // hoppingDescriptor2.m_HoppingSequenceID = 0x00;
-    // hoppingDescriptor2.m_hoppingSeqLen = 0;
-    // hoppingDescriptor2.m_channelOfs = 5;
-    // hoppingDescriptor2.m_channelOfsBitmapLen = 16;
-    // hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
+    HoppingDescriptor hoppingDescriptor2;
+    hoppingDescriptor2.m_HoppingSequenceID = 0x00;
+    hoppingDescriptor2.m_hoppingSeqLen = 0;
+    hoppingDescriptor2.m_channelOfs = 5;
+    hoppingDescriptor2.m_channelOfsBitmapLen = 16;
+    hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
 
-    // params2.m_hoppingDescriptor = hoppingDescriptor2;
+    params2.m_hoppingDescriptor = hoppingDescriptor2;
 
     // // DSME
-    // params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
-    // params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
-    // params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
+    params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
+    params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
+    params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
 
 
     Simulator::ScheduleWithContext(firstCoordNetDevice->GetNode()->GetId(),

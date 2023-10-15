@@ -874,7 +874,7 @@ uint16_t CommandPayloadHeader::GetAllocationBcnSDIndex() const {
     return m_allocationBcnSDIndex;
 }
 
-uint16_t CommandPayloadHeader::GetACollisionBcnSDIndex() const
+uint16_t CommandPayloadHeader::GetCollisionBcnSDIndex() const
 {
     return m_collisionSDIndex;
 }
