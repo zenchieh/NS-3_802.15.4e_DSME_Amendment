@@ -290,8 +290,10 @@ LrWpanMac::LrWpanMac() {
     m_becomeCoord = false;
     m_sendBcn = false;
     realignmentRecevied = false;
+    m_macBcnSchedulingAllocStatus = ALLOC_TO_BE_DONE;
 
     m_incSuperframe = false;
+    m_isBcnAllocCollision = false;
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -5612,26 +5614,31 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                              *  Send DSME beacon-collision notification command to the device who cause the collision
                              *  TODO : pedding the allocation to next beacon cycle.
                             */
-                            SendDsmeBeaconCollisionNotifyCommand(params.m_srcAddr,receivedMacPayload.GetAllocationBcnSDIndex());
+                            SendDsmeBeaconCollisionNotifyCommand(params.m_srcAddr, receivedMacPayload.GetAllocationBcnSDIndex());
 
                         }
                         else  // Collision free, Update beacon bitmap
                         {
+                            /**
+                             * Here update beacon bitmap for the coordinator which received Beacon allocation command 
+                             * and check beacon slot allocation successfully.
+                            */
                             NS_LOG_INFO("Check beacon scheduling ... Result = [ " << "Device : " << params.m_srcAddr << " " 
                                      << "Beacon bitmap allocate Timeslot "<< receivedMacPayload.GetAllocationBcnSDIndex() << " successfully" << " ]" << "\n");
                             m_macSDBitmap.SetSDBitmap(receivedMacPayload.GetAllocationBcnSDIndex());
                             SetBcnSchedulingAllocStatus(ALLOC_SUCCESS);
-                            NS_LOG_INFO("SetBcnSchedulingAllocStatus () = " << (int)GetBcnSchedulingAllocStatus());
                             NS_LOG_DEBUG("Current mac SD Bitmap is updated as: " << m_macSDBitmap);
                         }
 
                     }  else if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::DSME_BEACON_COLLISION_NOTIF) {
 
                         NS_LOG_DEBUG("Received Dsme beacon allocation collision " 
-                                  << " Send from " << receivedMacHdr.GetShortSrcAddr() << " with SD index: " 
-                                  << receivedMacPayload.GetCollisionBcnSDIndex());
+                                  << " Send from " << receivedMacHdr.GetShortSrcAddr() << " cannoot allocate SD index: " 
+                                  << receivedMacPayload.GetCollisionBcnSDIndex() << "due to allocation collision"
+                                  << "Need to wait for the next beacon");
 
-
+                        // TODO : Pedding to next beacon for allocation
+                        SetBcnCollision();
 
                     } else if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::COOR_REALIGN) {
                         // DSME-TODO:
@@ -8304,15 +8311,53 @@ LrWpanMac::SetLrWpanMacState(LrWpanMacState macState)
 }
 
 void 
+LrWpanMac::TEST_BeaconScheduling()
+{
+   //!< Set what timeslot to TX beacon (Beacon scheduling)  
+
+    // According to the spec , bitmap length = 2^(BO-SO)
+    int panDescIndex = GetDescIndexOfAssociatedPan();
+    uint16_t bitmapLength = 1 << (m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder()
+                                - m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder());
+
+    BeaconBitmap bitmap(0, bitmapLength);
+    
+    for (uint32_t i = 0; i < m_panDescriptorList.size(); i++) {
+        if (m_panDescriptorList[i].m_coorPanId == m_panDescriptorList[panDescIndex].m_coorPanId) {
+            bitmap = bitmap | m_panDescriptorList[i].m_bcnBitmap;
+        }
+    }
+
+    bitmap.SetBitmapLength(bitmapLength);
+
+    std::cout << "Pan-C Beacon bitmap infos in PAN id " << m_panDescriptorList[panDescIndex].m_coorPanId << " : "
+                << bitmap
+                << "\n";
+
+    uint8_t vacantTimeSlotToSendBcn;
+
+    vacantTimeSlotToSendBcn = FindVacantBeaconTimeSlot(bitmap);
+
+    std::cout << "BO = " << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
+              << "SO = "   << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
+    std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
+
+
+    SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
+    SendDsmeBeaconAllocNotifyCommand();
+
+}
+
+void 
 LrWpanMac::BeaconScheduling(MlmeScanConfirmParams params,int panDescIndex)
 {
-    //!< Set what timeslot to TX beacon (Beacon scheduling)
-    // TODO : Need to peek current beacon bitmap in order to choose a vacant time slot for transmitting a beacon.   
-    
-    //device->GetMac()->SetAsCoordinator(); // TODO : set coord here will assert, need to fix or workaround
+    //!< Set what timeslot to TX beacon (Beacon scheduling)  
 
-    BeaconBitmap bitmap(0, 1 << (params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
-                                    - params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));
+    // According to the spec , bitmap length = 2^(BO-SO)
+    uint16_t bitmapLength = 1 << (params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
+                                    - params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder());
+
+    BeaconBitmap bitmap(0, bitmapLength);
     
     for (uint32_t i = 0; i < params.m_panDescList.size(); i++) {
         if (params.m_panDescList[i].m_coorPanId == params.m_panDescList[panDescIndex].m_coorPanId) {
@@ -8320,76 +8365,51 @@ LrWpanMac::BeaconScheduling(MlmeScanConfirmParams params,int panDescIndex)
         }
     }
 
+    bitmap.SetBitmapLength(bitmapLength);
+
     std::cout << "Pan-C Beacon bitmap infos in PAN id " << params.m_panDescList[panDescIndex].m_coorPanId << " : "
                 << bitmap
                 << "\n";
 
     uint8_t vacantTimeSlotToSendBcn;
-    uint32_t seed;
-    // seed = (unsigned)time(NULL); // 取得時間序列
-    // srand(seed); // 以時間序列當亂數種子
-    // random every time
-    // srand(time(0)); // As(Time::S)
-    // vacantTimeSlotToSendBcn = rand() % (1 <<  ((uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
-    //                                          - (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));
 
-    // Ptr<UniformRandomVariable> randomVariable = CreateObject<UniformRandomVariable>();
-    // seed = randomVariable->GetInteger();
-    // srand(seed); // 以時間序列當亂數種子
-
-
-    std::random_device rd;
-    std::default_random_engine generator(rd());
-
-    // 定義隨機數的分佈範圍，這裡是1到100
-    std::uniform_int_distribution<int> distribution(1, 8);
-
-    // // 第一次呼叫，生成隨機數
-    // int random_number1 = distribution(generator);
-    // std::cout << "隨機數1: " << random_number1 << std::endl;
-
-    // // 第二次呼叫，生成另一個隨機數
-    // int random_number2 = distribution(generator);
-    // std::cout << "隨機數2: " << random_number2 << std::endl;
-
-    vacantTimeSlotToSendBcn = distribution(generator);
-
-
-    //vacantTimeSlotToSendBcn = rand() % (8) +1; 
+    vacantTimeSlotToSendBcn = FindVacantBeaconTimeSlot(bitmap);
 
     std::cout << "BO = " << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
               << "SO = "   << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
     std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
 
-    SetDescIndexOfAssociatedPan(panDescIndex);
 
-    // Check timeslot is vacant or not
-    std::vector<uint16_t> currentSDBitmap = bitmap.GetSDBitmap(); // Get whole bitmap array, 16bit element for each
-    int bitmapArrIdx = vacantTimeSlotToSendBcn / 16; // calculate the vacantTimeSlotToSendBcn belongs to which bitmap
-    switch (currentSDBitmap[bitmapArrIdx] & (1 << (vacantTimeSlotToSendBcn % 16))) // Check the expected timslot status
+    SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
+    SendDsmeBeaconAllocNotifyCommand();
+
+}
+
+uint8_t
+LrWpanMac::FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap)
+{
+    uint8_t vacantBeaconSlot;
+    int bitmapArrIdx;
+
+    std::vector<uint16_t> currentSDBitmap = beaconBitmap.GetSDBitmap();
+
+    std::random_device rd;
+    std::default_random_engine generator(rd());
+    // std::uniform_int_distribution<int> distribution(0, beaconBitmap.GetSDBitmapLength);
+    std::uniform_int_distribution<int> distribution(1, 8);     // Temp random range, need to modify to run complete simulation
+    vacantBeaconSlot = distribution(generator);
+    bitmapArrIdx = vacantBeaconSlot / 16;
+
+    switch (currentSDBitmap[bitmapArrIdx] & (1 << (vacantBeaconSlot % 16)))
     {
-        case SLOT_VACANT: // 0 , not used
-            SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
-            SendDsmeBeaconAllocNotifyCommand();
-
-            // Wait for a sec, there may be received beacon allocation collsion command
-            // If collision , await for the next beacon period
-            // Time nextBeaconTime; // TODO : How to get next bcn time?
-            // Simulator::Schedule(nextBeaconTime,
-            //                     &LrWpanMac::BeaconScheduling,
-            //                     this,
-            //                     params,
-            //                     panDescIndex);
-
+        case SLOT_VACANT:
+            return vacantBeaconSlot;
             break;
-        
-        case SLOT_ALLOCATED: // 1 , there is a coord send beacon at this SDIndex
-            // TODO : Slot is allocated. Should we do random here again (Write a API to random)? Or wait for the next beacon?           
-
+        case SLOT_ALLOCATED:
+            FindVacantBeaconTimeSlot(beaconBitmap);
             break;
-        
         default:
-            NS_LOG_DEBUG("Invalid Timeslot Status for beacon scheduling \n");
+            return SLOT_UNDIFINED;
             break;
     }
 }
@@ -8660,6 +8680,30 @@ uint8_t
 LrWpanMac::GetBcnSchedulingAllocStatus() const
 {
     return m_macBcnSchedulingAllocStatus;
+}
+
+void
+LrWpanMac::SetBcnCollision()
+{
+    m_isBcnAllocCollision = true;
+}
+
+void
+LrWpanMac::SetBcnDoNotCollision()
+{
+    m_isBcnAllocCollision = false;
+}
+
+bool
+LrWpanMac::IsBcnCollision()
+{
+    return m_isBcnAllocCollision;
+}
+
+int
+LrWpanMac::GetDescIndexOfAssociatedPan()
+{
+    return m_descIdxOfAssociatedPan;
 }
 
 } // namespace ns3

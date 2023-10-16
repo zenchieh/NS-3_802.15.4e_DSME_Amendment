@@ -484,14 +484,15 @@ typedef enum
 typedef enum 
 {
     SLOT_VACANT = 0,
-    SLOT_ALLOCATED = 1
+    SLOT_ALLOCATED = 1,
+    SLOT_UNDIFINED = 2
 } LrWpanBeaconSchedulingTimeslotStatus;
 
 typedef enum 
 {
     ALLOC_COLLISION = 0,
     ALLOC_SUCCESS = 1,
-    ALLOC_UNDIFINE_ERROR = 2
+    ALLOC_TO_BE_DONE = 2
 } LrWpanBeaconSchedulingAllocStatus;
 
 /**
@@ -2490,6 +2491,8 @@ class LrWpanMac : public Object
 
     BeaconBitmap m_incomingSDBitmap;
 
+    bool m_isBcnAllocCollision;
+
     uint16_t m_incSDindex;
 
     /**
@@ -2694,6 +2697,12 @@ class LrWpanMac : public Object
 
     void SetChannelHoppingNotEnabled();
 
+    void SetBcnCollision();
+
+    void SetBcnDoNotCollision();
+
+    bool IsBcnCollision();
+
     /**
      * Called by the higher layer to decide the superframe number to send
      * its beacon if it is a coordinator.
@@ -2705,6 +2714,8 @@ class LrWpanMac : public Object
      * choosed to associate with.
      */
     void SetDescIndexOfAssociatedPan(int idx);
+
+    int GetDescIndexOfAssociatedPan();
 
     uint16_t GetTimeSlotToSendBcn() const;
 
@@ -2853,6 +2864,10 @@ class LrWpanMac : public Object
     void SetBecomeCoordAfterAssociation(bool on);
 
     void BeaconScheduling(MlmeScanConfirmParams params, int panDescIndex);
+    
+    void TEST_BeaconScheduling();
+
+    uint8_t FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap);
 
   protected:
     // Inherited from Object.

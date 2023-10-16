@@ -100,54 +100,11 @@ static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams param
                                            device->GetMac(),
                                            assocParams);
                                            
-                    
-                    Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling,
-                                           device->GetMac(),
-                                           params,
-                                           panDescIndex);
-                    
-                    
-
-                    
-                    // // pick a vacant beacon slot
-                    // BeaconBitmap bitmap(0, 1 << (params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
-                    //                              - params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));
-                    
-                    // for (uint32_t i = 0; i < params.m_panDescList.size(); i++) {
-                    //     if (params.m_panDescList[i].m_coorPanId == params.m_panDescList[panDescIndex].m_coorPanId) {
-                    //         bitmap = bitmap | params.m_panDescList[i].m_bcnBitmap;
-                    //     }
-                    // }
-
-                    // std::cout << "Beacon bitmap infos in Pan " << params.m_panDescList[panDescIndex].m_coorPanId << " : "
-                    //           << bitmap
-                    //           << "\n";
-                    
-                    // //!< Set what timeslot to TX beacon (Beacon scheduling)
-                    // // TODO : Need to peek current beacon bitmap in order to choose a vacant time slot for transmitting a beacon.   
-                    
-                    // //device->GetMac()->SetAsCoordinator(); // TODO : set panCoord here will assert, need to fix or workaround
-
-                    // uint8_t vacantTimeSlotToSendBcn;
-                    // // random every time
-                    // srand(time(0)); 
-                    // // vacantTimeSlotToSendBcn = rand() % (1 <<  ((uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
-                    // //                                          - (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder()));
-
-                    // vacantTimeSlotToSendBcn = rand() % (8) +1; 
-
-                    // std::cout << "BO = " << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
-                    //           << "SO = "   << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
-                    // std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
-                    
-                    // // Check timeslot is vacant or not
-                    // std::vector<uint16_t> currentSDBitmap = bitmap.GetSDBitmap();
-                    // if(currentSDBitmap[vacantTimeSlotToSendBcn] == SLOT_VACANT)
-                    // {
-                    //     device->GetMac()->SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
-                    // }
-
-                    // device->GetMac()->SetDescIndexOfAssociatedPan(panDescIndex);
+                    device->GetMac()->SetDescIndexOfAssociatedPan(panDescIndex);
+                    // Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling,
+                    //                        device->GetMac(),
+                    //                        params,
+                    //                        device->GetMac()->GetDescIndexOfAssociatedPan());          
 
                 } else {
                     std::cout << Simulator::Now().As(Time::S) << " Node "
@@ -281,6 +238,12 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
                   << " MLME-associate.confirm: Association with coordinator FAILED.\n";
     }
     
+
+    // TODO : Start Beacon scheduling here, wait a beacon period after the allocation. 
+    // TODO : If received a beaon collision command during the period, need to reallocate the beacon slot.
+    Simulator::ScheduleNow(&LrWpanMac::TEST_BeaconScheduling,
+                        device->GetMac());  
+
     MlmeStartRequestParams params2;
     params2.m_panCoor = false;
     params2.m_PanId = 5;
@@ -303,7 +266,7 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
 
     params2.m_hoppingDescriptor = hoppingDescriptor2;
 
-    // // DSME
+    // DSME
     params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
     params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
     params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
