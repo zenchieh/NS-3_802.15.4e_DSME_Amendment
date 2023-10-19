@@ -3167,11 +3167,13 @@ LrWpanMac::EndStartRequest()
 
 
             if (m_macDSMEenabled) {
+                NS_LOG_DEBUG("my member variable [m_panCoor] = " << m_panCoor);
                 if (m_panCoor) {
                     m_multisuperframeStartEvent = Simulator::ScheduleNow(&LrWpanMac::StartMultisuperframe, 
                                                                         this, 
                                                                         OUTGOING);
-
+                    // Send a First EB here, the subsequent EBs will be scheduled at the following flow.
+                    // Flow : PdDataConfirm -> StartCAP() -> StartCFP() -> ** StartRemainingPeriod() **
                     m_beaconEvent = Simulator::ScheduleNow(&LrWpanMac::SendOneEnhancedBeacon, this);
                     
                     PurgeDsmeACT();
@@ -3366,15 +3368,15 @@ void LrWpanMac::StartCAP(SuperframeType superframeType) {
         m_incSuperframe = false;
 
         m_outSuperframeStatus = CAP;
-        activeSlot = m_superframeDuration / 16;
-        capDuration = activeSlot * (m_fnlCapSlot + 1);
+        activeSlot = m_superframeDuration / 16; // Beacon + 8 CAP + 7 CFP timeslot = 16 timeslot
+        capDuration = activeSlot * (m_fnlCapSlot + 1); // Beacon + CAP slot, unit : symbols
         endCapTime = Seconds((double)capDuration / symbolRate);
         // Obtain the end of the CAP by adjust the time it took to send the beacon
         // Old Sync method
         // endCapTime -= (Simulator::Now() - m_macBeaconTxTime);
 
         // New Sync method
-        endCapTime -= (m_macBeaconTxTime - m_BeaconStartTxTime);
+        endCapTime -= (m_macBeaconTxTime - m_BeaconStartTxTime); // Minus beacon TX transmission time (TX end - TX begin)
 
         NS_LOG_DEBUG("Outgoing superframe CAP duration " << (endCapTime.GetSeconds() * symbolRate)
                                                          << " symbols (" << endCapTime.As(Time::S)
@@ -4313,6 +4315,8 @@ void LrWpanMac::StartRemainingPeriod(SuperframeType superframeType) {
         // endRemainingTime = Seconds((double)remainingDurationUntilNextBcn / symbolRate);
         
         // DSME-TODO
+        //! Calculate the next enhanced beacon TX time and schedule the SendOneEnhancedBeacon()
+        //! 計算方式為 : BI - (現在的時間 - 上一次TX EB的時間)
         endRemainingTime = Seconds((double)(m_beaconInterval) / symbolRate);
         endRemainingTime -= (Simulator::Now() - m_startOfBcnSlot);
         remainingDurationUntilNextBcn = endRemainingTime.ToInteger(Time::S) * symbolRate;
@@ -5331,15 +5335,20 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         
 
                         // For dsme-net-device-throughput-15-channels... testing usage, So comment it
+                        //! Schedule the beacon transmission timing for coordinators (for those not PAN-C) after received a EB
+                        //! Note : Only for the first time, the subsequence EB will be scheduled by StartRemainingPeriod()
                         if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) {
                             if (m_macDSMEenabled && m_coord && !m_panCoor && m_sendBcn) {
                                 Time scheduleBcnTime = Seconds(((double)m_incomingSuperframeDuration * m_choosedSDIndexToSendBcn) 
-                                                            / symbolRate)
-                                                            - (Simulator::Now() - m_startOfBcnSlotOfSyncParent);
-                                
+                                                            / symbolRate) // Calculate the total superframe time in BI
+                                                            - (Simulator::Now() - m_startOfBcnSlotOfSyncParent); // Minus the times when the Parent coordinator send it beacon.
+                                // NS_LOG_DEBUG("Test scheduleBcnTime");
+                                // NS_LOG_DEBUG("Test m_startOfBcnSlotOfSyncParent = " << m_startOfBcnSlotOfSyncParent);
                                 // NS_LOG_DEBUG(Simulator::Now() - m_startOfBcnSlotOfSyncParent); // debug
                                 // std::cout << scheduleBcnTime.As(Time::NS) << std::endl; // debug
-
+                                NS_LOG_DEBUG("m_startOfBcnSlotOfSyncParent = " << m_startOfBcnSlotOfSyncParent.As(Time::S));
+                                NS_LOG_DEBUG("m_choosedSDIndexToSendBcn = " << m_choosedSDIndexToSendBcn);
+                                NS_LOG_DEBUG("scheduleBcnTime = " << scheduleBcnTime.As(Time::S));
                                 m_setMacState = Simulator::Schedule(scheduleBcnTime
                                                                     , &LrWpanMac::SetLrWpanMacState
                                                                     , this
@@ -5626,7 +5635,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             NS_LOG_INFO("Check beacon scheduling ... Result = [ " << "Device : " << params.m_srcAddr << " " 
                                      << "Beacon bitmap allocate Timeslot "<< receivedMacPayload.GetAllocationBcnSDIndex() << " successfully" << " ]" << "\n");
                             m_macSDBitmap.SetSDBitmap(receivedMacPayload.GetAllocationBcnSDIndex());
-                            SetBcnSchedulingAllocStatus(ALLOC_SUCCESS);
+                            // SetBcnSchedulingAllocStatus(ALLOC_SUCCESS);
+                            // SetBcnDoNotCollision();
                             NS_LOG_DEBUG("Current mac SD Bitmap is updated as: " << m_macSDBitmap);
                         }
 
@@ -5638,6 +5648,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                   << "Need to wait for the next beacon");
 
                         // TODO : Pedding to next beacon for allocation
+                        SetBcnSchedulingAllocStatus(ALLOC_COLLISION);
                         SetBcnCollision();
 
                     } else if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::COOR_REALIGN) {

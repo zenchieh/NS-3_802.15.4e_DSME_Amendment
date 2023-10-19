@@ -241,6 +241,13 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
 
     // TODO : Start Beacon scheduling here, wait a beacon period after the allocation. 
     // TODO : If received a beaon collision command during the period, need to reallocate the beacon slot.
+
+    // [想法]
+    // 下一個 Beacon slot 開始時，判斷 beacon scheduling status 是否有碰撞
+    // (需要等那麼久嗎?? 取決於多久會發現到碰撞)
+    // 沒有 >> mlmeStart
+    // 碰撞 >> Beacon scheduling
+
     Simulator::ScheduleNow(&LrWpanMac::TEST_BeaconScheduling,
                         device->GetMac());  
 
@@ -447,7 +454,7 @@ int main(int argc, char* argv[]) {
     // DSME SuperframeSpec
     params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(10); // MO
     params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
-    params.m_dsmeSuperframeSpec.SetCAPReductionFlag(true);   // CAP reduction 
+    params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);   // CAP reduction 
 
     Simulator::ScheduleWithContext(panCoordNetDevice->GetNode()->GetId(),
                                    Seconds(2.0),
