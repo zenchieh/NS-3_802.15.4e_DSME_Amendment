@@ -2495,6 +2495,14 @@ class LrWpanMac : public Object
 
     uint16_t m_incSDindex;
 
+    double m_endCapTime;
+
+    /**
+     * Check there is a collision or not.
+     * If the value is true, collision occurr, need to be scheduled again.
+     */
+    bool m_needBcnSchedulingAgain;
+
     /**
      * The number of multi-superframe in a beacon interval
      */
@@ -2864,7 +2872,7 @@ class LrWpanMac : public Object
     void SetBecomeCoordAfterAssociation(bool on);
 
     void BeaconScheduling(MlmeScanConfirmParams params, int panDescIndex);
-    
+    void CheckBeaconScheduling(MlmeStartRequestParams params);
     void TEST_BeaconScheduling();
 
     uint8_t FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap);

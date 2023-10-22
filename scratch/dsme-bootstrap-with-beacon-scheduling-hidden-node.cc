@@ -260,9 +260,9 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
     params2.m_logCh = 14;
 
     // Beacon Bitmap
-    BeaconBitmap bitmap2(0, 1 << (6 - 3));
-    bitmap2.SetSDIndex(8);                  // SD = 8 目前占用
-    params2.m_bcnBitmap = bitmap2;
+    // BeaconBitmap bitmap2(0, 1 << (6 - 3));
+    // bitmap2.SetSDIndex(8);                  // SD = 8 目前占用
+    // params2.m_bcnBitmap = bitmap2;
 
     HoppingDescriptor hoppingDescriptor2;
     hoppingDescriptor2.m_HoppingSequenceID = 0x00;

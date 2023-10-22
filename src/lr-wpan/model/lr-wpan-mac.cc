@@ -294,6 +294,7 @@ LrWpanMac::LrWpanMac() {
 
     m_incSuperframe = false;
     m_isBcnAllocCollision = false;
+    m_needBcnSchedulingAgain = false;
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -3382,7 +3383,8 @@ void LrWpanMac::StartCAP(SuperframeType superframeType) {
                                                          << " symbols (" << endCapTime.As(Time::S)
                                                          << ")");
         NS_LOG_DEBUG("Active Slots duration " << activeSlot << " symbols");
-    
+        m_endCapTime = endCapTime.GetSeconds();
+        // NS_LOG_DEBUG("m_endCapTime " << m_endCapTime);
         m_capEvent =
             Simulator::Schedule(endCapTime, &LrWpanMac::StartCFP, this, SuperframeType::OUTGOING);
 
@@ -3405,7 +3407,7 @@ void LrWpanMac::StartCAP(SuperframeType superframeType) {
                                                          << " symbols (" << endCapTime.As(Time::S)
                                                          << ")");
         NS_LOG_DEBUG("Active Slots duration " << activeSlot << " symbols");
-        
+        m_endCapTime = endCapTime.GetSeconds();
         m_incCapEvent =
             Simulator::Schedule(endCapTime, &LrWpanMac::StartCFP, this, SuperframeType::INCOMING);
 
@@ -5166,6 +5168,16 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                 }
 
                 if (receivedMacHdr.IsBeacon()) {
+                    
+                    // Check if need to do Beacon scheduling again
+                    if(GetBcnSchedulingAllocStatus() != ALLOC_SUCCESS && m_needBcnSchedulingAgain == true)
+                    {
+                        NS_LOG_DEBUG("Received fresh beacon (after collision), do beacon scheduling again. " << params.m_dstExtAddr);
+                        Simulator::ScheduleNow(&LrWpanMac::TEST_BeaconScheduling,
+                                                this);
+                    }
+                    
+                    
                     // DSME-TODO
                     // The received beacon size in symbols
                     // Beacon = 5 bytes Sync Header (SHR) +  1 byte PHY header (PHR) + PSDU (default
@@ -5617,6 +5629,10 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                      << " Expected allocation SDidx = " << receivedMacPayload.GetAllocationBcnSDIndex() << "\n"
                                      << " Wait for next beacon cycle to allocate vacant beacon slot" <<"\n");   
 
+
+                            SetBcnSchedulingAllocStatus(ALLOC_COLLISION);
+                            
+                            
                             SetBcnSchedulingAllocStatus(ALLOC_COLLISION);
                             
                             /**
@@ -5635,8 +5651,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             NS_LOG_INFO("Check beacon scheduling ... Result = [ " << "Device : " << params.m_srcAddr << " " 
                                      << "Beacon bitmap allocate Timeslot "<< receivedMacPayload.GetAllocationBcnSDIndex() << " successfully" << " ]" << "\n");
                             m_macSDBitmap.SetSDBitmap(receivedMacPayload.GetAllocationBcnSDIndex());
-                            // SetBcnSchedulingAllocStatus(ALLOC_SUCCESS);
-                            // SetBcnDoNotCollision();
+
                             NS_LOG_DEBUG("Current mac SD Bitmap is updated as: " << m_macSDBitmap);
                         }
 
@@ -5650,6 +5665,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         // TODO : Pedding to next beacon for allocation
                         SetBcnSchedulingAllocStatus(ALLOC_COLLISION);
                         SetBcnCollision();
+                        m_needBcnSchedulingAgain = true;
 
                     } else if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::COOR_REALIGN) {
                         // DSME-TODO:
@@ -8325,7 +8341,7 @@ void
 LrWpanMac::TEST_BeaconScheduling()
 {
    //!< Set what timeslot to TX beacon (Beacon scheduling)  
-
+    NS_LOG_DEBUG("Start Beacon scheduling.");
     // According to the spec , bitmap length = 2^(BO-SO)
     int panDescIndex = GetDescIndexOfAssociatedPan();
     uint16_t bitmapLength = 1 << (m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder()
@@ -8356,7 +8372,32 @@ LrWpanMac::TEST_BeaconScheduling()
 
     SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
     SendDsmeBeaconAllocNotifyCommand();
+    NS_LOG_DEBUG("m_endCapTime " << m_endCapTime);
+    // TODO : Get endCAPTime
+    // Simulator::Schedule(endCAPTime, 
+    //                     &LrWpanMac::CheckBeaconScheduling, 
+    //                     this);
 
+}
+
+void 
+LrWpanMac::CheckBeaconScheduling(MlmeStartRequestParams params)
+{
+
+    if(GetBcnSchedulingAllocStatus() != ALLOC_COLLISION)
+    {
+        NS_LOG_DEBUG("CheckBeaconScheduling success.");
+        SetBcnDoNotCollision();
+        SetBcnSchedulingAllocStatus(ALLOC_SUCCESS);
+        m_needBcnSchedulingAgain = false; // Schedule successfully, no need to  do it again.
+        Simulator::ScheduleNow(&LrWpanMac::MlmeStartRequest,
+                                this, 
+                                params);
+    }
+    else
+    {
+        NS_LOG_DEBUG("CheckBeaconScheduling failed, collision detect when beacon scheduling, waiting for next schedule ...");
+    }
 }
 
 void 
