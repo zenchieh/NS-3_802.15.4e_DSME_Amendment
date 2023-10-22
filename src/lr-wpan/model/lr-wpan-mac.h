@@ -2495,7 +2495,7 @@ class LrWpanMac : public Object
 
     uint16_t m_incSDindex;
 
-    double m_endCapTime;
+    Time m_endCapTime;
 
     /**
      * Check there is a collision or not.
@@ -2873,7 +2873,7 @@ class LrWpanMac : public Object
 
     void BeaconScheduling(MlmeScanConfirmParams params, int panDescIndex);
     void CheckBeaconScheduling(MlmeStartRequestParams params);
-    void TEST_BeaconScheduling();
+    void BeaconScheduling_Legacy();
 
     uint8_t FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap);
 

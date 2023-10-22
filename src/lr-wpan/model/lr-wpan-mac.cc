@@ -3383,7 +3383,7 @@ void LrWpanMac::StartCAP(SuperframeType superframeType) {
                                                          << " symbols (" << endCapTime.As(Time::S)
                                                          << ")");
         NS_LOG_DEBUG("Active Slots duration " << activeSlot << " symbols");
-        m_endCapTime = endCapTime.GetSeconds();
+        m_endCapTime = endCapTime;
         // NS_LOG_DEBUG("m_endCapTime " << m_endCapTime);
         m_capEvent =
             Simulator::Schedule(endCapTime, &LrWpanMac::StartCFP, this, SuperframeType::OUTGOING);
@@ -3407,7 +3407,7 @@ void LrWpanMac::StartCAP(SuperframeType superframeType) {
                                                          << " symbols (" << endCapTime.As(Time::S)
                                                          << ")");
         NS_LOG_DEBUG("Active Slots duration " << activeSlot << " symbols");
-        m_endCapTime = endCapTime.GetSeconds();
+        m_endCapTime = endCapTime;
         m_incCapEvent =
             Simulator::Schedule(endCapTime, &LrWpanMac::StartCFP, this, SuperframeType::INCOMING);
 
@@ -5172,8 +5172,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     // Check if need to do Beacon scheduling again
                     if(GetBcnSchedulingAllocStatus() != ALLOC_SUCCESS && m_needBcnSchedulingAgain == true)
                     {
-                        NS_LOG_DEBUG("Received fresh beacon (after collision), do beacon scheduling again. " << params.m_dstExtAddr);
-                        Simulator::ScheduleNow(&LrWpanMac::TEST_BeaconScheduling,
+                        NS_LOG_DEBUG("Received fresh beacon (after collision), do beacon scheduling again. ");
+                        Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling_Legacy,
                                                 this);
                     }
                     
@@ -5630,10 +5630,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                      << " Wait for next beacon cycle to allocate vacant beacon slot" <<"\n");   
 
 
-                            SetBcnSchedulingAllocStatus(ALLOC_COLLISION);
-                            
-                            
-                            SetBcnSchedulingAllocStatus(ALLOC_COLLISION);
+                            SetBcnSchedulingAllocStatus(ALLOC_COLLISION);                        
                             
                             /**
                              *  Send DSME beacon-collision notification command to the device who cause the collision
@@ -5659,8 +5656,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
 
                         NS_LOG_DEBUG("Received Dsme beacon allocation collision " 
                                   << " Send from " << receivedMacHdr.GetShortSrcAddr() << " cannoot allocate SD index: " 
-                                  << receivedMacPayload.GetCollisionBcnSDIndex() << "due to allocation collision"
-                                  << "Need to wait for the next beacon");
+                                  << receivedMacPayload.GetCollisionBcnSDIndex() << " , due to allocation collision"
+                                  << " Need to wait for the next beacon");
 
                         // TODO : Pedding to next beacon for allocation
                         SetBcnSchedulingAllocStatus(ALLOC_COLLISION);
@@ -8338,11 +8335,17 @@ LrWpanMac::SetLrWpanMacState(LrWpanMacState macState)
 }
 
 void 
-LrWpanMac::TEST_BeaconScheduling()
+LrWpanMac::BeaconScheduling_Legacy()
 {
    //!< Set what timeslot to TX beacon (Beacon scheduling)  
     NS_LOG_DEBUG("Start Beacon scheduling.");
-    // According to the spec , bitmap length = 2^(BO-SO)
+
+    SetBcnSchedulingAllocStatus(ALLOC_TO_BE_DONE); // Set scheduling status   , set ALLOC_TO_BE_DONE here. 
+                                                   // If allocation success   , it will be set to ALLOC_SUCCESS.
+                                                   // If allocation collision , it will be set to ALLOC_COLLISION.
+
+    // Set the beacon bitmap basic parameters.
+    // According to the spec , bitmap length = 2^(BO-SO) , get the parameters from PAN-C.
     int panDescIndex = GetDescIndexOfAssociatedPan();
     uint16_t bitmapLength = 1 << (m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder()
                                 - m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder());
@@ -8357,26 +8360,59 @@ LrWpanMac::TEST_BeaconScheduling()
 
     bitmap.SetBitmapLength(bitmapLength);
 
-    std::cout << "Pan-C Beacon bitmap infos in PAN id " << m_panDescriptorList[panDescIndex].m_coorPanId << " : "
-                << bitmap
-                << "\n";
+    // Start choose a vacant SDIndex for beacon scheduling.
 
-    uint8_t vacantTimeSlotToSendBcn;
+    NS_LOG_DEBUG("Start choose a random vacant slot .. ");
 
-    vacantTimeSlotToSendBcn = FindVacantBeaconTimeSlot(bitmap);
-
+    uint8_t vacantTimeSlotToSendBcn = FindVacantBeaconTimeSlot(bitmap);
     std::cout << "BO = " << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
               << "SO = "   << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
     std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
 
+    // Initialize the flag, this flag is used to decided to do beacon scheduling again or not.
+    // Default : False
+    m_needBcnSchedulingAgain = false;
 
     SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
     SendDsmeBeaconAllocNotifyCommand();
     NS_LOG_DEBUG("m_endCapTime " << m_endCapTime);
-    // TODO : Get endCAPTime
-    // Simulator::Schedule(endCAPTime, 
-    //                     &LrWpanMac::CheckBeaconScheduling, 
-    //                     this);
+
+
+    // Setting the MlmeStartRequest parameters here
+    //? But the parameters is not be used.
+    //? Guess : The coordinator have been sync with the PAC-C, all the parameters should follow the PAN-C.
+    MlmeStartRequestParams params2;
+    params2.m_panCoor = false;
+    params2.m_PanId = 5;
+
+    params2.m_bcnOrd = 6;
+    params2.m_sfrmOrd = 3;
+    params2.m_logCh = 14;
+
+    HoppingDescriptor hoppingDescriptor2;
+    hoppingDescriptor2.m_HoppingSequenceID = 0x00;
+    hoppingDescriptor2.m_hoppingSeqLen = 0;
+    hoppingDescriptor2.m_channelOfs = 5;
+    hoppingDescriptor2.m_channelOfsBitmapLen = 16;
+    hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
+
+    params2.m_hoppingDescriptor = hoppingDescriptor2;
+
+    // DSME
+    params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
+    params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
+    params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
+
+    // After syncRequest, the coordinator will be sync to the PAN-C,
+    // the m_endCapTime parameter will be calculated at LrWpanMac::StartCAP()
+
+    // Note : It delay a period here because after beacon scheduling,
+    //        it need to check there is a collision or not during the CAP period.
+
+    Simulator::Schedule(m_endCapTime, 
+                        &LrWpanMac::CheckBeaconScheduling, 
+                        this,
+                        params2);
 
 }
 
@@ -8389,7 +8425,7 @@ LrWpanMac::CheckBeaconScheduling(MlmeStartRequestParams params)
         NS_LOG_DEBUG("CheckBeaconScheduling success.");
         SetBcnDoNotCollision();
         SetBcnSchedulingAllocStatus(ALLOC_SUCCESS);
-        m_needBcnSchedulingAgain = false; // Schedule successfully, no need to  do it again.
+        m_needBcnSchedulingAgain = false; // Schedule successfully, no need to do it again.
         Simulator::ScheduleNow(&LrWpanMac::MlmeStartRequest,
                                 this, 
                                 params);
@@ -8448,7 +8484,7 @@ LrWpanMac::FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap)
     std::random_device rd;
     std::default_random_engine generator(rd());
     // std::uniform_int_distribution<int> distribution(0, beaconBitmap.GetSDBitmapLength);
-    std::uniform_int_distribution<int> distribution(1, 8);     // Temp random range, need to modify to run complete simulation
+    std::uniform_int_distribution<int> distribution(1, 5);     // Temp random range, need to modify to run complete simulation
     vacantBeaconSlot = distribution(generator);
     bitmapArrIdx = vacantBeaconSlot / 16;
 

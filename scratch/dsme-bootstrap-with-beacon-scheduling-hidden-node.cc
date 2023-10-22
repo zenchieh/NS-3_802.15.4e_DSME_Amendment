@@ -12,12 +12,14 @@
 
 using namespace ns3;
 
-static void StartRequest(Ptr<LrWpanNetDevice> device, MlmeStartRequestParams params)
-{
-    Simulator::ScheduleNow(&LrWpanMac::MlmeStartRequest,
-                            device->GetMac(),
-                            params);
-}
+// No need for this case, we put startRequst after beacon Scheduing. Check BeaconScheduling API.
+
+// static void StartRequest(Ptr<LrWpanNetDevice> device, MlmeStartRequestParams params)
+// {
+//     Simulator::ScheduleNow(&LrWpanMac::MlmeStartRequest,
+//                             device->GetMac(),
+//                             params);
+// }
 
 static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams params) {
     // The algorithm to select which coordinator to associate is not
@@ -236,51 +238,16 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
                   << device->GetMac()->GetShortAddress() << " | "
                   << device->GetMac()->GetExtendedAddress() << "]"
                   << " MLME-associate.confirm: Association with coordinator FAILED.\n";
-    }
-    
+    }      
 
-    // TODO : Start Beacon scheduling here, wait a beacon period after the allocation. 
-    // TODO : If received a beaon collision command during the period, need to reallocate the beacon slot.
+    /**
+     *  Doing Beacon Scheduling after associate successfully.
+     *  MlmeStartRequest will be scheduled after beacon scheduling allocation successful.
+     */
 
-    // [想法]
-    // 下一個 Beacon slot 開始時，判斷 beacon scheduling status 是否有碰撞
-    // (需要等那麼久嗎?? 取決於多久會發現到碰撞)
-    // 沒有 >> mlmeStart
-    // 碰撞 >> Beacon scheduling
+    Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling_Legacy,
+                        device->GetMac());
 
-    Simulator::ScheduleNow(&LrWpanMac::TEST_BeaconScheduling,
-                        device->GetMac());  
-
-    MlmeStartRequestParams params2;
-    params2.m_panCoor = false;
-    params2.m_PanId = 5;
-
-    params2.m_bcnOrd = 6;
-    params2.m_sfrmOrd = 3;
-    params2.m_logCh = 14;
-
-    // Beacon Bitmap
-    // BeaconBitmap bitmap2(0, 1 << (6 - 3));
-    // bitmap2.SetSDIndex(8);                  // SD = 8 目前占用
-    // params2.m_bcnBitmap = bitmap2;
-
-    HoppingDescriptor hoppingDescriptor2;
-    hoppingDescriptor2.m_HoppingSequenceID = 0x00;
-    hoppingDescriptor2.m_hoppingSeqLen = 0;
-    hoppingDescriptor2.m_channelOfs = 5;
-    hoppingDescriptor2.m_channelOfsBitmapLen = 16;
-    hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
-
-    params2.m_hoppingDescriptor = hoppingDescriptor2;
-
-    // DSME
-    params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
-    params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
-    params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
-
-    StartRequest(device,params2);
-
-    // TODO : add StartRequest here
 }
 
 static void PollConfirm(Ptr<LrWpanNetDevice> device, MlmePollConfirmParams params) {
@@ -404,7 +371,6 @@ int main(int argc, char* argv[]) {
     firstCoordNetDevice->GetMac()->SetMlmeScanConfirmCallback(MakeBoundCallback(&ScanConfirm, firstCoordNetDevice));
     firstCoordNetDevice->GetMac()->SetMlmeAssociateConfirmCallback(MakeBoundCallback(&AssociateConfirm, firstCoordNetDevice));
     firstCoordNetDevice->GetMac()->SetMlmePollConfirmCallback(MakeBoundCallback(&PollConfirm, firstCoordNetDevice));
-    firstCoordNetDevice->GetMac()->SetMlmeStartRequestCallback(MakeBoundCallback(&StartRequest, firstCoordNetDevice));
 
     secondCoordNetDevice->GetMac()->SetDsmeModeEnabled();
     secondCoordNetDevice->GetMac()->SetBecomeCoordAfterAssociation(true);
@@ -412,7 +378,6 @@ int main(int argc, char* argv[]) {
     secondCoordNetDevice->GetMac()->SetMlmeScanConfirmCallback(MakeBoundCallback(&ScanConfirm, secondCoordNetDevice));
     secondCoordNetDevice->GetMac()->SetMlmeAssociateConfirmCallback(MakeBoundCallback(&AssociateConfirm, secondCoordNetDevice));
     secondCoordNetDevice->GetMac()->SetMlmePollConfirmCallback(MakeBoundCallback(&PollConfirm, secondCoordNetDevice));
-    secondCoordNetDevice->GetMac()->SetMlmeStartRequestCallback(MakeBoundCallback(&StartRequest, secondCoordNetDevice));
 
     /**
      *    [00:02]                                   [00:01]                                   [00:03]                                                 
