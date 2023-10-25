@@ -1013,7 +1013,7 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
 
 void LrWpanMac::MlmeSyncRequest(MlmeSyncRequestParams params) {
     NS_LOG_FUNCTION(this);
-    NS_ASSERT(params.m_logCh <= 26 && m_macPanId != 0xffff);
+    //NS_ASSERT(params.m_logCh <= 26 && m_macPanId != 0xffff);
 
     NS_LOG_DEBUG("SYNC START"); // debug
 
@@ -5621,6 +5621,12 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         int allocArrIdx = receivedMacPayload.GetAllocationBcnSDIndex() / 16;
                         int allocBitmapPosition = receivedMacPayload.GetAllocationBcnSDIndex() % 16;
 
+                        if(currentBitmap.size() < 1)
+                        {
+                            // NS_LOG_DEBUG("currentBitmap length = " << currentBitmap.size());
+                            return;
+                        }
+
                         if((currentBitmap[allocArrIdx] & (1 << (allocBitmapPosition))) > 0) // if the expected slot has already allocated
                         {
                             NS_LOG_INFO("Check beacon scheduling ... Result = [ " << "Device : " << params.m_srcAddr << " " 
@@ -5629,13 +5635,9 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                      << " Expected allocation SDidx = " << receivedMacPayload.GetAllocationBcnSDIndex() << "\n"
                                      << " Wait for next beacon cycle to allocate vacant beacon slot" <<"\n");   
 
-
                             SetBcnSchedulingAllocStatus(ALLOC_COLLISION);                        
                             
-                            /**
-                             *  Send DSME beacon-collision notification command to the device who cause the collision
-                             *  TODO : pedding the allocation to next beacon cycle.
-                            */
+                            // Send DSME beacon-collision notification command to the device who cause the collision
                             SendDsmeBeaconCollisionNotifyCommand(params.m_srcAddr, receivedMacPayload.GetAllocationBcnSDIndex());
 
                         }
@@ -8338,7 +8340,7 @@ void
 LrWpanMac::BeaconScheduling_Legacy()
 {
    //!< Set what timeslot to TX beacon (Beacon scheduling)  
-    NS_LOG_DEBUG("Start Beacon scheduling.");
+    NS_LOG_DEBUG("Start Beacon scheduling, m_shortAddr = " << m_shortAddress << " m_extAddr = " << m_selfExt);
 
     SetBcnSchedulingAllocStatus(ALLOC_TO_BE_DONE); // Set scheduling status   , set ALLOC_TO_BE_DONE here. 
                                                    // If allocation success   , it will be set to ALLOC_SUCCESS.
@@ -8484,7 +8486,7 @@ LrWpanMac::FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap)
     std::random_device rd;
     std::default_random_engine generator(rd());
     // std::uniform_int_distribution<int> distribution(0, beaconBitmap.GetSDBitmapLength);
-    std::uniform_int_distribution<int> distribution(1, 5);     // Temp random range, need to modify to run complete simulation
+    std::uniform_int_distribution<int> distribution(1, 15);     // Temp random range, need to modify to run complete simulation
     vacantBeaconSlot = distribution(generator);
     bitmapArrIdx = vacantBeaconSlot / 16;
 
