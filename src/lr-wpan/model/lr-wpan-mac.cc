@@ -295,6 +295,7 @@ LrWpanMac::LrWpanMac() {
     m_incSuperframe = false;
     m_isBcnAllocCollision = false;
     m_needBcnSchedulingAgain = false;
+    m_bcnSchdulingFailCnt = 0;
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -8367,9 +8368,14 @@ LrWpanMac::BeaconScheduling_Legacy()
     NS_LOG_DEBUG("Start choose a random vacant slot .. ");
 
     uint8_t vacantTimeSlotToSendBcn = FindVacantBeaconTimeSlot(bitmap);
-    std::cout << "BO = " << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
-              << "SO = "   << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
-    std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
+    NS_LOG_DEBUG("BO = " << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
+              << "SO = "   << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n");
+    NS_LOG_DEBUG("Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n");
+
+
+    // std::cout << "BO = " << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
+    //           << "SO = "   << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
+    // std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
 
     // Initialize the flag, this flag is used to decided to do beacon scheduling again or not.
     // Default : False
@@ -8435,6 +8441,10 @@ LrWpanMac::CheckBeaconScheduling(MlmeStartRequestParams params)
     else
     {
         NS_LOG_DEBUG("CheckBeaconScheduling failed, collision detect when beacon scheduling, waiting for next schedule ...");
+
+        /* Counting the failure times to calculate allocation successful ratio */
+        m_bcnSchdulingFailCnt++;
+        NS_LOG_DEBUG("allocation failed, m_bcnSchdulingFailCnt = " << m_bcnSchdulingFailCnt);
     }
 }
 
@@ -8486,7 +8496,7 @@ LrWpanMac::FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap)
     std::random_device rd;
     std::default_random_engine generator(rd());
     // std::uniform_int_distribution<int> distribution(0, beaconBitmap.GetSDBitmapLength);
-    std::uniform_int_distribution<int> distribution(1, 15);     // Temp random range, need to modify to run complete simulation
+    std::uniform_int_distribution<int> distribution(1, 8);     // Temp random range, need to modify to run complete simulation
     vacantBeaconSlot = distribution(generator);
     bitmapArrIdx = vacantBeaconSlot / 16;
 
@@ -8794,6 +8804,12 @@ int
 LrWpanMac::GetDescIndexOfAssociatedPan()
 {
     return m_descIdxOfAssociatedPan;
+}
+
+uint32_t
+LrWpanMac::GetBcnSchedulingFailCnt()
+{
+    return m_bcnSchdulingFailCnt;
 }
 
 } // namespace ns3

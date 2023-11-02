@@ -2669,8 +2669,10 @@ class LrWpanMac : public Object
     SequenceNumber8 m_macEbsn;
 
     // Beacon scheduling allocation status
-
     uint8_t m_macBcnSchedulingAllocStatus;
+
+    // Beacon scheduling allocation successful ratio parameter.
+    uint32_t m_bcnSchdulingFailCnt;
 
     typedef enum {
         EBAutoSA_NONE = 0,
@@ -2876,6 +2878,9 @@ class LrWpanMac : public Object
     void BeaconScheduling_Legacy();
 
     uint8_t FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap);
+
+    // Return Beacon scheduling allocation fail count.
+    uint32_t GetBcnSchedulingFailCnt();
 
   protected:
     // Inherited from Object.
