@@ -5236,8 +5236,11 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         // DSME-TODO
                         m_incomingSDBitmap = panDescriptor.m_bcnBitmap;
 
-                        //NS_LOG_DEBUG("Received beacon , Current beacon bitmap = " << m_incomingSDBitmap);
-
+                        // Update self beacon bitmap if rcv a new beacon
+                        m_macSDBitmap = m_incomingSDBitmap;
+                        
+                        NS_LOG_DEBUG("Received beacon from panDescriptorIE, Current beacon bitmap = " << m_incomingSDBitmap);
+                        
                         // DSME-TODO
                         // 這個應該是要從 m_incomingSDBitmap 取出來
                         m_incSDindex = panDescriptor.m_bcnBitmap.GetSDIndex();
