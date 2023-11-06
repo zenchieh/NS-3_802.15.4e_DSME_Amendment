@@ -2498,7 +2498,8 @@ void LrWpanMac::SendDisassocNotificationCommand() {
 
     NS_LOG_FUNCTION(this);
 
-    // NS_LOG_DEBUG("Send Disassociation Notidication Command");  // debug
+    NS_LOG_DEBUG("Send Disassociation Notidication Command");  // debug
+
 
     LrWpanMacHeader macHdr(LrWpanMacHeader::LRWPAN_MAC_COMMAND, m_macDsn.GetValue());
     m_macDsn++;
@@ -2510,21 +2511,41 @@ void LrWpanMac::SendDisassocNotificationCommand() {
     macHdr.SetAckReq();
     macHdr.SetPanIdComp();
     
-    // Disassoc. Req. Comm. Mac header values See IEEE 802.15.4-2011 (Section 5.3.3.1)
-    macHdr.SetSrcAddrMode(LrWpanMacHeader::EXTADDR);
-    macHdr.SetSrcAddrFields(0xffff, GetExtendedAddress());
+    // TODO：Need to seperate different disassociation reason
 
-    if (m_disassociateParams.m_devAddrMode == SHORT_ADDR) {
-        macHdr.SetDstAddrMode(LrWpanMacHeader::SHORTADDR);
-        // macHdr.SetDstAddrFields(m_disassociateParams.m_devPanId, m_disassociateParams.m_shortDevAddr);
-        macHdr.SetDstAddrFields(GetPanId(), m_disassociateParams.m_shortDevAddr);
+    if(m_disassociateParams.m_disassociateReason == CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN)
+    {
+        // Disassoc. Req. Comm. Mac header values See IEEE 802.15.4-2011 (Section 5.3.3.1)
+        macHdr.SetSrcAddrMode(LrWpanMacHeader::EXTADDR);
+        macHdr.SetSrcAddrFields(GetPanId(), m_disassociateParams.m_extDevAddr);
 
-    } else {
-        macHdr.SetDstAddrMode(LrWpanMacHeader::EXTADDR);
-        // macHdr.SetDstAddrFields(m_disassociateParams.m_devPanId, m_disassociateParams.m_extDevAddr);
-        macHdr.SetDstAddrFields(GetPanId(), m_disassociateParams.m_extDevAddr);
+        if (m_disassociateParams.m_devAddrMode == SHORT_ADDR) {
+            macHdr.SetDstAddrMode(LrWpanMacHeader::SHORTADDR);
+            macHdr.SetDstAddrFields(GetPanId(), m_macCoordShortAddress);
+
+        } else {
+            macHdr.SetDstAddrMode(LrWpanMacHeader::EXTADDR);
+            macHdr.SetDstAddrFields(GetPanId(),  m_macCoordExtendedAddress);
+        }
     }
-    
+    else if(m_disassociateParams.m_disassociateReason == CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN)
+    {
+        // Disassoc. Req. Comm. Mac header values See IEEE 802.15.4-2011 (Section 5.3.3.1)
+        macHdr.SetSrcAddrMode(LrWpanMacHeader::EXTADDR);
+        macHdr.SetSrcAddrFields(0xffff, GetExtendedAddress());
+
+        if (m_disassociateParams.m_devAddrMode == SHORT_ADDR) {
+            macHdr.SetDstAddrMode(LrWpanMacHeader::SHORTADDR);
+            // macHdr.SetDstAddrFields(m_disassociateParams.m_devPanId, m_disassociateParams.m_shortDevAddr);
+            macHdr.SetDstAddrFields(GetPanId(), m_disassociateParams.m_shortDevAddr);
+
+        } else {
+            macHdr.SetDstAddrMode(LrWpanMacHeader::EXTADDR);
+            // macHdr.SetDstAddrFields(m_disassociateParams.m_devPanId, m_disassociateParams.m_extDevAddr);
+            macHdr.SetDstAddrFields(GetPanId(), m_disassociateParams.m_extDevAddr);
+        }
+    }
+
     CommandPayloadHeader macPayload(CommandPayloadHeader::DISASSOCIATION_NOTIF);
 
     macPayload.SetDisassociationReason(m_disassociateParams.m_disassociateReason);
@@ -5058,6 +5079,12 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                 == CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN) {
                                 RemoveReferencesToPAN();
                             }
+                            else if (receivedMacPayload.GetDisassociationReason() 
+                                == CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN)
+                            {
+                                // TODO：Remove the SDIdx in the beacon bitmap which belongs to the disassociated device
+
+                            }
                             
                             break;
 
@@ -5355,15 +5382,15 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         //! Note : Only for the first time, the subsequence EB will be scheduled by StartRemainingPeriod()
                         if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) {
                             if (m_macDSMEenabled && m_coord && !m_panCoor && m_sendBcn) {
+                                // NS_LOG_DEBUG("Simulator::Now() = " << Simulator::Now().As(Time::S));
+                                NS_LOG_DEBUG("m_startOfBcnSlotOfSyncParent = " << m_startOfBcnSlotOfSyncParent.As(Time::S));
                                 Time scheduleBcnTime = Seconds(((double)m_incomingSuperframeDuration * m_choosedSDIndexToSendBcn) 
                                                             / symbolRate) // Calculate the total superframe time in BI
                                                             - (Simulator::Now() - m_startOfBcnSlotOfSyncParent); // Minus the times when the Parent coordinator send it beacon.
-                                // NS_LOG_DEBUG("Test scheduleBcnTime");
-                                // NS_LOG_DEBUG("Test m_startOfBcnSlotOfSyncParent = " << m_startOfBcnSlotOfSyncParent);
-                                // NS_LOG_DEBUG(Simulator::Now() - m_startOfBcnSlotOfSyncParent); // debug
-                                // std::cout << scheduleBcnTime.As(Time::NS) << std::endl; // debug
-                                NS_LOG_DEBUG("m_startOfBcnSlotOfSyncParent = " << m_startOfBcnSlotOfSyncParent.As(Time::S));
-                                NS_LOG_DEBUG("m_choosedSDIndexToSendBcn = " << m_choosedSDIndexToSendBcn);
+                                // NS_LOG_DEBUG("Simulator::Now() - m_startOfBcnSlotOfSyncParent = " << (Simulator::Now() - m_startOfBcnSlotOfSyncParent).As(Time::S)); // debug
+                                // NS_LOG_DEBUG("m_incomingSuperframeDuration = " << m_incomingSuperframeDuration);
+                                // NS_LOG_DEBUG("m_startOfBcnSlotOfSyncParent = " << m_startOfBcnSlotOfSyncParent.As(Time::S));
+                                // NS_LOG_DEBUG("m_choosedSDIndexToSendBcn = " << m_choosedSDIndexToSendBcn);
                                 NS_LOG_DEBUG("scheduleBcnTime = " << scheduleBcnTime.As(Time::S));
                                 m_setMacState = Simulator::Schedule(scheduleBcnTime
                                                                     , &LrWpanMac::SetLrWpanMacState
