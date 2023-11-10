@@ -2674,6 +2674,11 @@ class LrWpanMac : public Object
     // Beacon scheduling allocation successful ratio parameter.
     uint32_t m_bcnSchdulingFailCnt;
 
+    // Beacon scheduling allocation map
+    // Note : This map is a self designed structure, not in spec.
+    // Example : <Short Address , SDIdx> ---- <00:01, 3>
+    std::map<Mac16Address, int> m_bcnSchedulingMap;
+
     typedef enum {
         EBAutoSA_NONE = 0,
         EBAutoSA_SHORT = 1,
