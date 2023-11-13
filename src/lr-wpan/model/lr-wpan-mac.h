@@ -2672,7 +2672,16 @@ class LrWpanMac : public Object
     uint8_t m_macBcnSchedulingAllocStatus;
 
     // Beacon scheduling allocation successful ratio parameter.
-    uint32_t m_bcnSchdulingFailCnt;
+    uint32_t m_bcnScehdulingFailCnt;
+
+    // Beacon scheduling allocation device count.
+    // Note : This parameter specify the number of associated lr-wpan devices in the simulation.
+    uint32_t m_bcnSchedulingDevCnt;
+
+    // Beacon scheduling allocation average time parameter.
+    // Note : This parameter specify the number of the device in PAN.
+    //        It calculate the total time of beacon scheduling.
+    Time m_bcnSchedulingTime;
 
     // Beacon scheduling allocation map
     // Note : This map is a self designed structure, not in spec.
@@ -2717,6 +2726,12 @@ class LrWpanMac : public Object
     void SetBcnDoNotCollision();
 
     bool IsBcnCollision();
+
+    void SetBcnSchedulingTime(Time time);
+    Time getBcnSchedulingTime();
+
+    void SetBcnSchedulingDevCnt(uint32_t devCnt);
+    uint32_t GetBcnSchedulingDevCnt();
 
     /**
      * Called by the higher layer to decide the superframe number to send

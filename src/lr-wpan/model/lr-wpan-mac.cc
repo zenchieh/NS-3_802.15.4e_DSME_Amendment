@@ -295,7 +295,7 @@ LrWpanMac::LrWpanMac() {
     m_incSuperframe = false;
     m_isBcnAllocCollision = false;
     m_needBcnSchedulingAgain = false;
-    m_bcnSchdulingFailCnt = 0;
+    m_bcnScehdulingFailCnt = 0;
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -8473,8 +8473,8 @@ LrWpanMac::CheckBeaconScheduling(MlmeStartRequestParams params)
         NS_LOG_DEBUG("CheckBeaconScheduling failed, collision detect when beacon scheduling, waiting for next schedule ...");
 
         /* Counting the failure times to calculate allocation successful ratio */
-        m_bcnSchdulingFailCnt++;
-        NS_LOG_DEBUG("allocation failed, m_bcnSchdulingFailCnt = " << m_bcnSchdulingFailCnt);
+        m_bcnScehdulingFailCnt++;
+        NS_LOG_DEBUG("allocation failed, m_bcnScehdulingFailCnt = " << m_bcnScehdulingFailCnt);
     }
 }
 
@@ -8830,6 +8830,30 @@ LrWpanMac::IsBcnCollision()
     return m_isBcnAllocCollision;
 }
 
+void
+LrWpanMac::SetBcnSchedulingTime(Time time)
+{
+    m_bcnSchedulingTime = time;
+}
+
+Time
+LrWpanMac::getBcnSchedulingTime()
+{
+    return m_bcnSchedulingTime;
+}
+
+void
+LrWpanMac::SetBcnSchedulingDevCnt(uint32_t devCnt)
+{
+    m_bcnSchedulingDevCnt = devCnt;
+}
+
+uint32_t
+LrWpanMac::GetBcnSchedulingDevCnt()
+{
+    return m_bcnSchedulingDevCnt;
+}
+
 int
 LrWpanMac::GetDescIndexOfAssociatedPan()
 {
@@ -8839,7 +8863,7 @@ LrWpanMac::GetDescIndexOfAssociatedPan()
 uint32_t
 LrWpanMac::GetBcnSchedulingFailCnt()
 {
-    return m_bcnSchdulingFailCnt;
+    return m_bcnScehdulingFailCnt;
 }
 
 } // namespace ns3
