@@ -194,6 +194,15 @@ typedef enum
     PAN_ACCESS_DENIED                   = 0x02,
     HOPPING_SEQ_OFS_DUPLICATION         = 0x03,
     ASSOCIATION_STATUS_FIELD_RESERVED   = 0x04,
+
+    /**
+     * Add self-designed allocation status - Enhanced Beacon Scheduling (EBS)
+     * Note :
+     * This status is used when PAN-C sending a association response command which choose EBS as the beacon scheduling policy.
+     * It contains a unique, self-designed sequence number (association sequence) for EBS.
+     **/ 
+    ASSOCIATED_EBS                      = 0x05,
+
     FASTA_SUCCESSFUL                    = 0x80,
     ASSOCIATED_WITHOUT_ADDRESS          = 0xfe,
     DISASSOCIATED                       = 0xff
@@ -266,6 +275,17 @@ typedef enum
     IEEE_802_15_4_INVALID_PARAMETER = 11,
     IEEE_802_15_4_ACK_RCVD_NODSN_NOSA = 12
 } LrWpanMcpsDataConfirmStatus;
+
+/**
+ * Self-designed enum for beacon scheduling
+ */
+typedef enum
+{
+    LEGACY = 0,     // IEEE 802.15.4e legacy beacon scheduling (Random)
+    LSB = 1,        // Least significant bit first policy
+    MSB = 2,        // Most significant bit first policy
+    EBS = 3         // Enhanced Beacon scheduling (use association sequence & vacant list)
+} LrWpanBeaconSchedulingPolicy;
 
 /**
  * \ingroup lr-wpan
@@ -2896,6 +2916,9 @@ class LrWpanMac : public Object
     void BeaconScheduling(MlmeScanConfirmParams params, int panDescIndex);
     void CheckBeaconScheduling(MlmeStartRequestParams params);
     void BeaconScheduling_Legacy();
+
+    // Beacon scheduling entry point
+    void DoBeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy);
 
     uint8_t FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap);
 

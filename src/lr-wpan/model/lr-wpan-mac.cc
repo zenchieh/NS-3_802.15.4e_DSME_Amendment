@@ -971,6 +971,11 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
         case LrWpanAssociationStatus::DISASSOCIATED:
             NS_LOG_ERROR("Error, device not associated");
             break;
+
+        case LrWpanAssociationStatus::ASSOCIATED_EBS:
+            // For debug
+            NS_LOG_ERROR("[MlmeAssociateResponse] Set AssociationStatus = ASSOCIATED_EBS");
+            break;
     }
 
     macHdr.SetSecDisable();
@@ -7166,6 +7171,15 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
 
                                 SetHoppingSeqLen(receivedMacPayload.GetHoppingSeqLen());
                             }
+                            
+                            /** // TODO
+                             * Set association sequence for self-designed Enhanced Beacon Scheduling (EBS)
+                             * Note : 
+                             * EBS set the SDIdx as the value of association sequence in order to achive allocation collision free.
+                             **/ 
+
+                            // if (LrWpanAssociationStatus == ASSOCIATED_EBS) 
+                            // { SetSDIdx(Association sequence) }
 
                             break;
 
@@ -8364,6 +8378,27 @@ LrWpanMac::SetLrWpanMacState(LrWpanMacState macState)
         // triggered by the scheduled beacon event.
 
         NS_LOG_DEBUG("****** PACKET DEFERRED to the next superframe *****");
+    }
+}
+
+void 
+LrWpanMac::DoBeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy)
+{
+    // TODO : Legacy, LSB, MSB, EBS
+    switch(schedulingPolicy)
+    {
+        case LEGACY:
+            BeaconScheduling_Legacy();
+            break;
+        case LSB:
+            break;
+        case MSB:
+            break;
+        case EBS:
+            break;
+        default:
+            NS_LOG_DEBUG("Invalid schedulingPolicy, please check !!");
+            break;
     }
 }
 

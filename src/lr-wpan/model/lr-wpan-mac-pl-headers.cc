@@ -305,6 +305,13 @@ void CommandPayloadHeader::Serialize(Buffer::Iterator start) const {
             i.WriteU8(m_assocStatus);
             i.WriteU8(m_hoppingSeqLen);
             i = m_hoppingSeq.Serialize(i);
+
+            /** // TODO
+             * Add self-designed Enhanced Beacon Scheduling (EBS) feature here
+             * Note :
+             * Add a new field in association response command - Association sequence (2 bytes, use uint16_t)
+             **/ 
+
             break;
 
         case DSME_GTS_REQ:
@@ -421,6 +428,11 @@ CommandPayloadHeader::Deserialize(Buffer::Iterator start)
             m_assocStatus = static_cast<AssocStatus>(i.ReadU8());
             m_hoppingSeqLen = i.ReadU8();
             i = m_hoppingSeq.Deserialize(i);
+            /** // TODO
+             * Add self-designed Enhanced Beacon Scheduling (EBS) feature here
+             * Note :
+             * Add a new field in association response command - Association sequence (2 bytes, use uint16_t)
+             **/ 
             break;
 
         case DSME_GTS_REQ:
