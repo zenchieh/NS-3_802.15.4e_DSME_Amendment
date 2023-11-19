@@ -766,6 +766,10 @@ class CommandPayloadHeader : public Header
 
     void SetDsmeInfoPANDescriptor(DsmePANDescriptorIE des);
 
+    void SetEBSAllocationSeq(uint16_t allocSeq);
+
+    uint16_t GetEBSAllocationSeq();
+    
     /**
      * Get the Short address assigned by the coordinator (Association Response Command).
      * \return The Mac16Address assigned by the coordinator
@@ -960,6 +964,13 @@ class CommandPayloadHeader : public Header
      * See Section 5.3.11.11 Figure 59u, 5.3.11.11.3 Figure 59v
      */
     LinkStatusSpecificationField m_dsmeLinkStatusSpecField;
+
+    /**
+     * Self-designed enhanced beacon scheduling parameters
+     * For the purpose of allocation collision free
+     */
+
+    uint16_t m_allocationSequence;
 };
 
 /**

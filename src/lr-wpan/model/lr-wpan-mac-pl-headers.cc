@@ -199,7 +199,8 @@ CommandPayloadHeader::GetSerializedSize() const
             break;
 
         case DSME_ASSOCIATION_RESP:
-            size += 2 + 1 + 1 + ceil(m_hoppingSeqLen / 8);             // short address + Association Status + Hopping Seq Length + hopping seq
+            // short address + Association Status + Hopping Seq Length + hopping seq + allocation sequence
+            size += 2 + 1 + 1 + ceil(m_hoppingSeqLen / 8) + 2;             
             break;
 
         case DSME_GTS_REQ:
@@ -306,12 +307,12 @@ void CommandPayloadHeader::Serialize(Buffer::Iterator start) const {
             i.WriteU8(m_hoppingSeqLen);
             i = m_hoppingSeq.Serialize(i);
 
-            /** // TODO
+            /**
              * Add self-designed Enhanced Beacon Scheduling (EBS) feature here
              * Note :
              * Add a new field in association response command - Association sequence (2 bytes, use uint16_t)
              **/ 
-
+            i.WriteU16(m_allocationSequence);
             break;
 
         case DSME_GTS_REQ:
@@ -428,11 +429,12 @@ CommandPayloadHeader::Deserialize(Buffer::Iterator start)
             m_assocStatus = static_cast<AssocStatus>(i.ReadU8());
             m_hoppingSeqLen = i.ReadU8();
             i = m_hoppingSeq.Deserialize(i);
-            /** // TODO
+            /** 
              * Add self-designed Enhanced Beacon Scheduling (EBS) feature here
              * Note :
              * Add a new field in association response command - Association sequence (2 bytes, use uint16_t)
              **/ 
+            m_allocationSequence = i.ReadU16();
             break;
 
         case DSME_GTS_REQ:
@@ -804,6 +806,17 @@ void CommandPayloadHeader::SetDsmeInfoPANDescriptor(DsmePANDescriptorIE des) {
     m_dsmePANDercriptorIE = des;
 }
 
+void CommandPayloadHeader::SetEBSAllocationSeq(uint16_t allocSeq)
+{
+    m_allocationSequence = allocSeq;
+}
+
+uint16_t CommandPayloadHeader::GetEBSAllocationSeq()
+{
+    return m_allocationSequence;
+}
+
+
 Mac16Address
 CommandPayloadHeader::GetShortAddr() const
 {
@@ -914,6 +927,8 @@ uint16_t CommandPayloadHeader::GetDsmeInfoSuperframeID() const {
 uint8_t CommandPayloadHeader::GetDsmeInfoSlotID() const {
     return m_slotID;
 }
+
+
 
 DsmePANDescriptorIE CommandPayloadHeader::GetDsmeInfoPANDescriptor() const {
     return m_dsmePANDercriptorIE;

@@ -296,6 +296,7 @@ LrWpanMac::LrWpanMac() {
     m_isBcnAllocCollision = false;
     m_needBcnSchedulingAgain = false;
     m_bcnScehdulingFailCnt = 0;
+    m_allocationSequence = 0;
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -916,6 +917,15 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
 
     LrWpanMacHeader macHdr(LrWpanMacHeader::LRWPAN_MAC_COMMAND, m_macDsn.GetValue());
     m_macDsn++;
+
+    if(m_macDSMEenabled && params.m_status == LrWpanAssociationStatus::ASSOCIATED_EBS)
+    {
+        // Enhanced Beacon scheduling
+        // Add sequence number before send associaion response which represent a new dev association successfully.
+        m_allocationSequence++;
+    }
+
+
     LrWpanMacTrailer macTrailer;
     Ptr<Packet> commandPacket = Create<Packet>();
 
@@ -925,6 +935,9 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
     macHdr.SetPanIdComp();
     macHdr.SetDstAddrFields(m_macPanId, params.m_extDevAddr);
     macHdr.SetSrcAddrFields(0xffff, GetExtendedAddress());
+    macHdr.SetSecDisable();
+    macHdr.SetNoFrmPend();
+    macHdr.SetAckReq();
 
     CommandPayloadHeader macPayload;
 
@@ -974,13 +987,10 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
 
         case LrWpanAssociationStatus::ASSOCIATED_EBS:
             // For debug
+            macPayload.SetAssociationStatus(CommandPayloadHeader::SUCCESSFUL);
             NS_LOG_ERROR("[MlmeAssociateResponse] Set AssociationStatus = ASSOCIATED_EBS");
             break;
     }
-
-    macHdr.SetSecDisable();
-    macHdr.SetNoFrmPend();
-    macHdr.SetAckReq();
 
     // Dsme association response command
     if (m_macDSMEenabled && m_macHoppingEnabled) {
@@ -992,6 +1002,19 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
         } else {
             macPayload.SetHoppingSeqLen(0);
         }
+    }
+
+    /**
+     * Add a new field - [Association sequence] : 2 bytes
+     * Note : This field is for Enhanced beacon scheduling in order to avoid allocation collision.
+    */
+    if(params.m_status == LrWpanAssociationStatus::ASSOCIATED_EBS)
+    {
+        macPayload.SetEBSAllocationSeq(m_allocationSequence);
+    }
+    else
+    {
+        macPayload.SetEBSAllocationSeq(0); // 0 represent no use, EBS disabled.
     }
 
     commandPacket->AddHeader(macPayload);
@@ -5206,8 +5229,10 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     if(GetBcnSchedulingAllocStatus() != ALLOC_SUCCESS && m_needBcnSchedulingAgain == true)
                     {
                         NS_LOG_DEBUG("Received fresh beacon (after collision), do beacon scheduling again. ");
-                        Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling_Legacy,
-                                                this);
+
+                        Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling,
+                                               this,
+                                               LrWpanBeaconSchedulingPolicy::LEGACY);
                     }
                     
                     
@@ -7172,14 +7197,15 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                                 SetHoppingSeqLen(receivedMacPayload.GetHoppingSeqLen());
                             }
                             
-                            /** // TODO
+                            /** 
                              * Set association sequence for self-designed Enhanced Beacon Scheduling (EBS)
                              * Note : 
                              * EBS set the SDIdx as the value of association sequence in order to achive allocation collision free.
                              **/ 
-
-                            // if (LrWpanAssociationStatus == ASSOCIATED_EBS) 
-                            // { SetSDIdx(Association sequence) }
+                            if(receivedMacPayload.GetEBSAllocationSeq() != 0) // 0 represent EBS disabled
+                            {
+                                SetTimeSlotToSendBcn(receivedMacPayload.GetEBSAllocationSeq());
+                            }                            
 
                             break;
 
@@ -8382,24 +8408,111 @@ LrWpanMac::SetLrWpanMacState(LrWpanMacState macState)
 }
 
 void 
-LrWpanMac::DoBeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy)
+LrWpanMac::BeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy)
 {
     // TODO : Legacy, LSB, MSB, EBS
+
+    //!< Set what timeslot to TX beacon (Beacon scheduling)  
+    NS_LOG_DEBUG("Start Beacon scheduling, m_shortAddr = " << m_shortAddress << " m_extAddr = " << m_selfExt);
+
+    SetBcnSchedulingAllocStatus(ALLOC_TO_BE_DONE); // Set scheduling status   , set ALLOC_TO_BE_DONE here. 
+                                                   // If allocation success   , it will be set to ALLOC_SUCCESS.
+                                                   // If allocation collision , it will be set to ALLOC_COLLISION.
+
+    // Set the beacon bitmap basic parameters.
+    // According to the spec , bitmap length = 2^(BO-SO) , get the parameters from PAN-C.
+    int panDescIndex = GetDescIndexOfAssociatedPan();
+    uint16_t bitmapLength = 1 << (m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder()
+                                - m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder());
+
+    BeaconBitmap bitmap(0, bitmapLength);
+    
+    for (uint32_t i = 0; i < m_panDescriptorList.size(); i++) {
+        if (m_panDescriptorList[i].m_coorPanId == m_panDescriptorList[panDescIndex].m_coorPanId) {
+            bitmap = bitmap | m_panDescriptorList[i].m_bcnBitmap;
+        }
+    }
+
+    bitmap.SetBitmapLength(bitmapLength);
+
+    // Initialize the flag, this flag is used to decided to do beacon scheduling again or not.
+    // Default : False
+    m_needBcnSchedulingAgain = false;
+
+    uint8_t vacantTimeSlotToSendBcn;
+    // Start choose a vacant SDIndex for beacon scheduling.
     switch(schedulingPolicy)
     {
-        case LEGACY:
-            BeaconScheduling_Legacy();
+        case LEGACY: // As describe in spec, it random choose vacant slot and may cause collision.
+
+            NS_LOG_DEBUG("Start choose a random vacant slot .. ");
+
+            vacantTimeSlotToSendBcn = FindVacantBeaconTimeSlot(bitmap);
+            NS_LOG_DEBUG("BO = " << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
+                    << "SO = "   << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n");
+            NS_LOG_DEBUG("Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n");
+
+            // std::cout << "BO = " << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
+            //           << "SO = "   << (uint32_t)m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
+            // std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
+
+            SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
             break;
+
         case LSB:
             break;
+
         case MSB:
             break;
-        case EBS:
+
+        case EBS:   // Use allocation sequence to allocate slot, collision free.
+                    // Nothing to do here because the slot has been choosen after association (use allocation sequence).
             break;
+
         default:
             NS_LOG_DEBUG("Invalid schedulingPolicy, please check !!");
             break;
     }
+
+    SendDsmeBeaconAllocNotifyCommand();
+    NS_LOG_DEBUG("m_endCapTime " << m_endCapTime);
+
+
+    // Setting the MlmeStartRequest parameters here
+    //? But the parameters is not be used.
+    //? Guess : The coordinator have been sync with the PAC-C, all the parameters should follow the PAN-C.
+    MlmeStartRequestParams params2;
+    params2.m_panCoor = false;
+    params2.m_PanId = 5;
+
+    params2.m_bcnOrd = 6;
+    params2.m_sfrmOrd = 3;
+    params2.m_logCh = 14;
+
+    HoppingDescriptor hoppingDescriptor2;
+    hoppingDescriptor2.m_HoppingSequenceID = 0x00;
+    hoppingDescriptor2.m_hoppingSeqLen = 0;
+    hoppingDescriptor2.m_channelOfs = 5;
+    hoppingDescriptor2.m_channelOfsBitmapLen = 16;
+    hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
+
+    params2.m_hoppingDescriptor = hoppingDescriptor2;
+
+    // DSME
+    params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
+    params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
+    params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
+
+    // After syncRequest, the coordinator will be sync to the PAN-C,
+    // the m_endCapTime parameter will be calculated at LrWpanMac::StartCAP()
+
+    // Note : It delay a period here because after beacon scheduling,
+    //        it need to check there is a collision or not during the CAP period.
+
+    Simulator::Schedule(m_endCapTime, 
+                        &LrWpanMac::CheckBeaconScheduling, 
+                        this,
+                        params2);
 }
 
 void 
@@ -8513,42 +8626,42 @@ LrWpanMac::CheckBeaconScheduling(MlmeStartRequestParams params)
     }
 }
 
-void 
-LrWpanMac::BeaconScheduling(MlmeScanConfirmParams params,int panDescIndex)
-{
-    //!< Set what timeslot to TX beacon (Beacon scheduling)  
+// void 
+// LrWpanMac::BeaconScheduling(MlmeScanConfirmParams params,int panDescIndex)
+// {
+//     //!< Set what timeslot to TX beacon (Beacon scheduling)  
 
-    // According to the spec , bitmap length = 2^(BO-SO)
-    uint16_t bitmapLength = 1 << (params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
-                                    - params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder());
+//     // According to the spec , bitmap length = 2^(BO-SO)
+//     uint16_t bitmapLength = 1 << (params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() 
+//                                     - params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder());
 
-    BeaconBitmap bitmap(0, bitmapLength);
+//     BeaconBitmap bitmap(0, bitmapLength);
     
-    for (uint32_t i = 0; i < params.m_panDescList.size(); i++) {
-        if (params.m_panDescList[i].m_coorPanId == params.m_panDescList[panDescIndex].m_coorPanId) {
-            bitmap = bitmap | params.m_panDescList[i].m_bcnBitmap;
-        }
-    }
+//     for (uint32_t i = 0; i < params.m_panDescList.size(); i++) {
+//         if (params.m_panDescList[i].m_coorPanId == params.m_panDescList[panDescIndex].m_coorPanId) {
+//             bitmap = bitmap | params.m_panDescList[i].m_bcnBitmap;
+//         }
+//     }
 
-    bitmap.SetBitmapLength(bitmapLength);
+//     bitmap.SetBitmapLength(bitmapLength);
 
-    std::cout << "Pan-C Beacon bitmap infos in PAN id " << params.m_panDescList[panDescIndex].m_coorPanId << " : "
-                << bitmap
-                << "\n";
+//     std::cout << "Pan-C Beacon bitmap infos in PAN id " << params.m_panDescList[panDescIndex].m_coorPanId << " : "
+//                 << bitmap
+//                 << "\n";
 
-    uint8_t vacantTimeSlotToSendBcn;
+//     uint8_t vacantTimeSlotToSendBcn;
 
-    vacantTimeSlotToSendBcn = FindVacantBeaconTimeSlot(bitmap);
+//     vacantTimeSlotToSendBcn = FindVacantBeaconTimeSlot(bitmap);
 
-    std::cout << "BO = " << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
-              << "SO = "   << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
-    std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
+//     std::cout << "BO = " << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetBeaconOrder() << " ,"
+//               << "SO = "   << (uint32_t)params.m_panDescList[panDescIndex].m_superframeSpec.GetFrameOrder() << "\n";
+//     std::cout << "Doing beacon scheduling now , choose vacant timeslot [" << (uint32_t)vacantTimeSlotToSendBcn << "]" << "\n";
 
 
-    SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
-    SendDsmeBeaconAllocNotifyCommand();
+//     SetTimeSlotToSendBcn(vacantTimeSlotToSendBcn);
+//     SendDsmeBeaconAllocNotifyCommand();
 
-}
+// }
 
 uint8_t
 LrWpanMac::FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap)
@@ -8577,6 +8690,78 @@ LrWpanMac::FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap)
             return SLOT_UNDIFINED;
             break;
     }
+}
+
+// Self-designed Enhanced Beacon Scheduling (EBS)
+void 
+LrWpanMac::BeaconScheduling_EBS()
+{
+   //!< Set what timeslot to TX beacon (Beacon scheduling)  
+    NS_LOG_DEBUG("Start Beacon scheduling, m_shortAddr = " << m_shortAddress << " m_extAddr = " << m_selfExt);
+
+    SetBcnSchedulingAllocStatus(ALLOC_TO_BE_DONE); // Set scheduling status   , set ALLOC_TO_BE_DONE here. 
+                                                   // If allocation success   , it will be set to ALLOC_SUCCESS.
+                                                   // If allocation collision , it will be set to ALLOC_COLLISION.
+
+    // Set the beacon bitmap basic parameters.
+    // According to the spec , bitmap length = 2^(BO-SO) , get the parameters from PAN-C.
+    int panDescIndex = GetDescIndexOfAssociatedPan();
+    uint16_t bitmapLength = 1 << (m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder()
+                                - m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder());
+
+    BeaconBitmap bitmap(0, bitmapLength);
+    
+    for (uint32_t i = 0; i < m_panDescriptorList.size(); i++) {
+        if (m_panDescriptorList[i].m_coorPanId == m_panDescriptorList[panDescIndex].m_coorPanId) {
+            bitmap = bitmap | m_panDescriptorList[i].m_bcnBitmap;
+        }
+    }
+
+    bitmap.SetBitmapLength(bitmapLength);
+
+    // Initialize the flag, this flag is used to decided to do beacon scheduling again or not.
+    // Default : False
+    m_needBcnSchedulingAgain = false;
+
+    SendDsmeBeaconAllocNotifyCommand();
+    NS_LOG_DEBUG("m_endCapTime " << m_endCapTime);
+
+    // Setting the MlmeStartRequest parameters here
+    //? But the parameters is not be used.
+    //? Guess : The coordinator have been sync with the PAC-C, all the parameters should follow the PAN-C.
+    MlmeStartRequestParams params2;
+    params2.m_panCoor = false;
+    params2.m_PanId = 5;
+
+    params2.m_bcnOrd = 6;
+    params2.m_sfrmOrd = 3;
+    params2.m_logCh = 14;
+
+    HoppingDescriptor hoppingDescriptor2;
+    hoppingDescriptor2.m_HoppingSequenceID = 0x00;
+    hoppingDescriptor2.m_hoppingSeqLen = 0;
+    hoppingDescriptor2.m_channelOfs = 5;
+    hoppingDescriptor2.m_channelOfsBitmapLen = 16;
+    hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
+
+    params2.m_hoppingDescriptor = hoppingDescriptor2;
+
+    // DSME
+    params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
+    params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
+    params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
+
+    // After syncRequest, the coordinator will be sync to the PAN-C,
+    // the m_endCapTime parameter will be calculated at LrWpanMac::StartCAP()
+
+    // Note : It delay a period here because after beacon scheduling,
+    //        it need to check there is a collision or not during the CAP period.
+
+    Simulator::Schedule(m_endCapTime, 
+                        &LrWpanMac::CheckBeaconScheduling, 
+                        this,
+                        params2);
+
 }
 
 LrWpanAssociationStatus
@@ -8899,6 +9084,18 @@ uint32_t
 LrWpanMac::GetBcnSchedulingFailCnt()
 {
     return m_bcnScehdulingFailCnt;
+}
+
+void
+LrWpanMac::SetAllocationSeq(uint16_t allocSeq)
+{
+    m_allocationSequence = allocSeq;
+}
+
+uint16_t
+LrWpanMac::GetAllocationSeq()
+{
+    return m_allocationSequence;
 }
 
 } // namespace ns3

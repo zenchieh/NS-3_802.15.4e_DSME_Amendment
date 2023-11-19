@@ -96,6 +96,7 @@ static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams param
                         assocParams.m_coordShortAddr = Mac16Address("ff:fe");
                     }
 
+                    // Sending association request
                     Simulator::ScheduleNow(&LrWpanMac::MlmeAssociateRequest,
                                            device->GetMac(),
                                            assocParams);
@@ -175,6 +176,7 @@ static void AssociateIndication(Ptr<LrWpanNetDevice> device, MlmeAssociateIndica
         assocRespParams.m_assocShortAddr = Mac16Address("ff:fe");
     }
 
+    // After received the association request, the PAN coordinator TX association response back.
     Simulator::ScheduleNow(&LrWpanMac::MlmeAssociateResponse, device->GetMac(), assocRespParams);
 }
 
@@ -244,8 +246,9 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
      *! MlmeStartRequest will be scheduled after beacon scheduling allocation successful.
      */
 
-    Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling_Legacy,
-                        device->GetMac());
+    Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling,
+                        device->GetMac(),
+                        LrWpanBeaconSchedulingPolicy::EBS);
 
 }
 

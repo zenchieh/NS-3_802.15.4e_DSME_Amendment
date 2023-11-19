@@ -96,6 +96,7 @@ static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams param
                         assocParams.m_coordShortAddr = Mac16Address("ff:fe");
                     }
 
+                    // Sending association request
                     Simulator::ScheduleNow(&LrWpanMac::MlmeAssociateRequest,
                                            device->GetMac(),
                                            assocParams);
@@ -151,7 +152,11 @@ static void AssociateIndication(Ptr<LrWpanNetDevice> device, MlmeAssociateIndica
     MlmeAssociateResponseParams assocRespParams;
 
     assocRespParams.m_extDevAddr = params.m_extDevAddr;
-    assocRespParams.m_status = LrWpanAssociationStatus::ASSOCIATED;
+
+    // Note : 
+    // Set AssociationStatus = ASSOCIATED_EBS here to enable Enhanced beacon scheduling.
+    assocRespParams.m_status = LrWpanAssociationStatus::ASSOCIATED_EBS;
+
 
     if (params.capabilityInfo.IsShortAddrAllocOn()) {
         // Truncate the extended address and make an assigned
@@ -175,6 +180,7 @@ static void AssociateIndication(Ptr<LrWpanNetDevice> device, MlmeAssociateIndica
         assocRespParams.m_assocShortAddr = Mac16Address("ff:fe");
     }
 
+    // After received the association request, the PAN coordinator TX association response back.
     Simulator::ScheduleNow(&LrWpanMac::MlmeAssociateResponse, device->GetMac(), assocRespParams);
 }
 
@@ -222,9 +228,11 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
                   << device->GetMac()->GetShortAddress() << " | "
                   << device->GetMac()->GetExtendedAddress() << "]"
                   << " MLME-associate.confirm: Association with coordinator successful."
+                  << "\n"
                   << " (PAN: " << device->GetMac()->GetPanId()
                   << " | CoordShort: " << device->GetMac()->GetCoordShortAddress()
-                  << " | CoordExt: " << device->GetMac()->GetCoordExtAddress() << ")\n";
+                  << " | CoordExt: " << device->GetMac()->GetCoordExtAddress() << ")"
+                  << "\n";
 
     } else if (params.m_status == LrWpanMlmeAssociateConfirmStatus::MLMEASSOC_NO_ACK) {
         std::cout << Simulator::Now().As(Time::S) << " Node " << device->GetNode()->GetId() << " ["
@@ -246,7 +254,7 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
 
     Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling,
                         device->GetMac(),
-                        LrWpanBeaconSchedulingPolicy::LEGACY);
+                        LrWpanBeaconSchedulingPolicy::EBS); // Use Enhanced beacon scheduling here
 
 }
 
@@ -450,46 +458,8 @@ int main(int argc, char* argv[]) {
                                     deviceVector[deviceIdx]->GetMac(),
                                     syncParams);
     }
-
-
-    // Disassociation 
-
-    /**
-     * Set Star topology
-     * Use a circle with raduis = 100 m
-     * Pan-C  : Origin
-     * Others : x-y axis (+-) at distance of 100m
-     * 
-     *                  ^
-     *                  |
-     *              (3) O 100             
-     *                  |
-     *          (4)     | //! (1) << disassociation
-     * ----------O------O------O----------->
-     *         -100     |(0)  100
-     *                  |
-     *              (2) O -100
-     *                  |
-     *                  |
-     */
-
-    MlmeDisassociateRequestParams disasscoParams;
-    disasscoParams.m_devAddrMode = SHORT_ADDR;
-    disasscoParams.m_devPanId = 5;                    
-    disasscoParams.m_shortDevAddr = Mac16Address("00:02");
-    disasscoParams.m_extDevAddr = Mac64Address("00:00:00:00:00:00:00:02");
-    disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN;
-    disasscoParams.m_txIndirect = false;
-
-    Simulator::ScheduleWithContext(deviceVector[1]->GetNode()->GetId(),
-                                   Seconds(1200),
-                                   &LrWpanMac::MlmeDisassociateRequest,
-                                   deviceVector[1]->GetMac(),
-                                   disasscoParams);
-
-
  
-    Simulator::Stop(Seconds(1500));
+    Simulator::Stop(Seconds(1200));
     Simulator::Run();
 
     // Calculating Beacon scheduling allocation successful rate.

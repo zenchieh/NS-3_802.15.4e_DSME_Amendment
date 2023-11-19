@@ -2703,10 +2703,17 @@ class LrWpanMac : public Object
     //        It calculate the total time of beacon scheduling.
     Time m_bcnSchedulingTime;
 
-    // Beacon scheduling allocation map
-    // Note : This map is a self designed structure, not in spec.
-    // Example : <Short Address , SDIdx> ---- <00:01, 3>
-    std::map<Mac16Address, int> m_bcnSchedulingMap;
+    // Enhanced Beacon Scheduling allocation sequence.
+    // For the purpose of allocation collision free.
+    uint16_t m_allocationSequence;
+
+    // Enhanced Beacon Scheduling allocation sequence.
+    // For the purpose of allocation collision free.
+    void SetAllocationSeq(uint16_t allocSeq);
+
+    // Enhanced Beacon Scheduling allocation sequence.
+    // For the purpose of allocation collision free.
+    uint16_t GetAllocationSeq();
 
     typedef enum {
         EBAutoSA_NONE = 0,
@@ -2913,12 +2920,13 @@ class LrWpanMac : public Object
 
     void SetBecomeCoordAfterAssociation(bool on);
 
-    void BeaconScheduling(MlmeScanConfirmParams params, int panDescIndex);
     void CheckBeaconScheduling(MlmeStartRequestParams params);
+
     void BeaconScheduling_Legacy();
+    void BeaconScheduling_EBS();
 
     // Beacon scheduling entry point
-    void DoBeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy);
+    void BeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy);
 
     uint8_t FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap);
 

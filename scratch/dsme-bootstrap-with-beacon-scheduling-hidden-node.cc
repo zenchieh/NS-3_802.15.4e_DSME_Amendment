@@ -236,8 +236,9 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
      *  MlmeStartRequest will be scheduled after beacon scheduling allocation successful.
      */
 
-    Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling_Legacy,
-                        device->GetMac());
+    Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling,
+                        device->GetMac(),
+                        LrWpanBeaconSchedulingPolicy::LEGACY);
 
 }
 
