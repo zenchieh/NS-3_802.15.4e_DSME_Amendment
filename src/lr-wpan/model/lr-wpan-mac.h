@@ -2922,9 +2922,6 @@ class LrWpanMac : public Object
 
     void CheckBeaconScheduling(MlmeStartRequestParams params);
 
-    void BeaconScheduling_Legacy();
-    void BeaconScheduling_EBS();
-
     // Beacon scheduling entry point
     void BeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy);
 
