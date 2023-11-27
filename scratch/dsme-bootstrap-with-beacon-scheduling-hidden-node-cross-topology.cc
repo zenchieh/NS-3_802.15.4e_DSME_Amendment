@@ -248,7 +248,7 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
 
     Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling,
                         device->GetMac(),
-                        LrWpanBeaconSchedulingPolicy::EBS);
+                        LrWpanBeaconSchedulingPolicy::LEGACY);
 
 }
 
@@ -453,7 +453,7 @@ int main(int argc, char* argv[]) {
                                     syncParams);
     }
  
-    Simulator::Stop(Seconds(1200));
+    Simulator::Stop(Seconds(1500));
     Simulator::Run();
 
     // Calculating Beacon scheduling allocation successful rate.

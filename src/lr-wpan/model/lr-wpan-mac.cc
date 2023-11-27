@@ -5294,7 +5294,11 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         m_incomingSDBitmap = panDescriptor.m_bcnBitmap;
 
                         // Update self beacon bitmap if rcv a new beacon
-                        m_macSDBitmap = m_incomingSDBitmap;
+
+                        if(!m_panCoor)
+                        {
+                            m_macSDBitmap = m_incomingSDBitmap; // In star topology , PAN-C dont need to update beacon bitmap.
+                        }
                         
                         NS_LOG_DEBUG("Received beacon from panDescriptorIE, Current beacon bitmap = " << m_incomingSDBitmap);
                         
