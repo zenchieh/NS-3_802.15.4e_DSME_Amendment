@@ -97,9 +97,8 @@ static void ScanConfirm(Ptr<LrWpanNetDevice> device, MlmeScanConfirmParams param
                                            
                     
                     Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling,
-                                           device->GetMac(),
-                                           params,
-                                           panDescIndex);
+                                            device->GetMac(),
+                                            LrWpanBeaconSchedulingPolicy::LEGACY);
                     
                     
 

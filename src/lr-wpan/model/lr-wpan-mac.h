@@ -37,6 +37,7 @@
 #include <ns3/sequence-number.h>
 #include <ns3/traced-callback.h>
 #include <ns3/traced-value.h>
+#include <ns3/lr-wpan-linked-list.h>
 
 #include <deque>
 #include <memory>
