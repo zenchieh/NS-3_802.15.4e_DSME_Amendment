@@ -37,7 +37,6 @@
 #include <ns3/sequence-number.h>
 #include <ns3/traced-callback.h>
 #include <ns3/traced-value.h>
-#include <ns3/lr-wpan-linked-list.h>
 
 #include <deque>
 #include <memory>
@@ -3986,7 +3985,39 @@ class LrWpanMac : public Object
      * Scheduler event for the sending the Dsme-Beacon allocation notification command
      */
     EventId m_sendDsmeBcnAllocNotifiCmd;
+}; // class LrWpanMac 
+
+template <typename T>
+class ListNode
+{
+  public:
+    T data;
+    ListNode* next;
+
+    ListNode(T data)
+    {
+        this->data = data;
+        this->next = nullptr;
+    }
 };
+
+template <typename T>
+class LinkedList
+{
+  private:
+    ListNode<T>* head;
+
+  public:
+
+    LinkedList();
+
+    void insertAtBeginning(T data);
+    void insertAtEnd(T data);
+    void deleteAtBeginning();
+    void deleteAtEnd();
+    void printList();
+};
+
 } // namespace ns3
 
 #endif /* LR_WPAN_MAC_H */
