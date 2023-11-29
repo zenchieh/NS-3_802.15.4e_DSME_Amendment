@@ -5293,14 +5293,38 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         // DSME-TODO
                         m_incomingSDBitmap = panDescriptor.m_bcnBitmap;
 
-                        // Update self beacon bitmap if rcv a new beacon
+                        /**
+                         * After receiving a Enhance Beacon, coordinator update their beacon bitmap subsequently.
+                         * The update method is 'OR' bitwise operation.
+                         * It use 'OR' operation between [incoming beacon bitmap] and [original beacon bitmap].
+                         * 
+                         *              incoming beacon bitmap | original beacon bitmap
+                         */
 
-                        if(!m_panCoor)
+                        std::vector<uint16_t> incomingSDBitmap = m_incomingSDBitmap.GetSDBitmap(); // Get the incoming beacon bitmap.
+                        std::vector<uint16_t> newSDBitmap = m_macSDBitmap.GetSDBitmap(); // Create a new beacon bitmap, use the original first. 
+
+                        // Make sure two vectors (bitmap) have same size.
+                        if (newSDBitmap.size() == incomingSDBitmap.size())
                         {
-                            m_macSDBitmap = m_incomingSDBitmap; // In star topology , PAN-C dont need to update beacon bitmap.
+                            std::transform(
+                                newSDBitmap.begin(), 
+                                newSDBitmap.end(),
+                                incomingSDBitmap.begin(),
+                                newSDBitmap.begin(),
+                                [](uint16_t a, uint16_t b) { return a | b; } // Do the OR operation.
+                            );
                         }
-                        
-                        NS_LOG_DEBUG("Received beacon from panDescriptorIE, Current beacon bitmap = " << m_incomingSDBitmap);
+                        else 
+                        {
+                            NS_LOG_DEBUG("Error: Vectors must have the same size for bitwise OR operation.");
+                        }                     
+
+                        m_macSDBitmap.SetBitmapLength(m_incomingSDBitmap.GetSDBitmapLength());
+                        m_macSDBitmap.SetSDIndex(m_incomingSDBitmap.GetSDIndex());                        
+                        m_macSDBitmap.SetSDBitmap(newSDBitmap); // Set the bitmap, which is the OR operation of the two bitmap.
+                        NS_LOG_DEBUG("Received beacon from panDescriptorIE, m_incomingSDBitmap = " << m_incomingSDBitmap);
+                        NS_LOG_DEBUG("After Vector OR operation, m_macSDBitmap = " << m_macSDBitmap);
                         
                         // DSME-TODO
                         // 這個應該是要從 m_incomingSDBitmap 取出來
@@ -8436,6 +8460,8 @@ LrWpanMac::BeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy)
             bitmap = bitmap | m_panDescriptorList[i].m_bcnBitmap;
         }
     }
+
+    NS_LOG_DEBUG("[Beacon scheduling] bitmap = " << bitmap);
 
     bitmap.SetBitmapLength(bitmapLength);
 
