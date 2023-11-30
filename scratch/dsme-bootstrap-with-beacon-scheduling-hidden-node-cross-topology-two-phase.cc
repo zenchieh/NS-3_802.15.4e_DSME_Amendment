@@ -307,9 +307,9 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
     cstPosMobilityModelVector[3]->SetPosition(Vector(-100, 0, 0));
     cstPosMobilityModelVector[4]->SetPosition(Vector(0, 100, 0));
 
-    cstPosMobilityModelVector[5]->SetPosition(Vector(60, 80, 0));
-    cstPosMobilityModelVector[6]->SetPosition(Vector(60, -80, 0));
-    cstPosMobilityModelVector[7]->SetPosition(Vector(-60, 80, 0));
+    cstPosMobilityModelVector[5]->SetPosition(Vector(10, 0, 0));
+    cstPosMobilityModelVector[6]->SetPosition(Vector(0, 10, 0));
+    cstPosMobilityModelVector[7]->SetPosition(Vector(-10, 0, 0));
 
     for(int i = 0; i < DEVICE_CNT + 1; i++)
     {
@@ -460,6 +460,25 @@ int main(int argc, char* argv[]) {
                                     deviceVector[deviceIdx]->GetMac(),
                                     syncParams);
     }
+
+
+    // Do disassociation
+
+    MlmeDisassociateRequestParams disasscoParams;
+    disasscoParams.m_devAddrMode = SHORT_ADDR;
+    disasscoParams.m_devPanId = 5;                    
+    disasscoParams.m_shortDevAddr = Mac16Address("00:02");
+    disasscoParams.m_extDevAddr = Mac64Address("00:00:00:00:00:00:00:02");
+    disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN;
+    disasscoParams.m_txIndirect = false;
+
+    Simulator::ScheduleWithContext(deviceVector[1]->GetNode()->GetId(),
+                                   Seconds(1200),
+                                   &LrWpanMac::MlmeDisassociateRequest,
+                                   deviceVector[1]->GetMac(),
+                                   disasscoParams);
+
+
  
     Simulator::Stop(Seconds(1500));
     Simulator::Run();

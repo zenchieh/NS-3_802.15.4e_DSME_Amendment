@@ -1678,6 +1678,11 @@ void LrWpanMac::SendOneEnhancedBeacon() {
     NS_ASSERT(m_lrWpanMacState == MAC_IDLE);
     NS_ASSERT(GetShortAddress() != Mac16Address("ff:ff"));
 
+    if(m_macPanId == 0xffff) // TODO : This is a workaround !! Root cause do not found yet ..
+    {                        // After a device leave the PAN (disassociation), the PAN id is set to 0xffff.
+        return;
+    }
+
     m_startOfBcnSlot = Simulator::Now();
 
     LrWpanMacHeader macHdr;                         // Enhanced Beacon MDR
@@ -5305,7 +5310,12 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         std::vector<uint16_t> newSDBitmap = m_macSDBitmap.GetSDBitmap(); // Create a new beacon bitmap, use the original first. 
 
                         // Make sure two vectors (bitmap) have same size.
-                        if (newSDBitmap.size() == incomingSDBitmap.size())
+                        NS_LOG_DEBUG("newSDBitmap.size() = " << newSDBitmap.size() << "  incomingSDBitmap.size() = " << incomingSDBitmap.size());
+                        if(newSDBitmap.size() == 0)
+                        {
+                            newSDBitmap = incomingSDBitmap;
+                        }
+                        else if(newSDBitmap.size() == incomingSDBitmap.size())
                         {
                             std::transform(
                                 newSDBitmap.begin(), 
@@ -5314,17 +5324,27 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                 newSDBitmap.begin(),
                                 [](uint16_t a, uint16_t b) { return a | b; } // Do the OR operation.
                             );
+
+                            // std::transform(
+                            //     newSDBitmap.begin(), 
+                            //     newSDBitmap.end(),
+                            //     incomingSDBitmap.begin(),
+                            //     newSDBitmap.begin(),
+                            //     [](uint16_t a, uint16_t b) { return a & b; } // Do the AND operation.
+                            // );
                         }
                         else 
                         {
-                            NS_LOG_DEBUG("Error: Vectors must have the same size for bitwise OR operation.");
-                        }                     
+                            NS_LOG_DEBUG("Error: Vectors must have the same size for bitwise operation.");
+                        }
+
+
 
                         m_macSDBitmap.SetBitmapLength(m_incomingSDBitmap.GetSDBitmapLength());
                         m_macSDBitmap.SetSDIndex(m_incomingSDBitmap.GetSDIndex());                        
                         m_macSDBitmap.SetSDBitmap(newSDBitmap); // Set the bitmap, which is the OR operation of the two bitmap.
                         NS_LOG_DEBUG("Received beacon from panDescriptorIE, m_incomingSDBitmap = " << m_incomingSDBitmap);
-                        NS_LOG_DEBUG("After Vector OR operation, m_macSDBitmap = " << m_macSDBitmap);
+                        NS_LOG_DEBUG("After Vector bitwise operation, m_macSDBitmap = " << m_macSDBitmap);
                         
                         // DSME-TODO
                         // 這個應該是要從 m_incomingSDBitmap 取出來
@@ -7311,6 +7331,7 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     }
 
                 } else if (receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::DISASSOCIATION_NOTIF) {
+                    NS_LOG_DEBUG("Received DISASSOCIATION_NOTIF\n");
                     if (!m_mlmeDisassociateIndicationCallback.IsNull()) {
                         MlmeDisassociateIndicationParams disassociateParams;
                         disassociateParams.m_extDevAddr = receivedMacHdr.GetExtSrcAddr();
