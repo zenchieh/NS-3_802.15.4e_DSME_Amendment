@@ -307,9 +307,9 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
     cstPosMobilityModelVector[3]->SetPosition(Vector(-100, 0, 0));
     cstPosMobilityModelVector[4]->SetPosition(Vector(0, 100, 0));
 
-    cstPosMobilityModelVector[5]->SetPosition(Vector(10, 0, 0));
-    cstPosMobilityModelVector[6]->SetPosition(Vector(0, 10, 0));
-    cstPosMobilityModelVector[7]->SetPosition(Vector(-10, 0, 0));
+    cstPosMobilityModelVector[5]->SetPosition(Vector(50, 0, 0));
+    cstPosMobilityModelVector[6]->SetPosition(Vector(0, 50, 0));
+    cstPosMobilityModelVector[7]->SetPosition(Vector(-50, 0, 0));
 
     for(int i = 0; i < DEVICE_CNT + 1; i++)
     {
@@ -381,12 +381,12 @@ int main(int argc, char* argv[]) {
     MlmeStartRequestParams params;
     params.m_panCoor = true;
     params.m_PanId = 5;
-    params.m_bcnOrd = 12;
-    params.m_sfrmOrd = 8;
+    params.m_bcnOrd = 13;
+    params.m_sfrmOrd = 9;
     params.m_logCh = 14;
 
     // Beacon Bitmap
-    BeaconBitmap bitmap(0, 1 << (12 - 8));
+    BeaconBitmap bitmap(0, 1 << (params.m_bcnOrd - params.m_sfrmOrd));
     bitmap.SetSDBitmap(0);                  // SD = 0 , set beacon send in SDindex = 0
     params.m_bcnBitmap = bitmap;
 
@@ -401,7 +401,7 @@ int main(int argc, char* argv[]) {
     params.m_hoppingDescriptor = hoppingDescriptor;
 
     // DSME SuperframeSpec
-    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(10); // MO
+    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(12); // MO
     params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
     params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);   // CAP reduction 
 
