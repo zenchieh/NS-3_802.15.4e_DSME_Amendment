@@ -231,6 +231,17 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
                   << " (PAN: " << device->GetMac()->GetPanId()
                   << " | CoordShort: " << device->GetMac()->GetCoordShortAddress()
                   << " | CoordExt: " << device->GetMac()->GetCoordExtAddress() << ")\n";
+                
+
+        // Synchronization
+        MlmeSyncRequestParams syncParams;
+        syncParams.m_logCh = 14; 
+        syncParams.m_logChPage = 0; 
+        syncParams.m_trackBcn = true; 
+
+        Simulator::ScheduleNow(&LrWpanMac::MlmeSyncRequest,
+                                device->GetMac(),
+                                syncParams);
 
     } else if (params.m_status == LrWpanMlmeAssociateConfirmStatus::MLMEASSOC_NO_ACK) {
         std::cout << Simulator::Now().As(Time::S) << " Node " << device->GetNode()->GetId() << " ["
@@ -308,7 +319,7 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
     cstPosMobilityModelVector[4]->SetPosition(Vector(0, 100, 0));
 
     cstPosMobilityModelVector[5]->SetPosition(Vector(50, 0, 0));
-    cstPosMobilityModelVector[6]->SetPosition(Vector(0, 50, 0));
+    cstPosMobilityModelVector[6]->SetPosition(Vector(0, -50, 0));
     cstPosMobilityModelVector[7]->SetPosition(Vector(-50, 0, 0));
 
     for(int i = 0; i < DEVICE_CNT + 1; i++)
@@ -319,10 +330,19 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
 }
 
 int main(int argc, char* argv[]) {
+
+    // Setting Log debug level
     LogComponentEnableAll(LogLevel(LOG_PREFIX_TIME | LOG_PREFIX_FUNC | LOG_PREFIX_NODE));
     LogComponentEnable("LrWpanMac", LOG_LEVEL_INFO);
     // LogComponentEnable("DefaultSimulatorImpl", LOG_LEVEL_ALL);
     // LogComponentEnable("LrWpanCsmaCa", LOG_LEVEL_ALL);
+
+    /**
+     * [Random seed API] 
+     * Change the random seed to acheive different simulation results.
+     **/   
+    SeedManager::SetSeed(144);
+
 
     Ptr<SingleModelSpectrumChannel> channel = CreateObject<SingleModelSpectrumChannel>();
     Ptr<LogDistancePropagationLossModel> propModel =
@@ -446,20 +466,20 @@ int main(int argc, char* argv[]) {
                                     scanParams);
     }
 
-    // Synchronization
-    MlmeSyncRequestParams syncParams;
-    syncParams.m_logCh = 14; 
-    syncParams.m_logChPage = 0; 
-    syncParams.m_trackBcn = true; 
+    // // Synchronization
+    // MlmeSyncRequestParams syncParams;
+    // syncParams.m_logCh = 14; 
+    // syncParams.m_logChPage = 0; 
+    // syncParams.m_trackBcn = true; 
 
-    for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
-    {
-        Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
-                                    Seconds(1050.001),
-                                    &LrWpanMac::MlmeSyncRequest,
-                                    deviceVector[deviceIdx]->GetMac(),
-                                    syncParams);
-    }
+    // for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
+    // {
+    //     Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
+    //                                 Seconds(1050.001),
+    //                                 &LrWpanMac::MlmeSyncRequest,
+    //                                 deviceVector[deviceIdx]->GetMac(),
+    //                                 syncParams);
+    // }
 
 
     // Do disassociation
@@ -467,15 +487,15 @@ int main(int argc, char* argv[]) {
     MlmeDisassociateRequestParams disasscoParams;
     disasscoParams.m_devAddrMode = SHORT_ADDR;
     disasscoParams.m_devPanId = 5;                    
-    disasscoParams.m_shortDevAddr = Mac16Address("00:02");
-    disasscoParams.m_extDevAddr = Mac64Address("00:00:00:00:00:00:00:02");
+    disasscoParams.m_shortDevAddr = Mac16Address("00:03");
+    disasscoParams.m_extDevAddr = Mac64Address("00:00:00:00:00:00:00:03");
     disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN;
     disasscoParams.m_txIndirect = false;
 
-    Simulator::ScheduleWithContext(deviceVector[1]->GetNode()->GetId(),
+    Simulator::ScheduleWithContext(deviceVector[2]->GetNode()->GetId(),
                                    Seconds(1200),
                                    &LrWpanMac::MlmeDisassociateRequest,
-                                   deviceVector[1]->GetMac(),
+                                   deviceVector[2]->GetMac(),
                                    disasscoParams);
 
 

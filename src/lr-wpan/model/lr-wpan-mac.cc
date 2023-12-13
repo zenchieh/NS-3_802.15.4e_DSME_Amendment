@@ -988,7 +988,7 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
         case LrWpanAssociationStatus::ASSOCIATED_EBS:
             // For debug
             macPayload.SetAssociationStatus(CommandPayloadHeader::SUCCESSFUL);
-            NS_LOG_ERROR("[MlmeAssociateResponse] Set AssociationStatus = ASSOCIATED_EBS");
+            NS_LOG_ERROR("[MlmeAssociateResponse] Set AssociationStatus = ASSOCIATED_EBS on : " << params.m_assocShortAddr);
             break;
     }
 
@@ -3439,7 +3439,7 @@ void LrWpanMac::StartCAP(SuperframeType superframeType) {
                                                          << ")");
         NS_LOG_DEBUG("Active Slots duration " << activeSlot << " symbols");
         m_endCapTime = endCapTime;
-        // NS_LOG_DEBUG("m_endCapTime " << m_endCapTime);
+        NS_LOG_DEBUG("[StartCAP] m_endCapTime " << m_endCapTime);
         m_capEvent =
             Simulator::Schedule(endCapTime, &LrWpanMac::StartCFP, this, SuperframeType::OUTGOING);
 
@@ -5324,14 +5324,6 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                 newSDBitmap.begin(),
                                 [](uint16_t a, uint16_t b) { return a | b; } // Do the OR operation.
                             );
-
-                            // std::transform(
-                            //     newSDBitmap.begin(), 
-                            //     newSDBitmap.end(),
-                            //     incomingSDBitmap.begin(),
-                            //     newSDBitmap.begin(),
-                            //     [](uint16_t a, uint16_t b) { return a & b; } // Do the AND operation.
-                            // );
                         }
                         else 
                         {
@@ -7032,14 +7024,10 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                 m_txPkt = nullptr;
 
             } 
-            else if (macHdr.IsAckReq()) 
-            { 
-                // We have sent a regular data packet, check if we have to
-                // wait  for an ACK.
-            
+            else if (macHdr.IsAckReq())  // We have sent a regular data packet, check if we have to it for an ACK.
+            {                             
                 // we sent a regular data frame or command frame (e.g. AssocReq command) that
-                // require ACK wait for the ack or the next retransmission timeout start
-                // retransmission timer
+                // require ACK wait for the ack or the next retransmission timeout start retransmission timer.
 
                 Time waitTime = Seconds(static_cast<double>(GetMacAckWaitDuration()) / symbolRate);
 
@@ -8526,19 +8514,19 @@ LrWpanMac::BeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy)
     }
 
     SendDsmeBeaconAllocNotifyCommand();
-    NS_LOG_DEBUG("m_endCapTime " << m_endCapTime);
+    NS_LOG_DEBUG("[BeaconScheduling] m_endCapTime " << m_endCapTime);
 
 
     // Setting the MlmeStartRequest parameters here
     //? But the parameters is not be used.
     //? Guess : The coordinator have been sync with the PAC-C, all the parameters should follow the PAN-C.
-    MlmeStartRequestParams params2;
-    params2.m_panCoor = false;
-    params2.m_PanId = 5;
+    MlmeStartRequestParams startReqParam;
+    startReqParam.m_panCoor = false;
+    startReqParam.m_PanId = 5;
 
-    params2.m_bcnOrd = 6;
-    params2.m_sfrmOrd = 3;
-    params2.m_logCh = 14;
+    startReqParam.m_bcnOrd = 6;
+    startReqParam.m_sfrmOrd = 3;
+    startReqParam.m_logCh = 14;
 
     HoppingDescriptor hoppingDescriptor2;
     hoppingDescriptor2.m_HoppingSequenceID = 0x00;
@@ -8547,12 +8535,12 @@ LrWpanMac::BeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy)
     hoppingDescriptor2.m_channelOfsBitmapLen = 16;
     hoppingDescriptor2.m_channelOfsBitmap.resize(1, 34);    // offset = 1, 5 目前占用
 
-    params2.m_hoppingDescriptor = hoppingDescriptor2;
+    startReqParam.m_hoppingDescriptor = hoppingDescriptor2;
 
     // DSME
-    params2.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
-    params2.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
-    params2.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
+    startReqParam.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
+    startReqParam.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
+    startReqParam.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
 
     // After syncRequest, the coordinator will be sync to the PAN-C,
     // the m_endCapTime parameter will be calculated at LrWpanMac::StartCAP()
@@ -8563,7 +8551,7 @@ LrWpanMac::BeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy)
     Simulator::Schedule(m_endCapTime, 
                         &LrWpanMac::CheckBeaconScheduling, 
                         this,
-                        params2);
+                        startReqParam);
 }
 
 void 
