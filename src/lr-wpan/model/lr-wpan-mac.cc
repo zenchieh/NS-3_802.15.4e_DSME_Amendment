@@ -187,7 +187,7 @@ LrWpanMac::LrWpanMac() {
     m_record = nullptr;
     m_record2 = nullptr;
 
-    m_macMaxFrameRetries = 3;
+    m_macMaxFrameRetries = 6;
     
     m_retransmission = 0;
     m_numCsmacaRetry = 0;
@@ -6521,6 +6521,7 @@ LrWpanMac::PrepareRetransmission()
     // Max retransmissions reached without receiving ACK,
     // send the proper indication/confirmation
     // according to the frame type and call drop trace.
+    NS_LOG_DEBUG("m_retransmission = " << (uint32_t)m_retransmission << " , m_macMaxFrameRetries : " << (uint32_t)m_macMaxFrameRetries);
     if (m_retransmission >= m_macMaxFrameRetries) {
         LrWpanMacHeader peekedMacHdr;
         m_txPkt->PeekHeader(peekedMacHdr);
