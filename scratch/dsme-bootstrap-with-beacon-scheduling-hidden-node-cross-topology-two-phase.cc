@@ -349,6 +349,11 @@ int main(int argc, char* argv[]) {
         CreateObject<LogDistancePropagationLossModel>();
     Ptr<ConstantSpeedPropagationDelayModel> delayModel =
         CreateObject<ConstantSpeedPropagationDelayModel>();
+
+    // Adjust path loss exponent parameter to change Transmit range.
+    // propModel->SetPathLossExponent(1);
+    // std::cout << "GetPathLossExponent() :  " << propModel->GetPathLossExponent() << "\n";
+
     channel->AddPropagationLossModel(propModel);
     channel->SetPropagationDelayModel(delayModel);
 
