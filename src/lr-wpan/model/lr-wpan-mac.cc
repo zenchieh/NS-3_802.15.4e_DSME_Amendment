@@ -5335,6 +5335,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         m_macSDBitmap.SetBitmapLength(m_incomingSDBitmap.GetSDBitmapLength());
                         m_macSDBitmap.SetSDIndex(m_incomingSDBitmap.GetSDIndex());                        
                         m_macSDBitmap.SetSDBitmap(newSDBitmap); // Set the bitmap, which is the OR operation of the two bitmap.
+                        NS_LOG_DEBUG("m_macSDBitmap.bitmapLength = " << m_macSDBitmap.GetSDBitmapLength());
                         NS_LOG_DEBUG("Rcv bcn from panDescriptorIE, m_incomingSDBitmap = " << m_incomingSDBitmap);
                         NS_LOG_DEBUG("After Vector bitwise operation, m_macSDBitmap = " << m_macSDBitmap);
                         

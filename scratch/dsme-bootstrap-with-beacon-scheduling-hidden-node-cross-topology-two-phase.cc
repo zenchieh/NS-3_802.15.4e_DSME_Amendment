@@ -341,7 +341,7 @@ int main(int argc, char* argv[]) {
      * [Random seed API] 
      * Change the random seed to acheive different simulation results.
      **/   
-    SeedManager::SetSeed(144);
+    //SeedManager::SetSeed(123);
 
 
     Ptr<SingleModelSpectrumChannel> channel = CreateObject<SingleModelSpectrumChannel>();
@@ -350,9 +350,26 @@ int main(int argc, char* argv[]) {
     Ptr<ConstantSpeedPropagationDelayModel> delayModel =
         CreateObject<ConstantSpeedPropagationDelayModel>();
 
-    // Adjust path loss exponent parameter to change Transmit range.
-    // propModel->SetPathLossExponent(1);
-    // std::cout << "GetPathLossExponent() :  " << propModel->GetPathLossExponent() << "\n";
+    /**
+     * Adjust *path loss exponent* parameter to change Transmit range.
+     * The path loss exponent, whose value is normally in the range of 2 ~ 4.
+     *  
+     *  [Parameters]
+        Tx Power: 0 dBm
+        Receiver Sensitivity: -106.58 dBm
+        CCA channel busy condition: Rx power > -96.58 dBm
+        Log distance reference loss at 1 m distance for channel 11 (2405 MHz): 40.0641 dB
+        Log distance free space path loss exponent: 3
+
+        [Calculate the tansmission TX distance]
+        40.0641 + 10 * r * log(d) < 106.58  (r is path loss exponent)
+
+     **/ 
+
+    propModel->SetReference(1.0,
+                        40.0641);  // Reference loss at 1m distance for 2405 MHz (channel 11)
+    propModel->SetPathLossExponent(3);
+    std::cout << "GetPathLossExponent() :  " << propModel->GetPathLossExponent() << "\n";
 
     channel->AddPropagationLossModel(propModel);
     channel->SetPropagationDelayModel(delayModel);
@@ -360,7 +377,7 @@ int main(int argc, char* argv[]) {
     std::vector<Ptr<LrWpanNetDevice>> deviceVector;
     std::vector<Ptr<Node>> nodesVector;
 
-    // LrWpanNetDevice & Node Initail setting
+    // LrWpanNetDevice & Node Initial setting
     for (int deviceIdx = 0; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
     {   
         char addrStr[] = "00:00";
@@ -471,20 +488,25 @@ int main(int argc, char* argv[]) {
                                     scanParams);
     }
 
-    // // Synchronization
-    // MlmeSyncRequestParams syncParams;
-    // syncParams.m_logCh = 14; 
-    // syncParams.m_logChPage = 0; 
-    // syncParams.m_trackBcn = true; 
+    // Synchronization
+    /**
+     * [Notice] : It might cause some beacon scheduling problem if didn't do the sync process. 
+     * (e.g. : only the PAN-C can finish the scheduling process.)
+    */
 
-    // for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
-    // {
-    //     Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
-    //                                 Seconds(1050.001),
-    //                                 &LrWpanMac::MlmeSyncRequest,
-    //                                 deviceVector[deviceIdx]->GetMac(),
-    //                                 syncParams);
-    // }
+    MlmeSyncRequestParams syncParams;
+    syncParams.m_logCh = 14; 
+    syncParams.m_logChPage = 0; 
+    syncParams.m_trackBcn = true; 
+
+    for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
+    {
+        Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
+                                    Seconds(1050.001),
+                                    &LrWpanMac::MlmeSyncRequest,
+                                    deviceVector[deviceIdx]->GetMac(),
+                                    syncParams);
+    }
 
 
     // Do disassociation

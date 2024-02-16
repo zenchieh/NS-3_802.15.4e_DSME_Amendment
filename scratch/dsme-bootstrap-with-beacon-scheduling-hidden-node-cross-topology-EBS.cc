@@ -309,7 +309,7 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
     cstPosMobilityModelVector[3]->SetPosition(Vector(-100, 0, 0));
     cstPosMobilityModelVector[4]->SetPosition(Vector(0, 100, 0));
 
-    for(int i = 0; i < 5; i++)
+    for(int i = 0; i < DEVICE_CNT + 1; i++)
     {
         devVector[i]->GetPhy()->SetMobility(cstPosMobilityModelVector[i]);
     }
@@ -334,7 +334,7 @@ int main(int argc, char* argv[]) {
     std::vector<Ptr<Node>> nodesVector;
 
     // LrWpanNetDevice & Node Initail setting
-    for (int deviceIdx = 0; deviceIdx < 5; deviceIdx++) 
+    for (int deviceIdx = 0; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
     {   
         char addrStr[] = "00:00";
         Ptr<Node> node = CreateObject<Node>();
@@ -369,7 +369,7 @@ int main(int argc, char* argv[]) {
 
     // Set the position for each lr-wpan device
     std::vector<Ptr<ConstantPositionMobilityModel>> constPosMobilityModelVector;
-    for(int i = 0; i < 5; i++)
+    for(int i = 0; i < DEVICE_CNT + 1; i++)
     {
         Ptr<ConstantPositionMobilityModel> constPosMobilityModel = CreateObject<ConstantPositionMobilityModel>();
         constPosMobilityModelVector.push_back(constPosMobilityModel);
@@ -435,7 +435,7 @@ int main(int argc, char* argv[]) {
     scanParams.m_frameCtrlOptions[1] = false;    // IES_INCLUDED
     scanParams.m_frameCtrlOptions[2] = false;    // SEQ_#_SUPPRESSED
 
-    for (int deviceIdx = 1; deviceIdx < 5; deviceIdx++) 
+    for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
     {
         Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
                                     Seconds(3.0),
@@ -450,7 +450,7 @@ int main(int argc, char* argv[]) {
     syncParams.m_logChPage = 0; 
     syncParams.m_trackBcn = true; 
 
-    for (int deviceIdx = 1; deviceIdx < 5; deviceIdx++) 
+    for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
     {
         Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
                                     Seconds(1050.001),
@@ -464,7 +464,7 @@ int main(int argc, char* argv[]) {
 
     // Calculating Beacon scheduling allocation successful rate.
     uint32_t totalAllocFailCnt = 0;
-    for(int devIdx = 1; devIdx <= DEVICE_CNT; devIdx++)
+    for(int devIdx = 1; devIdx < DEVICE_CNT + 1; devIdx++)
     {
         totalAllocFailCnt += deviceVector[devIdx]->GetMac()->GetBcnSchedulingFailCnt();
     }
