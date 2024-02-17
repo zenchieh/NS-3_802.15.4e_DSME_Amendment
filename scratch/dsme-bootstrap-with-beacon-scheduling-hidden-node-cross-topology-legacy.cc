@@ -321,6 +321,28 @@ int main(int argc, char* argv[]) {
         CreateObject<LogDistancePropagationLossModel>();
     Ptr<ConstantSpeedPropagationDelayModel> delayModel =
         CreateObject<ConstantSpeedPropagationDelayModel>();
+
+    /**
+     * Adjust *path loss exponent* parameter to change Transmit range.
+     * The path loss exponent, whose value is normally in the range of 2 ~ 4.
+     *  
+     *  [Parameters]
+        Tx Power: 0 dBm
+        Receiver Sensitivity: -106.58 dBm
+        CCA channel busy condition: Rx power > -96.58 dBm
+        Log distance reference loss at 1 m distance for channel 11 (2405 MHz): 40.0641 dB
+        Log distance free space path loss exponent: 3
+
+        [Calculate the tansmission TX distance]
+        40.0641 + 10 * r * log(d) < 106.58  (r is path loss exponent)
+
+     **/ 
+
+    propModel->SetReference(1.0, 40.0641);  // Reference loss at 1m distance for 2405 MHz (channel 11)
+    propModel->SetPathLossExponent(3.33);   // Max TX distance : 99.42 m for r = 3.33 
+    std::cout << "GetPathLossExponent() :  " << propModel->GetPathLossExponent() << "\n";
+
+
     channel->AddPropagationLossModel(propModel);
     channel->SetPropagationDelayModel(delayModel);
 
