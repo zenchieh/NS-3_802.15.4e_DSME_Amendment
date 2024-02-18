@@ -2531,7 +2531,7 @@ void LrWpanMac::SendDisassocNotificationCommand() {
 
     NS_LOG_FUNCTION(this);
 
-    NS_LOG_DEBUG("Send Disassociation Notidication Command");  // debug
+    NS_LOG_DEBUG("Send Disassociation Notification Command");  // debug
 
 
     LrWpanMacHeader macHdr(LrWpanMacHeader::LRWPAN_MAC_COMMAND, m_macDsn.GetValue());
@@ -2569,13 +2569,11 @@ void LrWpanMac::SendDisassocNotificationCommand() {
 
         if (m_disassociateParams.m_devAddrMode == SHORT_ADDR) {
             macHdr.SetDstAddrMode(LrWpanMacHeader::SHORTADDR);
-            // macHdr.SetDstAddrFields(m_disassociateParams.m_devPanId, m_disassociateParams.m_shortDevAddr);
-            macHdr.SetDstAddrFields(GetPanId(), m_disassociateParams.m_shortDevAddr);
+            macHdr.SetDstAddrFields(GetPanId(), m_macCoordShortAddress);
 
         } else {
             macHdr.SetDstAddrMode(LrWpanMacHeader::EXTADDR);
-            // macHdr.SetDstAddrFields(m_disassociateParams.m_devPanId, m_disassociateParams.m_extDevAddr);
-            macHdr.SetDstAddrFields(GetPanId(), m_disassociateParams.m_extDevAddr);
+            macHdr.SetDstAddrFields(GetPanId(), m_macCoordExtendedAddress);
         }
     }
 
@@ -2626,7 +2624,7 @@ void LrWpanMac::SendDisassocNotificationCommandIndirect(Ptr<Packet> rxDataReqPkt
     CommandPayloadHeader receivedMacPayload;
     rxDataReqPkt->RemoveHeader(receivedMacPayload);
 
-    // NS_LOG_DEBUG("SendDisassocNotificationCommandIndirect()"); // debug
+    NS_LOG_DEBUG("SendDisassocNotificationCommandIndirect()"); // debug
 
     NS_ASSERT(receivedMacPayload.GetCommandFrameType() == CommandPayloadHeader::DATA_REQ);
 
@@ -2652,6 +2650,9 @@ void LrWpanMac::RemoveReferencesToPAN() {
     m_incCapEvent.Cancel();
     m_incCfpEvent.Cancel();
     m_beaconEvent.Cancel();
+
+    SetAssociationStatus(DISASSOCIATED);
+    //SetMultisuperframeOrder(15);
 
     NS_LOG_DEBUG("Successfully disassociated from PAN"); // debug
 }
@@ -5110,13 +5111,12 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
 
                             if (receivedMacPayload.GetDisassociationReason() 
                                 == CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN) {
-                                RemoveReferencesToPAN();
+
                             }
                             else if (receivedMacPayload.GetDisassociationReason() 
                                 == CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN)
                             {
                                 // TODO：Remove the SDIdx in the beacon bitmap which belongs to the disassociated device
-
                             }
                             
                             break;
@@ -7042,7 +7042,9 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     txOriginalPkt->RemoveHeader(txMacPayload);
 
                     if (txMacPayload.GetCommandFrameType() == CommandPayloadHeader::DISASSOCIATION_NOTIF) {
-                        if (m_disassociateParams.m_disassociateReason == CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN) {
+                        if (m_disassociateParams.m_disassociateReason == CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN ||
+                            m_disassociateParams.m_disassociateReason == CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN) 
+                        {
                             RemoveReferencesToPAN();
                         }
 

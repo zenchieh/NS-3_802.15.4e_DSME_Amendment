@@ -499,8 +499,9 @@ int main(int argc, char* argv[]) {
     disasscoParams.m_devPanId = 5;                    
     disasscoParams.m_shortDevAddr = Mac16Address("00:02");
     disasscoParams.m_extDevAddr = Mac64Address("00:00:00:00:00:00:00:02");
-    disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN;
-    disasscoParams.m_txIndirect = false;
+
+    disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN;
+    disasscoParams.m_txIndirect = false; // TODO : In spec, it should set txIndirect = true (but there is a bug here)
 
     Simulator::ScheduleWithContext(deviceVector[1]->GetNode()->GetId(),
                                    Seconds(1200),
