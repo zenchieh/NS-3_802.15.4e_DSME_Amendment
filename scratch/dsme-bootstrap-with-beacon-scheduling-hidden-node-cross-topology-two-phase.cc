@@ -540,7 +540,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Beacon scheduling allocation successful ratio : " << successRatio << std::endl;
     
     // for (const auto& s :  deviceVector[0]->GetMac()->m_macSDIdxMappingArray) {
-    //     std::cout << "id: " << s.first << ", name: " << s.second << "\n";
+    //     std::cout << "Addr: " << s.first << ", SDIdx: " << s.second << "\n";
     // }
 
     Simulator::Destroy();

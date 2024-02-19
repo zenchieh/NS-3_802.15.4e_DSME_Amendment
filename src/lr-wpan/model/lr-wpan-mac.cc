@@ -1016,7 +1016,8 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
 
         // TODO : Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
         m_macSDIdxMappingArray.insert(std::pair<Mac16Address, uint16_t>(params.m_assocShortAddr, m_allocationSequence));
-        NS_LOG_DEBUG("Add Mapping arr : Key = " << params.m_assocShortAddr << "  Value = " << m_macSDIdxMappingArray[params.m_assocShortAddr]);
+        // For Debug
+        // NS_LOG_DEBUG("Add Mapping arr : Key = " << params.m_assocShortAddr << "  Value = " << m_macSDIdxMappingArray[params.m_assocShortAddr]);
     }
     else
     {
