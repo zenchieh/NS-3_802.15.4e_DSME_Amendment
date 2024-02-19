@@ -444,7 +444,7 @@ int main(int argc, char* argv[]) {
     // DSME SuperframeSpec
     params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(12); // MO
     params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
-    params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);   // CAP reduction 
+    params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);  // CAP reduction 
 
     // Run and set PAN-C manually, bypass the association flow.
     Simulator::ScheduleWithContext(deviceVector[0]->GetNode()->GetId(),
@@ -538,6 +538,10 @@ int main(int argc, char* argv[]) {
 
     double successRatio = 1 - ((double)(totalAllocFailCnt) / (double)(totalAllocFailCnt + DEVICE_CNT));
     std::cout << "Beacon scheduling allocation successful ratio : " << successRatio << std::endl;
+    
+    // for (const auto& s :  deviceVector[0]->GetMac()->m_macSDIdxMappingArray) {
+    //     std::cout << "id: " << s.first << ", name: " << s.second << "\n";
+    // }
 
     Simulator::Destroy();
     return 0;

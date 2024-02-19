@@ -2930,6 +2930,14 @@ class LrWpanMac : public Object
     // Return Beacon scheduling allocation fail count.
     uint32_t GetBcnSchedulingFailCnt();
 
+    /**
+     * Self-designed mapping array for Coord <-> SDIdx
+     * [Key]   : Coor address
+     * [Value] : SDIdx
+    */
+
+    std::map<Mac16Address, uint16_t> m_macSDIdxMappingArray;
+
   protected:
     // Inherited from Object.
     void DoInitialize() override;

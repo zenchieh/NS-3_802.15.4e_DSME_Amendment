@@ -914,6 +914,7 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
     // Other = The assigned short address by the coordinator
 
     NS_LOG_FUNCTION(this);
+    NS_LOG_DEBUG("params.m_assocShortAddr = " << params.m_assocShortAddr);
 
     LrWpanMacHeader macHdr(LrWpanMacHeader::LRWPAN_MAC_COMMAND, m_macDsn.GetValue());
     m_macDsn++;
@@ -1005,12 +1006,17 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
     }
 
     /**
-     * Add a new field - [Association sequence] : 2 bytes
+     * Add a new field - [Association sequence] : 2 bytes 
+    // TODO : Modify the size of this field if needed.（Now the max association device is 2*8 = 16 devices）
      * Note : This field is for Enhanced beacon scheduling in order to avoid allocation collision.
     */
     if(params.m_status == LrWpanAssociationStatus::ASSOCIATED_EBS)
     {
         macPayload.SetEBSAllocationSeq(m_allocationSequence);
+
+        // TODO : Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
+        m_macSDIdxMappingArray.insert(std::pair<Mac16Address, uint16_t>(params.m_assocShortAddr, m_allocationSequence));
+        NS_LOG_DEBUG("Add Mapping arr : Key = " << params.m_assocShortAddr << "  Value = " << m_macSDIdxMappingArray[params.m_assocShortAddr]);
     }
     else
     {
@@ -5111,12 +5117,12 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
 
                             if (receivedMacPayload.GetDisassociationReason() 
                                 == CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN) {
+                                // TODO：Remove the SDIdx in the beacon bitmap which belongs to the disassociated device
 
                             }
                             else if (receivedMacPayload.GetDisassociationReason() 
-                                == CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN)
-                            {
-                                // TODO：Remove the SDIdx in the beacon bitmap which belongs to the disassociated device
+                                == CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN) {
+                                                        
                             }
                             
                             break;
