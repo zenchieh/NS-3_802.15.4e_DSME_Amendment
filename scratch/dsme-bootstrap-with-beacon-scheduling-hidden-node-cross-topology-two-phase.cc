@@ -422,8 +422,8 @@ int main(int argc, char* argv[]) {
     MlmeStartRequestParams params;
     params.m_panCoor = true;
     params.m_PanId = 5;
-    params.m_bcnOrd = 13;
-    params.m_sfrmOrd = 9;
+    params.m_bcnOrd = 13; // Beacon Order     (BO)
+    params.m_sfrmOrd = 9; // Superframe Order (SO)
     params.m_logCh = 14;
 
     // Beacon Bitmap
@@ -442,8 +442,8 @@ int main(int argc, char* argv[]) {
     params.m_hoppingDescriptor = hoppingDescriptor;
 
     // DSME SuperframeSpec
-    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(12); // MO
-    params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
+    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(12); // Multisuperframe Order (MO)
+    params.m_dsmeSuperframeSpec.SetChannelDiversityMode(true);  // Channel divercity
     params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);  // CAP reduction 
 
     // Run and set PAN-C manually, bypass the association flow.
@@ -515,7 +515,7 @@ int main(int argc, char* argv[]) {
     disasscoParams.m_devPanId = 5;                    
     disasscoParams.m_shortDevAddr = Mac16Address("00:03");
     disasscoParams.m_extDevAddr = Mac64Address("00:00:00:00:00:00:00:03");
-    disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN;
+    disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN;
     disasscoParams.m_txIndirect = false;
 
     Simulator::ScheduleWithContext(deviceVector[2]->GetNode()->GetId(),

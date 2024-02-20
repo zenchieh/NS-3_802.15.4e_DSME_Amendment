@@ -1014,7 +1014,7 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
     {
         macPayload.SetEBSAllocationSeq(m_allocationSequence);
 
-        // TODO : Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
+        // Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
         m_macSDIdxMappingArray.insert(std::pair<Mac16Address, uint16_t>(params.m_assocShortAddr, m_allocationSequence));
         // For Debug
         // NS_LOG_DEBUG("Add Mapping arr : Key = " << params.m_assocShortAddr << "  Value = " << m_macSDIdxMappingArray[params.m_assocShortAddr]);
@@ -5119,7 +5119,19 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             if (receivedMacPayload.GetDisassociationReason() 
                                 == CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN) {
                                 // TODO：Remove the SDIdx in the beacon bitmap which belongs to the disassociated device
-
+                                Mac16Address srcShortAddr = ConvertExtAddrToShortAddr(params.m_srcExtAddr); 
+                                if(m_vacantSDIdxList.isHeadNull()){
+                                    NS_LOG_DEBUG("vacant list NULL, create a new one"); // debug
+                                    NS_LOG_DEBUG("add addr = " << srcShortAddr); 
+                                    NS_LOG_DEBUG("add value = " << m_macSDIdxMappingArray[srcShortAddr]); 
+                                    m_vacantSDIdxList.insertAtBeginning(m_macSDIdxMappingArray[srcShortAddr]);
+                                    m_vacantSDIdxList.printList();
+                                }
+                                else{
+                                    // Linked list exist, insert at end.
+                                    m_vacantSDIdxList.insertAtEnd(m_macSDIdxMappingArray[srcShortAddr]);
+                                    m_vacantSDIdxList.printList();
+                                }
                             }
                             else if (receivedMacPayload.GetDisassociationReason() 
                                 == CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN) {
@@ -9036,6 +9048,23 @@ LinkedList<T>::printList()
         temp = temp->next;
     }
     std::cout << std::endl;
+}
+
+
+Mac16Address
+LrWpanMac::ConvertExtAddrToShortAddr(Mac64Address ExtAddr)
+{
+    uint8_t buffer64MacAddr[8];
+    uint8_t buffer16MacAddr[2];
+
+    ExtAddr.CopyTo(buffer64MacAddr);
+    buffer16MacAddr[1] = buffer64MacAddr[7];
+    buffer16MacAddr[0] = buffer64MacAddr[6];
+
+    Mac16Address shortAddr;
+    shortAddr.CopyFrom(buffer16MacAddr);
+
+    return shortAddr;
 }
 
 } // namespace ns3

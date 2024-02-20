@@ -49,6 +49,40 @@ namespace ns3
 class Packet;
 class LrWpanCsmaCa;
 
+template <typename T>
+class ListNode
+{
+  public:
+    T data;
+    ListNode* next;
+
+    ListNode(T data)
+    {
+        this->data = data;
+        this->next = nullptr;
+    }
+};
+
+template <typename T>
+class LinkedList
+{
+  private:
+    ListNode<T>* head;
+
+  public:
+
+    LinkedList();
+
+    void insertAtBeginning(T data);
+    void insertAtEnd(T data);
+    void deleteAtBeginning();
+    void deleteAtEnd();
+    void printList();
+    bool isHeadNull() const {
+        return head == nullptr;
+    }
+};
+
 /**
  * \defgroup lr-wpan LR-WPAN models
  *
@@ -2938,6 +2972,11 @@ class LrWpanMac : public Object
 
     std::map<Mac16Address, uint16_t> m_macSDIdxMappingArray;
 
+    /**
+     * Convert Extend addr to short addr.
+    */
+    Mac16Address ConvertExtAddrToShortAddr(Mac64Address ExtAddr);
+
   protected:
     // Inherited from Object.
     void DoInitialize() override;
@@ -3993,38 +4032,14 @@ class LrWpanMac : public Object
      * Scheduler event for the sending the Dsme-Beacon allocation notification command
      */
     EventId m_sendDsmeBcnAllocNotifiCmd;
+
+    /**
+     * A linked list that store the vacant SDIdx at PAN-C.
+     * If the original bitmap is fully occupied, the beacon scheduling method will use the list.
+     */
+    LinkedList<uint16_t> m_vacantSDIdxList;
+
 }; // class LrWpanMac 
-
-template <typename T>
-class ListNode
-{
-  public:
-    T data;
-    ListNode* next;
-
-    ListNode(T data)
-    {
-        this->data = data;
-        this->next = nullptr;
-    }
-};
-
-template <typename T>
-class LinkedList
-{
-  private:
-    ListNode<T>* head;
-
-  public:
-
-    LinkedList();
-
-    void insertAtBeginning(T data);
-    void insertAtEnd(T data);
-    void deleteAtBeginning();
-    void deleteAtEnd();
-    void printList();
-};
 
 } // namespace ns3
 
