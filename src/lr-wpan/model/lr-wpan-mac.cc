@@ -1778,6 +1778,7 @@ void LrWpanMac::SendOneEnhancedBeacon() {
         // timeSync.SetBeaconOffsetTimeStamp();
         m_dsmePanDescriptorIE.SetTimeSync(timeSync);
 
+        // NS_LOG_DEBUG("TEST : " << m_macSDBitmap);
         m_dsmePanDescriptorIE.SetBeaconBitmap(m_macSDBitmap);
 
         ChannelHopping channelHoppingField;
@@ -5322,7 +5323,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         panDescriptor.m_channelHoppingSpec = receivedDsmePANDescriptorIEHeaderIE.GetChannelHopping();
                         panDescriptor.m_gACKSpec = receivedDsmePANDescriptorIEHeaderIE.GetGroupACK();
 
-                        // NS_LOG_DEBUG("SD Bitmap In IE of the Enhanced Beacon" << receivedDsmePANDescriptorIEHeaderIE.GetBeaconBitmap()); // debug
+                        NS_LOG_DEBUG("SD Bitmap In IE of the Enhanced Beacon" << receivedDsmePANDescriptorIEHeaderIE.GetBeaconBitmap()); // debug
                         // NS_LOG_DEBUG("Channel Hopping In IE of the Enhanced Beacon" << receivedDsmePANDescriptorIEHeaderIE.GetChannelHopping()); // debug
          
                         // Dsme superframe specification 

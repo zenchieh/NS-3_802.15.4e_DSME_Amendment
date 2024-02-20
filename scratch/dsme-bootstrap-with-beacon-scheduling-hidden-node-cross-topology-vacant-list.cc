@@ -12,7 +12,7 @@
 
 using namespace ns3;
 
-#define DEVICE_CNT 15
+#define DEVICE_CNT 7
 
 /**                  
  *  This program try to simulate beacon scheduling manually.
@@ -313,7 +313,7 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
 
     // Set the position of each node
     cstPosMobilityModelVector[0]->SetPosition(Vector(0, 0, 0));    // Set Pan-C at origin
-    cstPosMobilityModelVector[1]->SetPosition(Vector(100, 0, 0)); // other nodes set at distance = 100 m 
+    cstPosMobilityModelVector[1]->SetPosition(Vector(100, 0, 0));  // other nodes set at distance = 100 m 
     cstPosMobilityModelVector[2]->SetPosition(Vector(0, -100, 0));
     cstPosMobilityModelVector[3]->SetPosition(Vector(-100, 0, 0));
     cstPosMobilityModelVector[4]->SetPosition(Vector(0, 100, 0));
@@ -321,6 +321,18 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
     cstPosMobilityModelVector[5]->SetPosition(Vector(50, 0, 0));
     cstPosMobilityModelVector[6]->SetPosition(Vector(0, -50, 0));
     cstPosMobilityModelVector[7]->SetPosition(Vector(-50, 0, 0));
+
+    // cstPosMobilityModelVector[5]->SetPosition(Vector(60, 80, 0));
+    // cstPosMobilityModelVector[6]->SetPosition(Vector(-60, 80, 0));
+    // cstPosMobilityModelVector[7]->SetPosition(Vector(60, -80, 0));
+    // cstPosMobilityModelVector[8]->SetPosition(Vector(0, 200, 0));
+    // cstPosMobilityModelVector[9]->SetPosition(Vector(-25, 0, 0));
+    // cstPosMobilityModelVector[10]->SetPosition(Vector(0, 25, 0));
+    // cstPosMobilityModelVector[11]->SetPosition(Vector(50*sqrt(2), -50*sqrt(2), 0));
+    // cstPosMobilityModelVector[12]->SetPosition(Vector(-50*sqrt(2), -50*sqrt(2), 0));
+    // cstPosMobilityModelVector[13]->SetPosition(Vector(5, sqrt(75), 0));
+    // cstPosMobilityModelVector[14]->SetPosition(Vector(-5, sqrt(75), 0));
+    // cstPosMobilityModelVector[15]->SetPosition(Vector(5, -sqrt(75), 0));
 
     for(int i = 0; i < DEVICE_CNT + 1; i++)
     {
@@ -377,15 +389,32 @@ int main(int argc, char* argv[]) {
     std::vector<Ptr<Node>> nodesVector;
 
     // LrWpanNetDevice & Node Initial setting
+    char addrStr[] = "00:00";
     for (int deviceIdx = 0; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
     {   
-        char addrStr[] = "00:00";
+
         Ptr<Node> node = CreateObject<Node>();
         Ptr<LrWpanNetDevice> device = CreateObject<LrWpanNetDevice>();
 
         // Set short address of each node
-        // 00:01(PAN-C) ~ 00:05 
-        addrStr[4] += deviceIdx + 1;
+        // addrStr[3] += (deviceIdx + 1) / 10;
+        // if((deviceIdx + 1) % 10 == 0)
+        // {
+        //     addrStr[4] = '0';
+        // }
+        // else
+        // {
+        //     addrStr[4] += (deviceIdx % 10) + 1;
+        // }
+        addrStr[4]++;
+        if (addrStr[4] > '9' && addrStr[4] < 'a') 
+        {
+            addrStr[4] = 'a';
+        } else if (addrStr[4] > 'f') 
+        {
+            addrStr[3]++;
+            addrStr[4] = '0';
+        }
         device->SetAddress(Mac16Address(addrStr));
         device->SetChannel(channel);
 
@@ -508,25 +537,25 @@ int main(int argc, char* argv[]) {
     }
 
 
-    // Do disassociation
+    // // Do disassociation
 
-    MlmeDisassociateRequestParams disasscoParams;
-    disasscoParams.m_devAddrMode = SHORT_ADDR;
-    disasscoParams.m_devPanId = 5;                    
-    disasscoParams.m_shortDevAddr = Mac16Address("00:03");
-    disasscoParams.m_extDevAddr = Mac64Address("00:00:00:00:00:00:00:03");
-    disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN;
-    disasscoParams.m_txIndirect = false;
+    // MlmeDisassociateRequestParams disasscoParams;
+    // disasscoParams.m_devAddrMode = SHORT_ADDR;
+    // disasscoParams.m_devPanId = 5;                    
+    // disasscoParams.m_shortDevAddr = Mac16Address("00:03");
+    // disasscoParams.m_extDevAddr = Mac64Address("00:00:00:00:00:00:00:03");
+    // disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN;
+    // disasscoParams.m_txIndirect = false;
 
-    Simulator::ScheduleWithContext(deviceVector[2]->GetNode()->GetId(),
-                                   Seconds(1200),
-                                   &LrWpanMac::MlmeDisassociateRequest,
-                                   deviceVector[2]->GetMac(),
-                                   disasscoParams);
+    // Simulator::ScheduleWithContext(deviceVector[2]->GetNode()->GetId(),
+    //                                Seconds(1200),
+    //                                &LrWpanMac::MlmeDisassociateRequest,
+    //                                deviceVector[2]->GetMac(),
+    //                                disasscoParams);
 
 
  
-    Simulator::Stop(Seconds(1500));
+    Simulator::Stop(Seconds(3000));
     Simulator::Run();
 
     // Calculating Beacon scheduling allocation successful rate.
