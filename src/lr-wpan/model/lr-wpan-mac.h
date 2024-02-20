@@ -78,6 +78,7 @@ class LinkedList
     void deleteAtBeginning();
     void deleteAtEnd();
     void printList();
+    uint16_t GetHeadNodeData();
     bool isHeadNull() const {
         return head == nullptr;
     }
@@ -2971,6 +2972,14 @@ class LrWpanMac : public Object
     */
 
     std::map<Mac16Address, uint16_t> m_macSDIdxMappingArray;
+
+    /**
+     * The value is true if the default bitmap is fully occupied.
+     * In other words, SDidx has allocated over 2^(BO-SO).
+     * Default value : false
+    */
+
+    bool m_enableVacantList;
 
     /**
      * Convert Extend addr to short addr.

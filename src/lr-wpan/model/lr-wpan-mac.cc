@@ -297,6 +297,7 @@ LrWpanMac::LrWpanMac() {
     m_needBcnSchedulingAgain = false;
     m_bcnScehdulingFailCnt = 0;
     m_allocationSequence = 0;
+    m_enableVacantList = false;
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -1010,19 +1011,38 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
     // TODO : Modify the size of this field if needed.（Now the max association device is 2*8 = 16 devices）
      * Note : This field is for Enhanced beacon scheduling in order to avoid allocation collision.
     */
-    if(params.m_status == LrWpanAssociationStatus::ASSOCIATED_EBS)
-    {
-        macPayload.SetEBSAllocationSeq(m_allocationSequence);
 
-        // Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
-        m_macSDIdxMappingArray.insert(std::pair<Mac16Address, uint16_t>(params.m_assocShortAddr, m_allocationSequence));
-        // For Debug
-        // NS_LOG_DEBUG("Add Mapping arr : Key = " << params.m_assocShortAddr << "  Value = " << m_macSDIdxMappingArray[params.m_assocShortAddr]);
-    }
-    else
+    switch (params.m_status)
     {
-        macPayload.SetEBSAllocationSeq(0); // 0 represent no use, EBS disabled.
+        case LrWpanAssociationStatus::ASSOCIATED_EBS:
+
+            if(m_enableVacantList)
+            {
+                /**
+                 * If the the number of associated coord has exceed 2^(BO-MO), which is the bitmap length, 
+                 * use the value in the vacantList as the allocation SDIdx here.
+                 */
+                uint16_t vacantSDIdx = m_vacantSDIdxList.GetHeadNodeData(); // Get the vacant SDIdx from list head.
+                macPayload.SetEBSAllocationSeq(vacantSDIdx);    
+                m_vacantSDIdxList.deleteAtBeginning();                      // Remove the head that has been used.
+                // Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
+                m_macSDIdxMappingArray.insert(std::pair<Mac16Address, uint16_t>(params.m_assocShortAddr, vacantSDIdx));
+            }
+            else
+            {
+                macPayload.SetEBSAllocationSeq(m_allocationSequence);
+                // Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
+                m_macSDIdxMappingArray.insert(std::pair<Mac16Address, uint16_t>(params.m_assocShortAddr, m_allocationSequence));
+            }
+            // For Debug
+            // NS_LOG_DEBUG("Add Mapping arr : Key = " << params.m_assocShortAddr << "  Value = " << m_macSDIdxMappingArray[params.m_assocShortAddr]);
+            break;
+
+        default:
+            macPayload.SetEBSAllocationSeq(0); // 0 represent no use, EBS disabled.
+            break;
     }
+
 
     commandPacket->AddHeader(macPayload);
     commandPacket->AddHeader(macHdr);
@@ -5122,8 +5142,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                 Mac16Address srcShortAddr = ConvertExtAddrToShortAddr(params.m_srcExtAddr); 
                                 if(m_vacantSDIdxList.isHeadNull()){
                                     NS_LOG_DEBUG("vacant list NULL, create a new one"); // debug
-                                    NS_LOG_DEBUG("add addr = " << srcShortAddr); 
-                                    NS_LOG_DEBUG("add value = " << m_macSDIdxMappingArray[srcShortAddr]); 
+                                    NS_LOG_DEBUG("Insert Node value = " << m_macSDIdxMappingArray[srcShortAddr]); 
                                     m_vacantSDIdxList.insertAtBeginning(m_macSDIdxMappingArray[srcShortAddr]);
                                     m_vacantSDIdxList.printList();
                                 }
@@ -9048,6 +9067,13 @@ LinkedList<T>::printList()
         temp = temp->next;
     }
     std::cout << std::endl;
+}
+
+template <typename T>
+uint16_t
+LinkedList<T>::GetHeadNodeData()
+{
+    return head->data;
 }
 
 
