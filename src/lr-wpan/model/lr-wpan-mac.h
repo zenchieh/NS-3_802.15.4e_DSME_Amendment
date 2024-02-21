@@ -2974,14 +2974,6 @@ class LrWpanMac : public Object
     std::map<Mac16Address, uint16_t> m_macSDIdxMappingArray;
 
     /**
-     * The value is true if the default bitmap is fully occupied.
-     * In other words, SDidx has allocated over 2^(BO-SO).
-     * Default value : false
-    */
-
-    bool m_enableVacantList;
-
-    /**
      * Convert Extend addr to short addr.
     */
     Mac16Address ConvertExtAddrToShortAddr(Mac64Address ExtAddr);
@@ -4041,12 +4033,6 @@ class LrWpanMac : public Object
      * Scheduler event for the sending the Dsme-Beacon allocation notification command
      */
     EventId m_sendDsmeBcnAllocNotifiCmd;
-
-    /**
-     * A linked list that store the vacant SDIdx at PAN-C.
-     * If the original bitmap is fully occupied, the beacon scheduling method will use the list.
-     */
-    LinkedList<uint16_t> m_vacantSDIdxList;
 
 }; // class LrWpanMac 
 

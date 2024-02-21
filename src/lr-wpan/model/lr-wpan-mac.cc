@@ -297,7 +297,6 @@ LrWpanMac::LrWpanMac() {
     m_needBcnSchedulingAgain = false;
     m_bcnScehdulingFailCnt = 0;
     m_allocationSequence = 0;
-    m_enableVacantList = false;
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -1016,26 +1015,12 @@ void LrWpanMac::MlmeAssociateResponse(MlmeAssociateResponseParams params) {
     {
         case LrWpanAssociationStatus::ASSOCIATED_EBS:
 
-            if(m_enableVacantList)
-            {
-                /**
-                 * If the the number of associated coord has exceed 2^(BO-MO), which is the bitmap length, 
-                 * use the value in the vacantList as the allocation SDIdx here.
-                 */
-                uint16_t vacantSDIdx = m_vacantSDIdxList.GetHeadNodeData(); // Get the vacant SDIdx from list head.
-                macPayload.SetEBSAllocationSeq(vacantSDIdx);    
-                m_vacantSDIdxList.deleteAtBeginning();                      // Remove the head that has been used.
-                // Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
-                m_macSDIdxMappingArray.insert(std::pair<Mac16Address, uint16_t>(params.m_assocShortAddr, vacantSDIdx));
-            }
-            else
-            {
-                macPayload.SetEBSAllocationSeq(m_allocationSequence);
-                // Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
-                m_macSDIdxMappingArray.insert(std::pair<Mac16Address, uint16_t>(params.m_assocShortAddr, m_allocationSequence));
-            }
-            // For Debug
+            macPayload.SetEBSAllocationSeq(m_allocationSequence);
+            // Record mapping info at PAN-C  ---  [Coord] <-> [SDIndex]
+            m_macSDIdxMappingArray.insert(std::pair<Mac16Address, uint16_t>(params.m_assocShortAddr, m_allocationSequence));
+
             // NS_LOG_DEBUG("Add Mapping arr : Key = " << params.m_assocShortAddr << "  Value = " << m_macSDIdxMappingArray[params.m_assocShortAddr]);
+            // NS_LOG_DEBUG("Set SDIdx from allocation seq : " << m_allocationSequence);
             break;
 
         default:
@@ -5140,18 +5125,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             if (receivedMacPayload.GetDisassociationReason() 
                                 == CommandPayloadHeader::DISASSC_COORD_WISH_DEV_LEAVE_PAN) {
                                 // TODO：Remove the SDIdx in the beacon bitmap which belongs to the disassociated device
-                                Mac16Address srcShortAddr = ConvertExtAddrToShortAddr(params.m_srcExtAddr); 
-                                if(m_vacantSDIdxList.isHeadNull()){
-                                    NS_LOG_DEBUG("vacant list NULL, create a new one"); // debug
-                                    NS_LOG_DEBUG("Insert Node value = " << m_macSDIdxMappingArray[srcShortAddr]); 
-                                    m_vacantSDIdxList.insertAtBeginning(m_macSDIdxMappingArray[srcShortAddr]);
-                                    m_vacantSDIdxList.printList();
-                                }
-                                else{
-                                    // Linked list exist, insert at end.
-                                    m_vacantSDIdxList.insertAtEnd(m_macSDIdxMappingArray[srcShortAddr]);
-                                    m_vacantSDIdxList.printList();
-                                }
+
                             }
                             else if (receivedMacPayload.GetDisassociationReason() 
                                 == CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN) {
