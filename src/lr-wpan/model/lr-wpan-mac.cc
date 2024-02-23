@@ -8606,8 +8606,9 @@ LrWpanMac::FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap)
     std::random_device rd;
     std::default_random_engine generator(rd());
     // std::uniform_int_distribution<int> distribution(0, beaconBitmap.GetSDBitmapLength);
-    std::uniform_int_distribution<int> distribution(1, 8);     // Temp random range, need to modify to run complete simulation
+    std::uniform_int_distribution<int> distribution(1, beaconBitmap.GetSDBitmapLength() - 1);     // Temp random range, need to modify to run complete simulation
     vacantBeaconSlot = distribution(generator);
+    NS_LOG_DEBUG("vacantBeaconSlot = " << (int32_t)vacantBeaconSlot);
     bitmapArrIdx = vacantBeaconSlot / 16;
 
     switch (currentSDBitmap[bitmapArrIdx] & (1 << (vacantBeaconSlot % 16)))

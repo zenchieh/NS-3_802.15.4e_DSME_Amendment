@@ -377,15 +377,23 @@ int main(int argc, char* argv[]) {
     std::vector<Ptr<Node>> nodesVector;
 
     // LrWpanNetDevice & Node Initial setting
+    char addrStr[] = "00:00";
     for (int deviceIdx = 0; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
     {   
-        char addrStr[] = "00:00";
+
         Ptr<Node> node = CreateObject<Node>();
         Ptr<LrWpanNetDevice> device = CreateObject<LrWpanNetDevice>();
 
         // Set short address of each node
-        // 00:01(PAN-C) ~ 00:05 
-        addrStr[4] += deviceIdx + 1;
+        addrStr[4]++;
+        if (addrStr[4] > '9' && addrStr[4] < 'a') 
+        {
+            addrStr[4] = 'a';
+        } else if (addrStr[4] > 'f') 
+        {
+            addrStr[3]++;
+            addrStr[4] = '0';
+        }
         device->SetAddress(Mac16Address(addrStr));
         device->SetChannel(channel);
 
