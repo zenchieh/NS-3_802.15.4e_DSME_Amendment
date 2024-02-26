@@ -12,7 +12,7 @@
 
 using namespace ns3;
 
-#define DEVICE_CNT 4
+#define DEVICE_CNT 7
 
 /**                  
  *  This program try to simulate beacon scheduling manually.
@@ -302,9 +302,9 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
     cstPosMobilityModelVector[2]->SetPosition(Vector(0, -50, 0));
     cstPosMobilityModelVector[3]->SetPosition(Vector(-50, 0, 0));
     cstPosMobilityModelVector[4]->SetPosition(Vector(0, 50, 0));
-    // cstPosMobilityModelVector[5]->SetPosition(Vector(25*1.414, 25*1.414, 0));
-    // cstPosMobilityModelVector[6]->SetPosition(Vector(0, -50, 0));
-    // cstPosMobilityModelVector[7]->SetPosition(Vector(-50, 0, 0));
+    cstPosMobilityModelVector[5]->SetPosition(Vector(30, 0, 0));
+    cstPosMobilityModelVector[6]->SetPosition(Vector(0, -30, 0));
+    cstPosMobilityModelVector[7]->SetPosition(Vector(30, 0, 0));
 
     for(int i = 0; i < DEVICE_CNT + 1; i++)
     {
@@ -406,8 +406,8 @@ int main(int argc, char* argv[]) {
     MlmeStartRequestParams params;
     params.m_panCoor = true;
     params.m_PanId = 5;
-    params.m_bcnOrd = 13; // Beacon Order     (BO)
-    params.m_sfrmOrd = 10; // Superframe Order (SO)
+    params.m_bcnOrd = 8; // Beacon Order     (BO)
+    params.m_sfrmOrd = 4; // Superframe Order (SO)
     params.m_logCh = 14;
 
     // Beacon Bitmap
@@ -426,7 +426,7 @@ int main(int argc, char* argv[]) {
     params.m_hoppingDescriptor = hoppingDescriptor;
 
     // DSME SuperframeSpec
-    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(12); // MO
+    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(8); // MO
     params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
     params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);   // CAP reduction 
 
@@ -480,7 +480,7 @@ int main(int argc, char* argv[]) {
     for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
     {
         Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
-                                    Seconds(1050.001),
+                                    Seconds(1010.001),
                                     &LrWpanMac::MlmeSyncRequest,
                                     deviceVector[deviceIdx]->GetMac(),
                                     syncParams);

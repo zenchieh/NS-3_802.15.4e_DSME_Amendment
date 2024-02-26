@@ -348,7 +348,7 @@ int main(int argc, char* argv[]) {
      **/ 
 
     propModel->SetReference(1.0, 40.0641);  // Reference loss at 1m distance for 2405 MHz (channel 11)
-    propModel->SetPathLossExponent(3.33);   // Max TX distance : 99.42 m for r = 3.33 
+    propModel->SetPathLossExponent(3.9);   // Max TX distance : 99.42 m for r = 3.33 
     std::cout << "GetPathLossExponent() :  " << propModel->GetPathLossExponent() << "\n";
 
     channel->AddPropagationLossModel(propModel);
