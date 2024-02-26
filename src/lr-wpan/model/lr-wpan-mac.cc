@@ -3224,9 +3224,6 @@ LrWpanMac::EndStartRequest()
                 m_scheduleGTSsEvent.resize(m_numOfSuperframes / m_numOfMultisuperframes);
             }  
 
-            NS_LOG_DEBUG("**********************************************************************************************");       
-            NS_LOG_DEBUG("");
-
             if (m_macCAPReductionFlag) {
                 m_macDSMESAB.resize(static_cast<uint64_t>(1 << (m_macBeaconOrder - m_macSuperframeOrder))
                                     , 0);
@@ -3237,7 +3234,7 @@ LrWpanMac::EndStartRequest()
 
 
             if (m_macDSMEenabled) {
-                NS_LOG_DEBUG("my member variable [m_panCoor] = " << m_panCoor);
+                NS_LOG_DEBUG("isPanCoordinator ? value of [m_panCoor] = " << m_panCoor);
                 if (m_panCoor) {
                     m_multisuperframeStartEvent = Simulator::ScheduleNow(&LrWpanMac::StartMultisuperframe, 
                                                                         this, 
@@ -3271,6 +3268,11 @@ LrWpanMac::EndStartRequest()
                     }
                 }
             }
+
+            
+            NS_LOG_DEBUG("**********************************************************************************************");       
+            NS_LOG_DEBUG("");
+
         }
     }
 }
@@ -8541,8 +8543,8 @@ LrWpanMac::BeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy)
     startReqParam.m_panCoor = false;
     startReqParam.m_PanId = 5;
 
-    startReqParam.m_bcnOrd = 6;
-    startReqParam.m_sfrmOrd = 3;
+    startReqParam.m_bcnOrd = m_panDescriptorList[panDescIndex].m_superframeSpec.GetBeaconOrder();
+    startReqParam.m_sfrmOrd = m_panDescriptorList[panDescIndex].m_superframeSpec.GetFrameOrder();
     startReqParam.m_logCh = 14;
 
     HoppingDescriptor hoppingDescriptor2;
@@ -8555,7 +8557,7 @@ LrWpanMac::BeaconScheduling(LrWpanBeaconSchedulingPolicy schedulingPolicy)
     startReqParam.m_hoppingDescriptor = hoppingDescriptor2;
 
     // DSME
-    startReqParam.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(6);
+    startReqParam.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(m_panDescriptorList[panDescIndex].m_dsmeSuperframeSpec.GetMultiSuperframeOrder());
     startReqParam.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
     startReqParam.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
 

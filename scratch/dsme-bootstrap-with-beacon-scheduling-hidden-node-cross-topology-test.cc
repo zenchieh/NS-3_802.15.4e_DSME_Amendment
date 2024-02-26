@@ -12,7 +12,7 @@
 
 using namespace ns3;
 
-#define DEVICE_CNT 8
+#define DEVICE_CNT 7
 
 /**                  
  *  This program try to simulate beacon scheduling manually.
@@ -152,11 +152,7 @@ static void AssociateIndication(Ptr<LrWpanNetDevice> device, MlmeAssociateIndica
     MlmeAssociateResponseParams assocRespParams;
 
     assocRespParams.m_extDevAddr = params.m_extDevAddr;
-    // Note : 
-    // Set AssociationStatus = ASSOCIATED_EBS here to enable Enhanced beacon scheduling.
-    assocRespParams.m_status = LrWpanAssociationStatus::ASSOCIATED_EBS;
-
-    // assocRespParams.m_status = LrWpanAssociationStatus::ASSOCIATED; // legacy scheduling
+    assocRespParams.m_status = LrWpanAssociationStatus::ASSOCIATED;
 
     if (params.capabilityInfo.IsShortAddrAllocOn()) {
         // Truncate the extended address and make an assigned
@@ -231,17 +227,6 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
                   << " (PAN: " << device->GetMac()->GetPanId()
                   << " | CoordShort: " << device->GetMac()->GetCoordShortAddress()
                   << " | CoordExt: " << device->GetMac()->GetCoordExtAddress() << ")\n";
-                
-
-        // Synchronization
-        MlmeSyncRequestParams syncParams;
-        syncParams.m_logCh = 14; 
-        syncParams.m_logChPage = 0; 
-        syncParams.m_trackBcn = true; 
-
-        Simulator::ScheduleNow(&LrWpanMac::MlmeSyncRequest,
-                                device->GetMac(),
-                                syncParams);
 
     } else if (params.m_status == LrWpanMlmeAssociateConfirmStatus::MLMEASSOC_NO_ACK) {
         std::cout << Simulator::Now().As(Time::S) << " Node " << device->GetNode()->GetId() << " ["
@@ -263,7 +248,7 @@ static void AssociateConfirm(Ptr<LrWpanNetDevice> device, MlmeAssociateConfirmPa
 
     Simulator::ScheduleNow(&LrWpanMac::BeaconScheduling,
                         device->GetMac(),
-                        LrWpanBeaconSchedulingPolicy::EBS);
+                        LrWpanBeaconSchedulingPolicy::LEGACY);
 
 }
 
@@ -300,28 +285,27 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
      * 
      *                  ^
      *                  |
-     *              (4) O(0,100)             
-     *              (5) |   O (6)
-     *  (-100,0)(3)  O  |     (1)(100,0)
+     *              (3) O 100             
+     *                  |
+     *          (4)     |     (1)
      * ----------O------O------O----------->
-     *                  |(0)  
-     *                  |   O (7)
-     *              (2) O(0,-100)
+     *         -100     |(0)  100
+     *                  |
+     *              (2) O -100
      *                  |
      *                  |
      */ 
 
     // Set the position of each node
     cstPosMobilityModelVector[0]->SetPosition(Vector(0, 0, 0));    // Set Pan-C at origin
-    cstPosMobilityModelVector[1]->SetPosition(Vector(100, 0, 0)); // other nodes set at distance = 100 m 
-    cstPosMobilityModelVector[2]->SetPosition(Vector(0, -100, 0));
-    cstPosMobilityModelVector[3]->SetPosition(Vector(-100, 0, 0));
-    cstPosMobilityModelVector[4]->SetPosition(Vector(0, 100, 0));
+    cstPosMobilityModelVector[1]->SetPosition(Vector(50, 0, 0));  
+    cstPosMobilityModelVector[2]->SetPosition(Vector(0, -50, 0));
+    cstPosMobilityModelVector[3]->SetPosition(Vector(-50, 0, 0));
+    cstPosMobilityModelVector[4]->SetPosition(Vector(0, 50, 0));
+    cstPosMobilityModelVector[5]->SetPosition(Vector(30, 0, 0));
+    cstPosMobilityModelVector[6]->SetPosition(Vector(0, -30, 0));
+    cstPosMobilityModelVector[7]->SetPosition(Vector(30, 0, 0));
 
-    cstPosMobilityModelVector[5]->SetPosition(Vector(50, 0, 0));
-    cstPosMobilityModelVector[6]->SetPosition(Vector(0, -50, 0));
-    cstPosMobilityModelVector[7]->SetPosition(Vector(-50, 0, 0));
-    cstPosMobilityModelVector[8]->SetPosition(Vector(0, 50, 0));
     for(int i = 0; i < DEVICE_CNT + 1; i++)
     {
         devVector[i]->GetPhy()->SetMobility(cstPosMobilityModelVector[i]);
@@ -330,19 +314,10 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
 }
 
 int main(int argc, char* argv[]) {
-
-    // Setting Log debug level
     LogComponentEnableAll(LogLevel(LOG_PREFIX_TIME | LOG_PREFIX_FUNC | LOG_PREFIX_NODE));
     LogComponentEnable("LrWpanMac", LOG_LEVEL_INFO);
     // LogComponentEnable("DefaultSimulatorImpl", LOG_LEVEL_ALL);
     // LogComponentEnable("LrWpanCsmaCa", LOG_LEVEL_ALL);
-
-    /**
-     * [Random seed API] 
-     * Change the random seed to acheive different simulation results.
-     **/   
-    SeedManager::SetSeed(199);
-
 
     Ptr<SingleModelSpectrumChannel> channel = CreateObject<SingleModelSpectrumChannel>();
     Ptr<LogDistancePropagationLossModel> propModel =
@@ -367,8 +342,9 @@ int main(int argc, char* argv[]) {
      **/ 
 
     propModel->SetReference(1.0, 40.0641);  // Reference loss at 1m distance for 2405 MHz (channel 11)
-    propModel->SetPathLossExponent(3.33);   // Max TX distance : 99.42 m for r = 3.33 
+    propModel->SetPathLossExponent(3.9);   // Max TX distance : 99.42 m for r = 3.33 
     std::cout << "GetPathLossExponent() :  " << propModel->GetPathLossExponent() << "\n";
+
 
     channel->AddPropagationLossModel(propModel);
     channel->SetPropagationDelayModel(delayModel);
@@ -377,15 +353,23 @@ int main(int argc, char* argv[]) {
     std::vector<Ptr<Node>> nodesVector;
 
     // LrWpanNetDevice & Node Initail setting
+    char addrStr[] = "00:00";
     for (int deviceIdx = 0; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
     {   
-        char addrStr[] = "00:00";
+
         Ptr<Node> node = CreateObject<Node>();
         Ptr<LrWpanNetDevice> device = CreateObject<LrWpanNetDevice>();
 
         // Set short address of each node
-        // 00:01(PAN-C) ~ 00:05 
-        addrStr[4] += deviceIdx + 1;
+        addrStr[4]++;
+        if (addrStr[4] > '9' && addrStr[4] < 'a') 
+        {
+            addrStr[4] = 'a';
+        } else if (addrStr[4] > 'f') 
+        {
+            addrStr[3]++;
+            addrStr[4] = '0';
+        }
         device->SetAddress(Mac16Address(addrStr));
         device->SetChannel(channel);
 
@@ -422,8 +406,8 @@ int main(int argc, char* argv[]) {
     MlmeStartRequestParams params;
     params.m_panCoor = true;
     params.m_PanId = 5;
-    params.m_bcnOrd = 13;
-    params.m_sfrmOrd = 9;
+    params.m_bcnOrd = 8; // Beacon Order     (BO)
+    params.m_sfrmOrd = 4; // Superframe Order (SO)
     params.m_logCh = 14;
 
     // Beacon Bitmap
@@ -442,7 +426,7 @@ int main(int argc, char* argv[]) {
     params.m_hoppingDescriptor = hoppingDescriptor;
 
     // DSME SuperframeSpec
-    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(12); // MO
+    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(8); // MO
     params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
     params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);   // CAP reduction 
 
@@ -487,41 +471,22 @@ int main(int argc, char* argv[]) {
                                     scanParams);
     }
 
-    // // Synchronization
-    // MlmeSyncRequestParams syncParams;
-    // syncParams.m_logCh = 14; 
-    // syncParams.m_logChPage = 0; 
-    // syncParams.m_trackBcn = true; 
+    // Synchronization
+    MlmeSyncRequestParams syncParams;
+    syncParams.m_logCh = 14; 
+    syncParams.m_logChPage = 0; 
+    syncParams.m_trackBcn = true; 
 
-    // for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
-    // {
-    //     Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
-    //                                 Seconds(1050.001),
-    //                                 &LrWpanMac::MlmeSyncRequest,
-    //                                 deviceVector[deviceIdx]->GetMac(),
-    //                                 syncParams);
-    // }
-
-
-    // Do disassociation
-
-    MlmeDisassociateRequestParams disasscoParams;
-    disasscoParams.m_devAddrMode = SHORT_ADDR;
-    disasscoParams.m_devPanId = 5;                    
-    disasscoParams.m_shortDevAddr = Mac16Address("00:03");
-    disasscoParams.m_extDevAddr = Mac64Address("00:00:00:00:00:00:00:03");
-    disasscoParams.m_disassociateReason = CommandPayloadHeader::DISASSC_DEV_LEAVE_PAN;
-    disasscoParams.m_txIndirect = false;
-
-    Simulator::ScheduleWithContext(deviceVector[2]->GetNode()->GetId(),
-                                   Seconds(1200),
-                                   &LrWpanMac::MlmeDisassociateRequest,
-                                   deviceVector[2]->GetMac(),
-                                   disasscoParams);
-
-
+    for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
+    {
+        Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
+                                    Seconds(1010.001),
+                                    &LrWpanMac::MlmeSyncRequest,
+                                    deviceVector[deviceIdx]->GetMac(),
+                                    syncParams);
+    }
  
-    Simulator::Stop(Seconds(1500));
+    Simulator::Stop(Seconds(3000));
     Simulator::Run();
 
     // Calculating Beacon scheduling allocation successful rate.
