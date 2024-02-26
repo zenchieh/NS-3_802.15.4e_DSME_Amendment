@@ -304,13 +304,13 @@ void SetNodePosition(std::vector<Ptr<LrWpanNetDevice>> devVector, std::vector<Pt
 
     // Set the position of each node
     cstPosMobilityModelVector[0]->SetPosition(Vector(0, 0, 0));    // Set Pan-C at origin
-    cstPosMobilityModelVector[1]->SetPosition(Vector(100, 0, 0));  
-    cstPosMobilityModelVector[2]->SetPosition(Vector(0, -100, 0));
-    cstPosMobilityModelVector[3]->SetPosition(Vector(-100, 0, 0));
-    cstPosMobilityModelVector[4]->SetPosition(Vector(0, 100, 0));
-    cstPosMobilityModelVector[5]->SetPosition(Vector(50, 0, 0));
-    cstPosMobilityModelVector[6]->SetPosition(Vector(0, -50, 0));
-    cstPosMobilityModelVector[7]->SetPosition(Vector(-50, 0, 0));
+    cstPosMobilityModelVector[1]->SetPosition(Vector(50, 0, 0));  
+    cstPosMobilityModelVector[2]->SetPosition(Vector(0, -50, 0));
+    cstPosMobilityModelVector[3]->SetPosition(Vector(-50, 0, 0));
+    cstPosMobilityModelVector[4]->SetPosition(Vector(0, 50, 0));
+    cstPosMobilityModelVector[5]->SetPosition(Vector(30, 0, 0));
+    cstPosMobilityModelVector[6]->SetPosition(Vector(0, -30, 0));
+    cstPosMobilityModelVector[7]->SetPosition(Vector(30, 0, 0));
 
     for(int i = 0; i < DEVICE_CNT + 1; i++)
     {
@@ -410,8 +410,8 @@ int main(int argc, char* argv[]) {
     MlmeStartRequestParams params;
     params.m_panCoor = true;
     params.m_PanId = 5;
-    params.m_bcnOrd = 13; // Beacon Order     (BO)
-    params.m_sfrmOrd = 10; // Superframe Order (SO)
+    params.m_bcnOrd = 8; // Beacon Order     (BO)
+    params.m_sfrmOrd = 4; // Superframe Order (SO)
     params.m_logCh = 14;
 
     // Beacon Bitmap
@@ -430,7 +430,7 @@ int main(int argc, char* argv[]) {
     params.m_hoppingDescriptor = hoppingDescriptor;
 
     // DSME SuperframeSpec
-    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(12); // MO
+    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(8); // MO
     params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);  // Channel divercity
     params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);   // CAP reduction 
 
