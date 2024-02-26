@@ -49,6 +49,17 @@ namespace ns3
 class Packet;
 class LrWpanCsmaCa;
 
+class BeaconSchedulingPerformance
+{
+    public:
+
+        double m_bcnSchedulingSuccessRatio = 0;
+        double m_bcnSchedulingPeriod = 0;
+        double m_bcnSchedulingTotalPktCount = 0;
+        
+    private:
+};
+
 template <typename T>
 class ListNode
 {
