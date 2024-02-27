@@ -495,13 +495,19 @@ int main(int argc, char* argv[]) {
 
     // Calculating Beacon scheduling allocation successful rate.
     uint32_t totalAllocFailCnt = 0;
+    uint32_t totalAllocCtrlPktCnt = 0;
+
     for(int devIdx = 1; devIdx < DEVICE_CNT + 1; devIdx++)
     {
         totalAllocFailCnt += deviceVector[devIdx]->GetMac()->GetBcnSchedulingFailCnt();
+        totalAllocCtrlPktCnt += deviceVector[devIdx]->GetMac()->GetBcnSchedulingCtrlPktCnt();
     }
 
     double successRatio = 1 - ((double)(totalAllocFailCnt) / (double)(totalAllocFailCnt + DEVICE_CNT));
-    std::cout << "Beacon scheduling allocation successful ratio : " << successRatio << std::endl;
+    std::cout << "[ Beacon scheduling performace ]" << "\n"
+              << "- Allocation successful ratio : " << successRatio << "\n" 
+              << "- Beacon scheduling total control packet count : " << totalAllocCtrlPktCnt << "\n"
+              << std::endl;
 
     Simulator::Destroy();
     return 0;

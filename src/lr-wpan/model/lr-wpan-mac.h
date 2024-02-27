@@ -2737,16 +2737,36 @@ class LrWpanMac : public Object
     // Beacon scheduling allocation status
     uint8_t m_macBcnSchedulingAllocStatus;
 
-    // Beacon scheduling allocation successful ratio parameter.
+    /**
+     * Beacon scheduling performance parameters - Allocation fail count. 
+     * Note : This parameter specify the fail count of each device, calculate by fail count / Total Devices.
+     **/ 
     uint32_t m_bcnScehdulingFailCnt;
 
-    // Beacon scheduling allocation device count.
-    // Note : This parameter specify the number of associated lr-wpan devices in the simulation.
+    /**
+     * Beacon scheduling performance parameters - Allocation device count
+     * Note : This parameter specify the number of associated lr-wpan devices in the simulation.
+     **/ 
     uint32_t m_bcnSchedulingDevCnt;
+
+    /**
+     * Beacon scheduling performance parameters - Control packet count
+     * Note : This parameters specify the number of Control packet count used by beacon scheduling. 
+     * 
+     *        There are two types control packet :
+     *        1. Dsme Beacon Allocation Notification Command
+     *        2. Dsme Beacon Collision Notification Command
+     **/ 
+    uint32_t m_bcnSchedulingCtrlPktCount;
 
     // Beacon scheduling allocation average time parameter.
     // Note : This parameter specify the number of the device in PAN.
     //        It calculate the total time of beacon scheduling.
+    /**
+     * Beacon scheduling performance parameters - Allocation time cost in average
+     * Note : This parameters specify the number of the device in PAN.
+     *        It calculate the total time of beacon scheduling.
+     **/ 
     Time m_bcnSchedulingTime;
 
     // Enhanced Beacon Scheduling allocation sequence.
@@ -2801,11 +2821,13 @@ class LrWpanMac : public Object
     bool IsBcnCollision();
 
     void SetBcnSchedulingTime(Time time);
-    Time getBcnSchedulingTime();
+    Time GetBcnSchedulingTime();
 
     void SetBcnSchedulingDevCnt(uint32_t devCnt);
     uint32_t GetBcnSchedulingDevCnt();
 
+    void SetBcnSchedulingCtrlPktCnt(uint32_t assocReqCount);
+    uint32_t GetBcnSchedulingCtrlPktCnt();
     /**
      * Called by the higher layer to decide the superframe number to send
      * its beacon if it is a coordinator.

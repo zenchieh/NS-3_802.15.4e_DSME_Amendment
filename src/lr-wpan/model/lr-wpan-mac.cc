@@ -297,6 +297,7 @@ LrWpanMac::LrWpanMac() {
     m_needBcnSchedulingAgain = false;
     m_bcnScehdulingFailCnt = 0;
     m_allocationSequence = 0;
+    m_bcnSchedulingCtrlPktCount = 0;
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -2290,6 +2291,10 @@ void LrWpanMac::SendDsmeBeaconAllocNotifyCommand() {
 
     commandPacket->AddTrailer(macTrailer);
     NS_LOG_INFO("Send Dsme Beacon Allocation Notification Command " << "Allocate slot " << m_choosedSDIndexToSendBcn);
+
+    // Calculate the beacon scheduling control packet
+    m_bcnSchedulingCtrlPktCount++;
+
     Ptr<TxQueueElement> txQElement = Create<TxQueueElement>();
     txQElement->txQPkt = commandPacket;
     EnqueueTxQElement(txQElement);
@@ -2331,6 +2336,10 @@ void LrWpanMac::SendDsmeBeaconCollisionNotifyCommand(Mac16Address dstAddr, uint1
     commandPacket->AddTrailer(macTrailer);
     NS_LOG_INFO("Send Dsme Beacon collision notification command to " << dstAddr 
              << " collision slot (SDIdx) : " << collisionSDIndex);
+
+    // Calculate the beacon scheduling control packet
+    m_bcnSchedulingCtrlPktCount++;
+    
     Ptr<TxQueueElement> txQElement = Create<TxQueueElement>();
     txQElement->txQPkt = commandPacket;
     EnqueueTxQElement(txQElement);
@@ -8920,7 +8929,7 @@ LrWpanMac::SetBcnSchedulingTime(Time time)
 }
 
 Time
-LrWpanMac::getBcnSchedulingTime()
+LrWpanMac::GetBcnSchedulingTime()
 {
     return m_bcnSchedulingTime;
 }
@@ -8935,6 +8944,18 @@ uint32_t
 LrWpanMac::GetBcnSchedulingDevCnt()
 {
     return m_bcnSchedulingDevCnt;
+}
+
+void
+LrWpanMac::SetBcnSchedulingCtrlPktCnt(uint32_t ctrlPktCount)
+{
+    m_bcnSchedulingCtrlPktCount = ctrlPktCount;
+}
+
+uint32_t
+LrWpanMac::GetBcnSchedulingCtrlPktCnt()
+{
+    return m_bcnSchedulingCtrlPktCount;
 }
 
 int
