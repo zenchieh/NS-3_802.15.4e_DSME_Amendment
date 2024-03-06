@@ -3281,7 +3281,9 @@ LrWpanMac::EndStartRequest()
             
             NS_LOG_DEBUG("**********************************************************************************************");       
             NS_LOG_DEBUG("");
-
+            SetMlmeStartReqTime(Simulator::Now());
+            NS_LOG_DEBUG("m_mlmeStartReqTime = " << GetMlmeStartReqTime().GetSeconds());
+            NS_LOG_DEBUG("m_mlmeScanReqTime = " << GetMlmeScanReqTime().GetSeconds());
         }
     }
 }
@@ -8592,6 +8594,7 @@ LrWpanMac::CheckBeaconScheduling(MlmeStartRequestParams params)
         SetBcnDoNotCollision();
         SetBcnSchedulingAllocStatus(ALLOC_SUCCESS);
         m_needBcnSchedulingAgain = false; // Schedule successfully, no need to do it again.
+
         Simulator::ScheduleNow(&LrWpanMac::MlmeStartRequest,
                                 this, 
                                 params);
@@ -8980,6 +8983,30 @@ uint16_t
 LrWpanMac::GetAllocationSeq()
 {
     return m_allocationSequence;
+}
+
+void 
+LrWpanMac::SetMlmeScanReqTime(Time scanReqTime)
+{
+    m_mlmeScanReqTime = scanReqTime;
+}
+
+Time 
+LrWpanMac::GetMlmeScanReqTime()
+{
+    return m_mlmeScanReqTime;
+}
+
+void 
+LrWpanMac::SetMlmeStartReqTime(Time startReqTime)
+{
+    m_mlmeStartReqTime = startReqTime;
+}
+
+Time 
+LrWpanMac::GetMlmeStartReqTime()
+{
+    return m_mlmeStartReqTime;
 }
 
 template <typename T>

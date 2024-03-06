@@ -2570,6 +2570,19 @@ class LrWpanMac : public Object
     bool m_needBcnSchedulingAgain;
 
     /**
+     * Record the time of sending mlmeScanReqest.
+     * In order to calculate the scan ~ start period.
+     * For beacon scheduling performance indicator.
+     */
+    Time m_mlmeScanReqTime;
+    /**
+     * Record the time of sending mlmeStartReqest.
+     * In order to calculate the scan ~ start period.
+     * For beacon scheduling performance indicator.
+     */
+    Time m_mlmeStartReqTime;
+
+    /**
      * The number of multi-superframe in a beacon interval
      */
     uint32_t m_numOfMultisuperframes;
@@ -2780,6 +2793,16 @@ class LrWpanMac : public Object
     // Enhanced Beacon Scheduling allocation sequence.
     // For the purpose of allocation collision free.
     uint16_t GetAllocationSeq();
+
+    //Set the time of sending mlmeScanReqest.
+    void SetMlmeScanReqTime(Time scanReqTime);
+    //Get the time of sending mlmeScanReqest.
+    Time GetMlmeScanReqTime();
+
+    //Set the time of sending mlmeStartReqest.
+    void SetMlmeStartReqTime(Time startReqTime);
+    //Get the time of sending mlmeStartReqest.
+    Time GetMlmeStartReqTime();
 
     typedef enum {
         EBAutoSA_NONE = 0,

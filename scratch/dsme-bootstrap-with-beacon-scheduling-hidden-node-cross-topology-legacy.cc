@@ -462,13 +462,16 @@ int main(int argc, char* argv[]) {
     scanParams.m_frameCtrlOptions[1] = false;    // IES_INCLUDED
     scanParams.m_frameCtrlOptions[2] = false;    // SEQ_#_SUPPRESSED
 
+    Time scanRequestTime = Seconds(3.0);
+
     for (int deviceIdx = 1; deviceIdx < DEVICE_CNT + 1; deviceIdx++) 
     {
         Simulator::ScheduleWithContext(deviceVector[deviceIdx]->GetNode()->GetId(),
-                                    Seconds(3.0),
+                                    Seconds(scanRequestTime.GetSeconds()),
                                     &LrWpanMac::MlmeScanRequest,
                                     deviceVector[deviceIdx]->GetMac(),
                                     scanParams);
+        deviceVector[deviceIdx]->GetMac()->SetMlmeScanReqTime(scanRequestTime);
     }
 
     // Synchronization
@@ -492,17 +495,28 @@ int main(int argc, char* argv[]) {
     // Calculating Beacon scheduling allocation successful rate.
     uint32_t totalAllocFailCnt = 0;
     uint32_t totalAllocCtrlPktCnt = 0;
+    double successRatio = 0;
+    double allocPeriod = 0;
 
     for(int devIdx = 1; devIdx < DEVICE_CNT + 1; devIdx++)
     {
         totalAllocFailCnt += deviceVector[devIdx]->GetMac()->GetBcnSchedulingFailCnt();
         totalAllocCtrlPktCnt += deviceVector[devIdx]->GetMac()->GetBcnSchedulingCtrlPktCnt();
+        double tempTime = deviceVector[devIdx]->GetMac()->GetMlmeStartReqTime().GetSeconds()
+                          - deviceVector[devIdx]->GetMac()->GetMlmeScanReqTime().GetSeconds();
+
+        if(tempTime > allocPeriod)
+        {
+            allocPeriod = tempTime;
+        }
     }
 
-    double successRatio = 1 - ((double)(totalAllocFailCnt) / (double)(totalAllocFailCnt + DEVICE_CNT));
+    successRatio = 1 - ((double)(totalAllocFailCnt) / (double)(totalAllocFailCnt + DEVICE_CNT));
+    
     std::cout << "[ Beacon scheduling performace ]" << "\n"
               << "- Allocation successful ratio : " << successRatio << "\n" 
               << "- Beacon scheduling total control packet count : " << totalAllocCtrlPktCnt << "\n"
+              << "- Beacon scheduling period (mlmeScan ~ mlmeStart) : " << allocPeriod << "\n"
               << std::endl;
     Simulator::Destroy();
     return 0;
