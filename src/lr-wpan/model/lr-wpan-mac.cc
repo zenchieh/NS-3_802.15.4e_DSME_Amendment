@@ -4585,7 +4585,10 @@ void LrWpanMac::ResizeScheduleGTSsEvent(uint8_t bcnOrder,
 
     m_numOfMultisuperframes = static_cast<uint32_t>(1 << (bcnOrder - multisfrmOrd));
     m_numOfSuperframes = static_cast<uint64_t>(1 << (bcnOrder - sfrmOrd));
-
+    
+    // Guess : beacause the multisuperframe will repeat the duty cycle,
+    //         here divide the numOfMultisuperframes in order to schedule only one time.
+    m_scheduleGTSsEvent.resize(m_numOfSuperframes / m_numOfMultisuperframes);
     m_scheduleGTSsEvent.resize(m_numOfSuperframes / m_numOfMultisuperframes);
 }
 

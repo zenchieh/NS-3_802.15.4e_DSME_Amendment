@@ -32,6 +32,10 @@
  *
  */
 
+#define BO 14
+#define SO 6
+#define MO 12
+
 #include <ns3/constant-position-mobility-model.h>
 #include <ns3/core-module.h>
 #include <ns3/log.h>
@@ -278,21 +282,16 @@ main(int argc, char* argv[])
     // Create 3 nodes, and a NetDevice for each one
     Ptr<Node> n0 = CreateObject<Node>();
     Ptr<Node> n1 = CreateObject<Node>();
-    // Ptr<Node> n2 = CreateObject<Node>();
 
     Ptr<LrWpanNetDevice> dev0 = CreateObject<LrWpanNetDevice>();
     Ptr<LrWpanNetDevice> dev1 = CreateObject<LrWpanNetDevice>();
-    // Ptr<LrWpanNetDevice> dev2 = CreateObject<LrWpanNetDevice>();
 
     lrWpanHelper.EnablePcap(std::string("dsme-gts-handshake-dev0.pcap"), dev0, true, true);
     lrWpanHelper.EnablePcap(std::string("dsme-gts-handshake-dev1.pcap"), dev1, true, true);
-    // lrWpanHelper.EnablePcap(std::string("dsme-gts-handshake-dev1.pcap"), dev2, true, true);
 
     dev0->SetAddress(Mac16Address("00:01"));
     dev1->SetAddress(Mac16Address("00:02"));
-    // dev2->SetAddress(Mac16Address("00:03"));
 
-    // Ptr<SingleModelSpectrumChannel> channel = CreateObject<SingleModelSpectrumChannel>();
     Ptr<MultiModelSpectrumChannel> channel = CreateObject<MultiModelSpectrumChannel>();
 
     Ptr<LogDistancePropagationLossModel> propModel =
@@ -305,11 +304,9 @@ main(int argc, char* argv[])
 
     dev0->SetChannel(channel);
     dev1->SetChannel(channel);
-    // dev2->SetChannel(channel);
 
     n0->AddDevice(dev0);
     n1->AddDevice(dev1);
-    // n2->AddDevice(dev2);
 
     ///////////////// Mobility   ///////////////////////
     Ptr<ConstantPositionMobilityModel> sender0Mobility =
@@ -327,8 +324,6 @@ main(int argc, char* argv[])
     sender1Mobility->SetPosition(Vector(0, 10, 0)); // 10 m distance
     dev1->GetPhy()->SetMobility(sender1Mobility);
 
-    // sender2Mobility->SetPosition(Vector(0, 30, 0));
-    // dev2->GetPhy()->SetMobility(sender2Mobility);
 
     /////// MAC layer Callbacks hooks/////////////
 
@@ -377,31 +372,32 @@ main(int argc, char* argv[])
 
     dev1->GetMac()->SetPanId(5);
     dev1->GetMac()->SetAssociatedCoor(Mac16Address("00:01"));
-    dev1DsmeSAB.resize(static_cast<uint64_t>(1 << (14 - 6)), 0);
+    dev1DsmeSAB.resize(static_cast<uint64_t>(1 << (BO - SO)), 0);
 
     ///////////////////// Start transmitting beacons from coordinator ////////////////////////
     MlmeStartRequestParams params;
     params.m_panCoor = true;
     params.m_PanId = 5;
 
-    params.m_bcnOrd = 14;
-    params.m_sfrmOrd = 6;
+    params.m_bcnOrd = BO;
+    params.m_sfrmOrd = SO;
+    uint8_t multiSuperframeOrder = MO;
 
     // Beacon Bitmap
-    BeaconBitmap bitmap(0, 1 << (14 - 6));
+    BeaconBitmap bitmap(0, 1 << (params.m_bcnOrd - params.m_sfrmOrd));
     bitmap.SetSDBitmap(0);                  // SD = 0 目前占用
     params.m_bcnBitmap = bitmap;
 
-    dev0DsmeSAB.resize(static_cast<uint64_t>(1 << (14 - 6)), 0);
+    dev0DsmeSAB.resize(static_cast<uint64_t>(1 << (params.m_bcnOrd - params.m_sfrmOrd)), 0);
 
     // Dsme 
-    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(12);
+    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(multiSuperframeOrder);
     params.m_dsmeSuperframeSpec.SetChannelDiversityMode(1);
     params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
 
     // Hopping Descriptor
     HoppingDescriptor hoppingDescriptor;
-    hoppingDescriptor.m_HoppingSequenceID = 0x00;
+    hoppingDescriptor.m_HoppingSequenceID = 0x00; // 0x00 : Default hopping sequence, check table 34a.
     hoppingDescriptor.m_hoppingSeqLen = 0;
     hoppingDescriptor.m_channelOfs = 1;
     hoppingDescriptor.m_channelOfsBitmapLen = 16;
@@ -416,8 +412,9 @@ main(int argc, char* argv[])
                                    params);
 
     /////////////////////// Dsme SAB setting /////////////////////////
-    dev1->GetMac()->ResizeMacDSMESAB(false, 14, 6);
-    dev1->GetMac()->ResizeScheduleGTSsEvent(14, 12, 6);
+    // Set the size of Slot allocation block & resize the length of GTS which need to be scheduled.
+    dev1->GetMac()->ResizeMacDSMESAB(false, params.m_bcnOrd, params.m_sfrmOrd);
+    dev1->GetMac()->ResizeScheduleGTSsEvent(params.m_bcnOrd, multiSuperframeOrder, params.m_sfrmOrd);
 
     ///////////////////// Gsme Gts Handshake ////////////////////////
 
@@ -440,9 +437,9 @@ main(int argc, char* argv[])
      */ 
 
     MlmeDsmeGtsRequestParams params2;
-    params2.m_devAddr = Mac16Address("00:01");
+    params2.m_devAddr = Mac16Address("00:01"); // 要request的Addr
     params2.m_manageType = GTS_ALLOCATION;
-    params2.m_direction = 0x00;
+    params2.m_direction = 0x00; // 0x00 : TX
     params2.m_prioritizedChAccess = 0x01;
     params2.m_numSlot = 3;
     params2.m_preferredSuperframeID = 2;
@@ -461,7 +458,7 @@ main(int argc, char* argv[])
     ///////////////////// Transmission of data Packets from end device //////////////////////
 
     // Dsme
-    dev1->GetMac()->SetMultisuperframeOrder(12);
+    dev1->GetMac()->SetMultisuperframeOrder(multiSuperframeOrder);
 
     Ptr<Packet> p1 = Create<Packet>(5);
     McpsDataRequestParams params3;
