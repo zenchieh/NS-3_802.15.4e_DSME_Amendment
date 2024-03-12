@@ -8,7 +8,7 @@
             "name": "(gdb) Launch from scratch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/scratch/ns3.37-dsme-bootstrap-with-beacon-scheduling-hidden-node-cross-topology-vacant-list-default",
+            "program": "${workspaceFolder}/build/scratch/ns3.37-dsme-gts-handshake-default",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

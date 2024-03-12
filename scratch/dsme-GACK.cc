@@ -159,7 +159,7 @@ static void MlmeDsmeGtsIndication(Ptr<LrWpanNetDevice> device, MlmeDsmeGtsIndica
             /**
              *! Set SAB manually, need to check the sanity.
             */
-            dev0DsmeSAB[params.m_preferredSuperframeID] = 0b0000000000001110;
+            dev0DsmeSAB[params.m_preferredSuperframeID] = 0b0000000000000110;
             
             respParams.m_dsmeSABSpec.setCAPReduction(device->GetMac()->isCAPReductionOn());
             respParams.m_dsmeSABSpec.setSABSubBlkLen(1); //! This need to be fix , not a fix length.
@@ -384,25 +384,25 @@ main(int argc, char* argv[])
     dev1DsmeSAB.resize(static_cast<uint64_t>(1 << (BO - SO)), 0);
 
     ///////////////////// Start transmitting beacons from coordinator ////////////////////////
-    MlmeStartRequestParams params;
-    params.m_panCoor = true;
-    params.m_PanId = 5;
+    MlmeStartRequestParams startReqParams;
+    startReqParams.m_panCoor = true;
+    startReqParams.m_PanId = 5;
 
-    params.m_bcnOrd = BO;
-    params.m_sfrmOrd = SO;
+    startReqParams.m_bcnOrd = BO;
+    startReqParams.m_sfrmOrd = SO;
     uint8_t multiSuperframeOrder = MO;
 
     // Beacon Bitmap
-    BeaconBitmap bitmap(0, 1 << (params.m_bcnOrd - params.m_sfrmOrd));
+    BeaconBitmap bitmap(0, 1 << (startReqParams.m_bcnOrd - startReqParams.m_sfrmOrd));
     bitmap.SetSDBitmap(0);                  // SD = 0 目前占用
-    params.m_bcnBitmap = bitmap;
+    startReqParams.m_bcnBitmap = bitmap;
 
-    dev0DsmeSAB.resize(static_cast<uint64_t>(1 << (params.m_bcnOrd - params.m_sfrmOrd)), 0);
+    dev0DsmeSAB.resize(static_cast<uint64_t>(1 << (startReqParams.m_bcnOrd - startReqParams.m_sfrmOrd)), 0);
 
     // Dsme 
-    params.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(multiSuperframeOrder);
-    params.m_dsmeSuperframeSpec.SetChannelDiversityMode(CHNNEL_HOPPING); 
-    params.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
+    startReqParams.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(multiSuperframeOrder);
+    startReqParams.m_dsmeSuperframeSpec.SetChannelDiversityMode(CHNNEL_HOPPING); 
+    startReqParams.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
 
     // Hopping Descriptor
     HoppingDescriptor hoppingDescriptor;
@@ -413,18 +413,18 @@ main(int argc, char* argv[])
     hoppingDescriptor.m_channelOfsBitmap.resize(1, 2);    // offset = 1 目前占用 , 紀錄有哪些offset有被占用(bitmap, 1代表有在用)
                                                           // 2 = 0b01000000...
                                                           //        |  -> bit(1) channel offset : 1
-    params.m_hoppingDescriptor = hoppingDescriptor;
+    startReqParams.m_hoppingDescriptor = hoppingDescriptor;
     // MLME-START.request primitive is used by the PAN coordinator to initiate a new PAN or to begin using a new superframe configuration.
     Simulator::ScheduleWithContext(1,
                                    Seconds(2.0),
                                    &LrWpanMac::MlmeStartRequest,
                                    devPanC->GetMac(),
-                                   params);
+                                   startReqParams);
 
     /////////////////////// Dsme SAB setting /////////////////////////
     // Set the size of Slot allocation block & resize the length of GTS which need to be scheduled.
-    dev1->GetMac()->ResizeMacDSMESAB(false, params.m_bcnOrd, params.m_sfrmOrd);
-    dev1->GetMac()->ResizeScheduleGTSsEvent(params.m_bcnOrd, multiSuperframeOrder, params.m_sfrmOrd);
+    dev1->GetMac()->ResizeMacDSMESAB(false, startReqParams.m_bcnOrd, startReqParams.m_sfrmOrd);
+    dev1->GetMac()->ResizeScheduleGTSsEvent(startReqParams.m_bcnOrd, multiSuperframeOrder, startReqParams.m_sfrmOrd);
 
     ///////////////////// Gsme Gts Handshake ////////////////////////
 
@@ -446,24 +446,43 @@ main(int argc, char* argv[])
      *  8. [device -  MAC]          ->  [device -  HigherLayer   :  MLME-DSME-GTS.confirm 
      */ 
 
-    MlmeDsmeGtsRequestParams params2;
-    params2.m_devAddr = Mac16Address("00:01"); // 要request的Addr
-    params2.m_manageType = GTS_ALLOCATION;
-    params2.m_direction = 0x00; // 0x00 : TX
-    params2.m_prioritizedChAccess = 0x01;
-    params2.m_numSlot = 3;
-    params2.m_preferredSuperframeID = 2;
-    params2.m_preferredSlotID = 1;
-    params2.m_dsmeSABSpec.setCAPReduction(false);
-    params2.m_dsmeSABSpec.setSABSubBlkLen(1); // The length of the DSME SAB sub-block in units. One unit = 7 slot (No CAP reduction) or 15 slot (For CAP reduction).
-    params2.m_dsmeSABSpec.setSABSubBlkIdx(0); // Indicate the beginning of the DSME SAB Sub-block in the entire SAB (not in unit).
-    params2.m_dsmeSABSpec.setSABSubBlk(dev1DsmeSAB[0]);  // DSME-TODO
+    MlmeDsmeGtsRequestParams gtsRequestParams;
+    gtsRequestParams.m_devAddr = Mac16Address("00:01"); // 要request的Addr
+    gtsRequestParams.m_manageType = GTS_ALLOCATION;
+    gtsRequestParams.m_direction = 0x00; // 0x00 : TX
+    gtsRequestParams.m_prioritizedChAccess = 0x01;
+    gtsRequestParams.m_numSlot = 1;
+    gtsRequestParams.m_preferredSuperframeID = 2;
+    gtsRequestParams.m_preferredSlotID = 1;
+    gtsRequestParams.m_dsmeSABSpec.setCAPReduction(false);
+    gtsRequestParams.m_dsmeSABSpec.setSABSubBlkLen(1); // The length of the DSME SAB sub-block in units. One unit = 7 slot (No CAP reduction) or 15 slot (For CAP reduction).
+    gtsRequestParams.m_dsmeSABSpec.setSABSubBlkIdx(0); // Indicate the beginning of the DSME SAB Sub-block in the entire SAB (not in unit).
+    gtsRequestParams.m_dsmeSABSpec.setSABSubBlk(dev1DsmeSAB[0]);  // DSME-TODO
 
     Simulator::ScheduleWithContext(1,
                                    Seconds(3.0),
                                    &LrWpanMac::MlmeDsmeGtsRequest,
                                    dev1->GetMac(),
-                                   params2);
+                                   gtsRequestParams);
+
+    // MlmeDsmeGtsRequestParams gtsRequestParams2;
+    // gtsRequestParams2.m_devAddr = Mac16Address("00:01"); // 要request的Addr
+    // gtsRequestParams2.m_manageType = GTS_ALLOCATION;
+    // gtsRequestParams2.m_direction = 0x00; // 0x00 : TX
+    // gtsRequestParams2.m_prioritizedChAccess = 0x01;
+    // gtsRequestParams2.m_numSlot = 1;
+    // gtsRequestParams2.m_preferredSuperframeID = 2;
+    // gtsRequestParams2.m_preferredSlotID = 2;
+    // gtsRequestParams2.m_dsmeSABSpec.setCAPReduction(false);
+    // gtsRequestParams2.m_dsmeSABSpec.setSABSubBlkLen(1); // The length of the DSME SAB sub-block in units. One unit = 7 slot (No CAP reduction) or 15 slot (For CAP reduction).
+    // gtsRequestParams2.m_dsmeSABSpec.setSABSubBlkIdx(0); // Indicate the beginning of the DSME SAB Sub-block in the entire SAB (not in unit).
+    // gtsRequestParams2.m_dsmeSABSpec.setSABSubBlk(dev1DsmeSAB[0]);  // DSME-TODO
+
+    // Simulator::ScheduleWithContext(1,
+    //                                Seconds(4.0),
+    //                                &LrWpanMac::MlmeDsmeGtsRequest,
+    //                                dev1->GetMac(),
+    //                                gtsRequestParams2);                          
 
     ///////////////////// Transmission of data Packets from end device //////////////////////
 
@@ -471,14 +490,14 @@ main(int argc, char* argv[])
     dev1->GetMac()->SetMultisuperframeOrder(multiSuperframeOrder);
 
     Ptr<Packet> p1 = Create<Packet>(5);
-    McpsDataRequestParams params3;
-    params3.m_dstPanId = 5;
-    params3.m_srcAddrMode = SHORT_ADDR;
-    params3.m_dstAddrMode = SHORT_ADDR;
-    params3.m_dstAddr = Mac16Address("00:01");
-    params3.m_msduHandle = 0;
-    params3.m_txOptions = TX_OPTION_ACK;  // Enable direct transmission with Ack
-    params3.m_txOptions |= TX_OPTION_GTS;
+    McpsDataRequestParams dataReqParams;
+    dataReqParams.m_dstPanId = 5;
+    dataReqParams.m_srcAddrMode = SHORT_ADDR;
+    dataReqParams.m_dstAddrMode = SHORT_ADDR;
+    dataReqParams.m_dstAddr = Mac16Address("00:01");
+    dataReqParams.m_msduHandle = 0;
+    dataReqParams.m_txOptions = TX_OPTION_ACK;  // Enable direct transmission with Ack
+    dataReqParams.m_txOptions |= TX_OPTION_GTS;
 
     /////////////////////////////////////////////////////////////////////////////////////
     // Examples of time parameters for transmissions in the first incoming superframe. //
@@ -499,7 +518,7 @@ main(int argc, char* argv[])
                                    Seconds(759.559016000),
                                    &LrWpanMac::McpsDataRequest,
                                    dev1->GetMac(),
-                                   params3,
+                                   dataReqParams,
                                    p1);
 
     std::cout << " Symbol Rate (per sec) " << devPanC->GetPhy()->GetDataOrSymbolRate(false) << std ::endl;

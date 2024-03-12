@@ -3566,8 +3566,8 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
         }        
 
     } else {
-        activeSlot = m_superframeDuration / 16;
-        cfpDuration = activeSlot * (15 - m_fnlCapSlot);
+        activeSlot = m_superframeDuration / 16;         // 一個slot的長度
+        cfpDuration = activeSlot * (15 - m_fnlCapSlot); // CFP的時長
         endCfpTime = Seconds((double)cfpDuration / symbolRate);
 
         if (cfpDuration > 0)
@@ -3603,7 +3603,8 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
             } else {    
                 NS_LOG_DEBUG("Outgoing superframe CFP duration " << cfpDuration << " symbols ("
                                                          << endCfpTime.As(Time::S) << ")"); 
-
+                NS_LOG_DEBUG("CFP start , Current Time = " << Simulator::Now().As(Time::S));
+                NS_LOG_DEBUG("Each slot interval =  "<< (double)m_superframeDuration / 16 / 62500);
                 m_cfpEvent = Simulator::Schedule(endCfpTime,
                                         &LrWpanMac::StartRemainingPeriod,
                                         this,
@@ -3919,30 +3920,39 @@ void LrWpanMac::ScheduleGts(bool indication) {
         return;
     }
 
-    if (m_macDsmeACT.size()) {
+    // m_macDsmeACT is a map , 
+    // key (it->first) = uint16_t superframeID , value (it->second) = vector macDsmeACTEntity
+    if (m_macDsmeACT.size()) 
+    {
         uint64_t symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false); // 62500 symbols/sec by default
 
-        for (auto it = m_macDsmeACT.begin(); it != m_macDsmeACT.end(); ++it) {
-            for (unsigned int i = 0; i < it->second.size(); ++i) {
-                if (!it->second[i].m_allocated) {
+        for (auto it = m_macDsmeACT.begin(); it != m_macDsmeACT.end(); ++it) 
+        {
+            for (unsigned int i = 0; i < it->second.size(); ++i) 
+            {
+                if (!it->second[i].m_allocated) 
+                {
                     uint32_t activeSlot;
                     uint64_t superframeDurations;
                     uint64_t capDuration;
                     uint64_t endCapUntilTheGtsDuration;
-
                     Time endCapTime;
                     Time startGtsTime;
 
-                    if (m_coord) {
+                    if (m_coord) 
+                    {
+                        //! calculate the general time between beacon TX time (slot0) ~ CFP start time , which equals to CAP end time.
                         activeSlot = m_superframeDuration / 16;                 // calculate slot time per active timeslot
                         capDuration = activeSlot * (m_fnlCapSlot + 1);          // calculate CAP duration period, timeslot 0(Beacon) ~ timeslot 8, so we need to plus one
                         endCapTime = Seconds((double)capDuration / symbolRate); // calculate when the CAP end
                         // endCapTime -= (Simulator::Now() - m_macBeaconTxTime);
                         // superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
                         NS_LOG_DEBUG("it->second[i].m_superframeID = " << it->second[i].m_superframeID);
-                        superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration;
+                        superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration; // 這裡可能會出事，m_choosedSDIndexToSendBcn若 > m_superframeID?
                         endCapUntilTheGtsDuration = activeSlot * it->second[i].m_slotID;
-                    } else {
+                    } 
+                    else
+                    {
                         activeSlot = m_incomingSuperframeDuration / 16;
                         capDuration = activeSlot * (m_incomingFnlCapSlot + 1);
                         endCapTime = Seconds((double)capDuration / symbolRate);
@@ -3953,16 +3963,16 @@ void LrWpanMac::ScheduleGts(bool indication) {
                     
                     Time gtsDuration = Seconds((double)endCapUntilTheGtsDuration / symbolRate);
                     Time superframeTime = Seconds((double)superframeDurations / symbolRate);
-                    startGtsTime = endCapTime + gtsDuration + superframeTime;
+                    startGtsTime = superframeTime + endCapTime + gtsDuration;
 
-                    if (it->second[i].m_direction) {
+                    if (it->second[i].m_direction) // GTS for RX
+                    {
                         m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime
                                                         , &LrWpanMac::StartGTS
                                                         , this
                                                         , SuperframeType::INCOMING
                                                         , it->second[i].m_superframeID
-                                                        , i);
-                        
+                                                        , i);                
                         // DSME-TODO
                         it->second[i].m_allocated = true;
                         m_scheduleGTSsEvent[it->second[i].m_superframeID].push_back(m_gtsSchedulingEvent);
@@ -3975,15 +3985,15 @@ void LrWpanMac::ScheduleGts(bool indication) {
                                     << " superframeTime (" << superframeTime.As(Time::S) << ")"
                                     << " = "
                                     << "(" << startGtsTime.As(Time::S) << ")");
-
-                    } else {
+                    } 
+                    else  // GTS for TX
+                    {
                         m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime
                                                         , &LrWpanMac::StartGTS
                                                         , this
                                                         , SuperframeType::OUTGOING
                                                         , it->second[i].m_superframeID
-                                                        , i);
-                        
+                                                        , i);                        
                         // DSME-TODO
                         it->second[i].m_allocated = true;
                         m_scheduleGTSsEvent[it->second[i].m_superframeID].push_back(m_gtsSchedulingEvent);
@@ -4031,6 +4041,8 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
 
     m_curGTSSuperframeID = superframeID;
     m_curGTSIdx = idx;
+
+    NS_LOG_DEBUG("Current superframeID : " << m_curGTSSuperframeID << " GTSIDx : " << m_curGTSIdx);
 
     if (m_macDsmeACT[superframeID][idx].m_direction) {  
         m_macDsmeACT[superframeID][idx].m_cnt++;
@@ -5313,7 +5325,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         panDescriptor.m_channelHoppingSpec = receivedDsmePANDescriptorIEHeaderIE.GetChannelHopping();
                         panDescriptor.m_gACKSpec = receivedDsmePANDescriptorIEHeaderIE.GetGroupACK();
 
-                        NS_LOG_DEBUG("SD Bitmap In IE of the Enhanced Beacon" << receivedDsmePANDescriptorIEHeaderIE.GetBeaconBitmap()); // debug
+                        // NS_LOG_DEBUG("SD Bitmap In IE of the Enhanced Beacon" << receivedDsmePANDescriptorIEHeaderIE.GetBeaconBitmap()); // debug
                         // NS_LOG_DEBUG("Channel Hopping In IE of the Enhanced Beacon" << receivedDsmePANDescriptorIEHeaderIE.GetChannelHopping()); // debug
          
                         // Dsme superframe specification 
@@ -5364,9 +5376,9 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         m_macSDBitmap.SetBitmapLength(m_incomingSDBitmap.GetSDBitmapLength());
                         m_macSDBitmap.SetSDIndex(m_incomingSDBitmap.GetSDIndex());                        
                         m_macSDBitmap.SetSDBitmap(newSDBitmap); // Set the bitmap, which is the OR operation of the two bitmap.
-                        NS_LOG_DEBUG("m_macSDBitmap.bitmapLength = " << m_macSDBitmap.GetSDBitmapLength());
-                        NS_LOG_DEBUG("Rcv bcn from panDescriptorIE, m_incomingSDBitmap = " << m_incomingSDBitmap);
-                        NS_LOG_DEBUG("After Vector bitwise operation, m_macSDBitmap = " << m_macSDBitmap);
+                        // NS_LOG_DEBUG("m_macSDBitmap.bitmapLength = " << m_macSDBitmap.GetSDBitmapLength());
+                        // NS_LOG_DEBUG("Rcv bcn from panDescriptorIE, m_incomingSDBitmap = " << m_incomingSDBitmap);
+                        // NS_LOG_DEBUG("After Vector bitwise operation, m_macSDBitmap = " << m_macSDBitmap);
                         
                         // DSME-TODO
                         // 這個應該是要從 m_incomingSDBitmap 取出來
@@ -7630,7 +7642,6 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                                    
                 } else if (receivedMacPayload.GetCommandFrameType()
                             == CommandPayloadHeader::DSME_GTS_REPLY) {
-                                NS_LOG_DEBUG("TEST");
                     // The device who request allocation received GTS response/reply here, prepare send GTS notify command and report GTS.confirm to the higher layer.
                     // Deallocation
                     if (receivedMacPayload.GetDsmeGtsManagementField().GetManagementType() == 0b000) {  // 0b000 deallocation
