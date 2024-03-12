@@ -1054,7 +1054,8 @@ struct MlmeDsmeGtsRequestParams {
     uint8_t m_preferredSlotID;                  //<! 0x00-0x0e, The slot ID is the sequence number of the DSME-GTSs
                                                 //<! (not including beacon or CAP slots) in a
                                                 //<! superframe beginning from zero.
-    DSMESABSpecificationField m_dsmeSABSpec;
+    
+    DSMESABSpecificationField m_dsmeSABSpec;    //<! SAB of GTS infos when GTS request
 
     // SecurityLevel,
     // KeyIdMode,

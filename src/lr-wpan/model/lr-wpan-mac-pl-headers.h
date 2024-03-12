@@ -81,8 +81,17 @@ public:
 private:
     bool m_capReduction;
 
-    uint8_t m_dsmeSABSubBlkLen;             //!< DSME SAB sub-block length
-    uint16_t m_dsmeSABSubBlkIdx;            //!< DSME SAB sub-block index
+    /**
+     *! DSME SAB sub-block length , the length of SAB Sub-block, contain the length of the DSME SAB sub-block in units. 
+     *! (One unit = 7 slot(No CAP reduction) , 15 slot(For CAP reduction)).
+     */
+    uint8_t m_dsmeSABSubBlkLen;   
+
+    /**
+     *! DSME SAB sub-block index , indicate the start position. 
+     *! Indicate the beginning of the DSME SAB Sub-block in the entire SAB (not in unit).
+     */                                
+    uint16_t m_dsmeSABSubBlkIdx;
 
     std::vector<uint16_t> m_dsmeSABSubBlk;  //!< DSME SAB sub-block
     std::vector<uint8_t> m_dsmeSABSubBlkCapOff;  //!< DSME SAB sub-block

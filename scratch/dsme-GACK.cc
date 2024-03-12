@@ -288,21 +288,6 @@ main(int argc, char* argv[])
     // LogComponentEnable("PacketMetadata", LOG_LEVEL_ALL);  // debug
     // LogComponentEnable("Packet", LOG_LEVEL_ALL);         // debug
 
-    LrWpanHelper lrWpanHelper;
-
-    // Create 3 nodes, and a NetDevice for each one
-    Ptr<Node> n0 = CreateObject<Node>();
-    Ptr<Node> n1 = CreateObject<Node>();
-
-    Ptr<LrWpanNetDevice> dev0 = CreateObject<LrWpanNetDevice>();
-    Ptr<LrWpanNetDevice> dev1 = CreateObject<LrWpanNetDevice>();
-
-    lrWpanHelper.EnablePcap(std::string("dsme-gts-handshake-dev0.pcap"), dev0, true, true);
-    lrWpanHelper.EnablePcap(std::string("dsme-gts-handshake-dev1.pcap"), dev1, true, true);
-
-    dev0->SetAddress(Mac16Address("00:01"));
-    dev1->SetAddress(Mac16Address("00:02"));
-
     Ptr<MultiModelSpectrumChannel> channel = CreateObject<MultiModelSpectrumChannel>();
 
     Ptr<LogDistancePropagationLossModel> propModel =
@@ -313,18 +298,31 @@ main(int argc, char* argv[])
     channel->AddPropagationLossModel(propModel);
     channel->SetPropagationDelayModel(delayModel);
 
-    dev0->SetChannel(channel);
+    LrWpanHelper lrWpanHelper;
+
+    Ptr<Node> node_PanC = CreateObject<Node>();
+    Ptr<Node> node_Dev1 = CreateObject<Node>();
+    Ptr<LrWpanNetDevice> devPanC = CreateObject<LrWpanNetDevice>();
+    Ptr<LrWpanNetDevice> dev1 = CreateObject<LrWpanNetDevice>();
+
+    lrWpanHelper.EnablePcap(std::string("dsme-gts-handshake-dev0.pcap"), devPanC, true, true);
+    lrWpanHelper.EnablePcap(std::string("dsme-gts-handshake-dev1.pcap"), dev1, true, true);
+
+    devPanC->SetAddress(Mac16Address("00:01"));
+    dev1->SetAddress(Mac16Address("00:02"));
+
+    devPanC->SetChannel(channel);
     dev1->SetChannel(channel);
 
-    n0->AddDevice(dev0);
-    n1->AddDevice(dev1);
+    node_PanC->AddDevice(devPanC);
+    node_Dev1->AddDevice(dev1);
 
     ///////////////// Mobility   ///////////////////////
     Ptr<ConstantPositionMobilityModel> sender0Mobility =
         CreateObject<ConstantPositionMobilityModel>();
 
     sender0Mobility->SetPosition(Vector(0, 0, 0));
-    dev0->GetPhy()->SetMobility(sender0Mobility);
+    devPanC->GetPhy()->SetMobility(sender0Mobility);
 
     Ptr<ConstantPositionMobilityModel> sender1Mobility =
         CreateObject<ConstantPositionMobilityModel>();
@@ -340,7 +338,7 @@ main(int argc, char* argv[])
 
     MlmeStartConfirmCallback cb0;
     cb0 = MakeCallback(&StartConfirm);
-    dev0->GetMac()->SetMlmeStartConfirmCallback(cb0);
+    devPanC->GetMac()->SetMlmeStartConfirmCallback(cb0);
 
     McpsDataConfirmCallback cb1;
     cb1 = MakeCallback(&TransEndIndication);
@@ -356,20 +354,20 @@ main(int argc, char* argv[])
 
     McpsDataIndicationCallback cb5;
     cb5 = MakeCallback(&DataIndicationCoordinator);
-    dev0->GetMac()->SetMcpsDataIndicationCallback(cb5);
+    devPanC->GetMac()->SetMcpsDataIndicationCallback(cb5);
 
-    dev0->GetMac()->SetMlmeDsmeGtsIndicationCallback(MakeBoundCallback(&MlmeDsmeGtsIndication, dev0));
+    devPanC->GetMac()->SetMlmeDsmeGtsIndicationCallback(MakeBoundCallback(&MlmeDsmeGtsIndication, devPanC));
 
     dev1->GetMac()->SetMlmeDsmeGtsConfirmCallback(MakeBoundCallback(&MlmeDsmeGtsConfirm, dev1));
 
     // Dsme
-    dev0->GetMac()->SetDsmeModeEnabled();
+    devPanC->GetMac()->SetDsmeModeEnabled();
     dev1->GetMac()->SetDsmeModeEnabled();
 
-    dev0->GetMac()->SetChannelHoppingEnabled();
+    devPanC->GetMac()->SetChannelHoppingEnabled();
     dev1->GetMac()->SetChannelHoppingEnabled();
 
-    dev0->GetMac()->SetNumOfChannelSupported(15);
+    devPanC->GetMac()->SetNumOfChannelSupported(15);
     dev1->GetMac()->SetNumOfChannelSupported(15);
 
     dev1->GetMac()->SetChannelOffset(1);
@@ -420,7 +418,7 @@ main(int argc, char* argv[])
     Simulator::ScheduleWithContext(1,
                                    Seconds(2.0),
                                    &LrWpanMac::MlmeStartRequest,
-                                   dev0->GetMac(),
+                                   devPanC->GetMac(),
                                    params);
 
     /////////////////////// Dsme SAB setting /////////////////////////
@@ -504,7 +502,7 @@ main(int argc, char* argv[])
                                    params3,
                                    p1);
 
-    std::cout << " Symbol Rate (per sec) " << dev0->GetPhy()->GetDataOrSymbolRate(false) << std ::endl;
+    std::cout << " Symbol Rate (per sec) " << devPanC->GetPhy()->GetDataOrSymbolRate(false) << std ::endl;
     std::cout << "**********************************" << std ::endl;
 
     Simulator::Stop(Seconds(1000));
@@ -513,3 +511,5 @@ main(int argc, char* argv[])
     Simulator::Destroy();
     return 0;
 }
+
+

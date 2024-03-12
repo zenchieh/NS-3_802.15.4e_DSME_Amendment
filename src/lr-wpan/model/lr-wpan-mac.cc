@@ -1238,10 +1238,10 @@ void LrWpanMac::MlmeDsmeGtsRequest(MlmeDsmeGtsRequestParams params) {
     // Set a bitmap of a sub-block of macDSMESAB
     DSMESABSpecificationField sABSpec;
 
-    // DSME-TODO: 這 CAPReduction Flag怪怪的, 要從哪裡判斷得知?
+    // DSME-TODO: 這 CAPReduction Flag怪怪的, 要從哪裡判斷得知? 先add 一個 field
     sABSpec.setCAPReduction(params.m_dsmeSABSpec.isCAPReduction());
-    sABSpec.setSABSubBlkLen(params.m_dsmeSABSpec.GetSABSubBlkLen());
-    sABSpec.setSABSubBlkIdx(params.m_dsmeSABSpec.GetSABSubBlkIdx());
+    sABSpec.setSABSubBlkLen(params.m_dsmeSABSpec.GetSABSubBlkLen()); // The length of the DSME SAB sub-block in units. One unit = 7 slot (No CAP reduction) or 15 slot (For CAP reduction).
+    sABSpec.setSABSubBlkIdx(params.m_dsmeSABSpec.GetSABSubBlkIdx()); // Indicate the beginning of the DSME SAB Sub-block in the entire SAB (not in unit).
 
     if (sABSpec.isCAPReduction()) {
         sABSpec.setSABSubBlk(params.m_dsmeSABSpec.GetSABSubBlk());
@@ -6127,18 +6127,19 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                                                 &LrWpanMac::DsmeGtsNotifyWaitTimeout,
                                                                 this);
 
-                                    if (cmdPayload.GetDsmeGtsManagementField().GetManagementType() == 0b001
-                                        && cmdPayload.GetDsmeGtsManagementField().GetStatus() == 0b000) {
+                                    if (cmdPayload.GetDsmeGtsManagementField().GetManagementType() == 0b001       // 0x01 : RX
+                                        && cmdPayload.GetDsmeGtsManagementField().GetStatus() == 0b000) {         // 0x00 : SUCCESS
                                         m_gtsDirections.push_back(!cmdPayload.GetDsmeGtsManagementField()
                                                                              .IsDirectionRX());
                                     
                                         CheckDsmeGtsSABFromReplyCmd(cmdPayload.GetDsmeGtsSABSpec());
 
-                                    } else if (cmdPayload.GetDsmeGtsManagementField().GetManagementType() == 0b000
-                                               && cmdPayload.GetDsmeGtsManagementField().GetStatus() == 0b000) {
+                                    } else if (cmdPayload.GetDsmeGtsManagementField().GetManagementType() == 0b000 // 0x00 : TX
+                                               && cmdPayload.GetDsmeGtsManagementField().GetStatus() == 0b000) {   // 0x00 : SUCCESS
                                         UpdateDsmeACTAndDeallocate(cmdPayload.GetDsmeGtsSABSpec());
 
                                         // DSME-TODO
+                                        // Extract the SAB from REPLY pkt, the SAB is a part composed by some units, not a whole SAB.
                                         DSMESABSpecificationField partialSAB = cmdPayload.GetDsmeGtsSABSpec();
                                         
                                         if (partialSAB.isCAPReduction()) {
@@ -6153,8 +6154,9 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                             std::vector<uint8_t> subBlkCapOff = partialSAB.GetSABSubBlkCapOff();
 
                                             for (int i = 0; i < partialSAB.GetSABSubBlkLen(); ++i) {
+                                                // Composed the whole SAB here, do XOR between original SAB & the partial SAB from the REPLY packet.
                                                 m_macDSMESABCapOff[partialSAB.GetSABSubBlkIdx() + i] = 
-                                                    m_macDSMESABCapOff[partialSAB.GetSABSubBlkIdx() + i] ^ subBlkCapOff[i];   
+                                                    m_macDSMESABCapOff[partialSAB.GetSABSubBlkIdx() + i] ^ subBlkCapOff[i];    // a ^ b : XOR
                                             }
                                         }
                                     }
@@ -7520,9 +7522,12 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                             }
                         }
 
-                    } else if (receivedMacPayload.GetDsmeGtsManagementField().GetManagementType() == 0b001) {
-                        if (receivedMacPayload.GetDsmeGtsDestAddress() == GetShortAddress()) {
-                            if (!m_mlmeCommStatusIndicationCallback.IsNull()) {
+                    } else if (receivedMacPayload.GetDsmeGtsManagementField().GetManagementType() == 0b001) // allocatioin
+                    {
+                        if (receivedMacPayload.GetDsmeGtsDestAddress() == GetShortAddress()) 
+                        {
+                            if (!m_mlmeCommStatusIndicationCallback.IsNull()) 
+                            {
                                 MlmeCommStatusIndicationParams commStatusParams;
                                 commStatusParams.m_panId = m_macPanId;
                                 commStatusParams.m_srcAddrMode = LrWpanMacHeader::EXTADDR;
@@ -7625,39 +7630,39 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                                    
                 } else if (receivedMacPayload.GetCommandFrameType()
                             == CommandPayloadHeader::DSME_GTS_REPLY) {
+                                NS_LOG_DEBUG("TEST");
+                    // The device who request allocation received GTS response/reply here, prepare send GTS notify command and report GTS.confirm to the higher layer.
                     // Deallocation
-                    if (receivedMacPayload.GetDsmeGtsManagementField().GetManagementType() == 0b000) {
-                        if (receivedMacPayload.GetDsmeGtsDestAddress() == GetShortAddress()) {
-                            if (!m_mlmeDsmeGtsConfirmCallback.IsNull()) {
-                                MlmeDsmeGtsConfirmParams confirmParams;
-    
+                    if (receivedMacPayload.GetDsmeGtsManagementField().GetManagementType() == 0b000) {  // 0b000 deallocation
+                        if (receivedMacPayload.GetDsmeGtsDestAddress() == GetShortAddress()) 
+                        {
+                            if (!m_mlmeDsmeGtsConfirmCallback.IsNull()) 
+                            {
+                                //! device MAC send GTS.confirm to its higher layer
+                                MlmeDsmeGtsConfirmParams confirmParams;    
                                 confirmParams.m_devAddr = receivedMacHdr.GetShortSrcAddr();
-                                confirmParams.m_manageType = static_cast<ManagementType>(receivedMacPayload.GetDsmeGtsManagementField()
-                                                                            .GetManagementType());
-
-                                confirmParams.m_direction = receivedMacPayload.GetDsmeGtsManagementField()
-                                                                            .IsDirectionRX();
-
-                                confirmParams.m_prioritizedChAccess = receivedMacPayload.GetDsmeGtsManagementField()
-                                                                                        .IsHighPriority();
-                                                                                        
+                                confirmParams.m_manageType = static_cast<ManagementType>(receivedMacPayload.GetDsmeGtsManagementField().GetManagementType());
+                                confirmParams.m_direction = receivedMacPayload.GetDsmeGtsManagementField().IsDirectionRX();
+                                confirmParams.m_prioritizedChAccess = receivedMacPayload.GetDsmeGtsManagementField().IsHighPriority();                                                                                        
                                 confirmParams.m_channelOfs = receivedMacPayload.GetChannelOfs();
                                 confirmParams.m_dsmeSABSpec = receivedMacPayload.GetDsmeGtsSABSpec();
                                 confirmParams.m_status = static_cast<LrWpanMlmeDsmeGtsRequestStatus>(receivedMacPayload
                                                                                                     .GetDsmeGtsManagementField()
                                                                                                     .GetStatus());
-
                                 m_mlmeDsmeGtsConfirmCallback(confirmParams);
                             }  
 
-                            if (receivedMacPayload.GetDsmeGtsManagementField().GetStatus() == 0b000) {
+                            if (receivedMacPayload.GetDsmeGtsManagementField().GetStatus() == 0b000)
+                            {
+                                //! device MAC prepare send GTS notify command
                                 SendDsmeGtsNotifyCommand(receivedMacHdr.GetShortSrcAddr(), receivedMacPayload);
                                 UpdateDsmeACTAndDeallocate(receivedMacPayload.GetDsmeGtsSABSpec());
 
                                 // DSME-TODO
                                 DSMESABSpecificationField partialSAB = receivedMacPayload.GetDsmeGtsSABSpec();
 
-                                if (partialSAB.isCAPReduction()) {
+                                if (partialSAB.isCAPReduction()) 
+                                {
                                     std::vector<uint16_t> subBlk = partialSAB.GetSABSubBlk();
 
                                     for (int i = 0; i < partialSAB.GetSABSubBlkLen(); ++i) {
@@ -7665,7 +7670,9 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                                             m_macDSMESAB[partialSAB.GetSABSubBlkIdx() + i] ^ subBlk[i];                                 
                                     }
 
-                                } else {
+                                } 
+                                else 
+                                {
                                     std::vector<uint8_t> subBlkCapOff = partialSAB.GetSABSubBlkCapOff();
 
                                     for (int i = 0; i < partialSAB.GetSABSubBlkLen(); ++i) {
@@ -7675,7 +7682,9 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                                 }
                             }
 
-                        } else {
+                        } 
+                        else 
+                        {
                             if (receivedMacPayload.GetDsmeGtsManagementField().GetStatus() == 0b000){
                                 // the device shall update macDSMESAB according to the DSMESABSpecification 
                                 // in this command frame to reflect the neighbor’s m_deallocated DSME-GTSs
@@ -7702,9 +7711,14 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                             }
                         }
                     // allocation
-                    } else if (receivedMacPayload.GetDsmeGtsManagementField().GetManagementType() == 0b001) {
-                        if (receivedMacPayload.GetDsmeGtsDestAddress() == GetShortAddress()) {
-                            if (!m_mlmeDsmeGtsConfirmCallback.IsNull()) {
+                    } 
+                    else if (receivedMacPayload.GetDsmeGtsManagementField().GetManagementType() == 0b001)  // 0b001 allocation
+                    { 
+                        if (receivedMacPayload.GetDsmeGtsDestAddress() == GetShortAddress()) 
+                        {
+                            //! device MAC send GTS.confirm to its higher layer
+                            if (!m_mlmeDsmeGtsConfirmCallback.IsNull()) 
+                            {
                                 MlmeDsmeGtsConfirmParams confirmParams;
     
                                 confirmParams.m_devAddr = receivedMacHdr.GetShortSrcAddr();
@@ -7726,7 +7740,8 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                                 m_mlmeDsmeGtsConfirmCallback(confirmParams);
                             }  
 
-                            if (receivedMacPayload.GetDsmeGtsManagementField().GetStatus() == 0b000) {
+                            if (receivedMacPayload.GetDsmeGtsManagementField().GetStatus() == 0b000) // SUCCESS
+                            {
                                 SendDsmeGtsNotifyCommand(receivedMacHdr.GetShortSrcAddr(), receivedMacPayload);
 
                                 m_gtsDirections.push_back(receivedMacPayload.GetDsmeGtsManagementField()
@@ -7773,7 +7788,8 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                                 // DSME-TODO      
                                 DSMESABSpecificationField partialSAB = receivedMacPayload.GetDsmeGtsSABSpec();
                                                   
-                                if (partialSAB.isCAPReduction()) {
+                                if (partialSAB.isCAPReduction()) 
+                                {
                                     std::vector<uint16_t> subBlk = partialSAB.GetSABSubBlk();
                     
                                     for (int i = 0; i < partialSAB.GetSABSubBlkLen(); ++i) {
@@ -7781,7 +7797,8 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                                             m_macDSMESAB[partialSAB.GetSABSubBlkIdx() + i] | subBlk[i];                                 
                                     }
 
-                                } else {
+                                } else 
+                                {
                                     std::vector<uint8_t> subBlkCapOff = partialSAB.GetSABSubBlkCapOff();
 
                                     for (int i = 0; i < partialSAB.GetSABSubBlkLen(); ++i) {
@@ -7791,32 +7808,41 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                                 }
                             } 
 
-                        } else {
-                            if (receivedMacPayload.GetDsmeGtsManagementField().GetStatus() == 0b000) {
+                        } 
+                        else 
+                        {
+                            if (receivedMacPayload.GetDsmeGtsManagementField().GetStatus() == 0b000) 
+                            {
                                 // the device shall check if the slots marked as one in the command 
                                 // is conflicting with the readily allocated slots in macDsmeAct
 
                                 // DSME-TODO
-                                if (CheckDsmeGtsSABAndDsmeACTConflict(receivedMacPayload.GetDsmeGtsSABSpec())) {
+                                if (CheckDsmeGtsSABAndDsmeACTConflict(receivedMacPayload.GetDsmeGtsSABSpec())) 
+                                {
                                     // the device shall send a DSME GTS Request command 
                                     // with Management Type field set to duplicated allocation notification
 
-                                } else {    
+                                } else 
+                                {    
                                     // update macDsmeSab
                                     DSMESABSpecificationField partialSAB = receivedMacPayload.GetDsmeGtsSABSpec();
                                                                
-                                    if (partialSAB.isCAPReduction()) {
+                                    if (partialSAB.isCAPReduction()) 
+                                    {
                                         std::vector<uint16_t> subBlk = partialSAB.GetSABSubBlk();
 
-                                        for (int i = 0; i < partialSAB.GetSABSubBlkLen(); ++i) {
+                                        for (int i = 0; i < partialSAB.GetSABSubBlkLen(); ++i) 
+                                        {
                                             m_macDSMESAB[partialSAB.GetSABSubBlkIdx() + i] = 
                                                 m_macDSMESAB[partialSAB.GetSABSubBlkIdx() + i] | subBlk[i];                                 
                                         }
 
-                                    } else {
+                                    } 
+                                    else 
+                                    {
                                         std::vector<uint8_t> subBlkCapOff = partialSAB.GetSABSubBlkCapOff();
-
-                                        for (int i = 0; i < partialSAB.GetSABSubBlkLen(); ++i) {
+                                        for (int i = 0; i < partialSAB.GetSABSubBlkLen(); ++i) 
+                                        {
                                             m_macDSMESABCapOff[partialSAB.GetSABSubBlkIdx() + i] = 
                                                 m_macDSMESABCapOff[partialSAB.GetSABSubBlkIdx() + i] | subBlkCapOff[i];   
                                         }
