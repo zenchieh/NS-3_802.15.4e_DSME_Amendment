@@ -686,7 +686,7 @@ LrWpanMac::McpsDataRequest(McpsDataRequestParams params, Ptr<Packet> p)
 void LrWpanMac::MlmeStartRequest(MlmeStartRequestParams params) {
     NS_LOG_FUNCTION(this);
     NS_ASSERT(m_deviceCapability == DeviceType::FFD);
-    NS_ASSERT(m_becomeCoord || params.m_panCoor);
+    //NS_ASSERT(m_becomeCoord || params.m_panCoor);
 
     MlmeStartConfirmParams confirmParams;
 
@@ -1800,15 +1800,17 @@ void LrWpanMac::SendOneEnhancedBeacon() {
 
     if (m_csmaCa->IsSlottedCsmaCa()) {
         m_outSuperframeStatus = BEACON;
-
+        NS_LOG_DEBUG("Current SDIdx : " << m_macSDindex);
         if (isCAPReductionOn()
             && m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) != 0) {
             NS_LOG_DEBUG("Outgoing superframe Active Portion (Beacon + CFP + CFP): "
-                        << m_superframeDuration << " symbols");
+                        << m_superframeDuration << " symbols"
+                        <<" Next Beacon will at : " << (Simulator::Now() + Seconds((double) m_beaconInterval / 62500)).As(Time::S));
 
         } else {
             NS_LOG_DEBUG("Outgoing superframe Active Portion (Beacon + CAP + CFP): "
-                    << m_superframeDuration << " symbols");
+                    << m_superframeDuration << " symbols"
+                    <<" Next Beacon will at : " << (Simulator::Now() + Seconds((double) m_beaconInterval / 62500)).As(Time::S));
         }
  
     } else {
@@ -3171,7 +3173,7 @@ LrWpanMac::EndStartRequest()
 
                 // 增加 DSME PAN descriptro IE 進 Header IEs
                 m_dsmePanDescriptorIE = DsmePANDescriptorIE();
-                NS_LOG_DEBUG(" Extract from asscoiated  = " << (uint32_t)m_macBeaconOrder << ", SO = " << (uint32_t)m_macSuperframeOrder << "\n");
+                NS_LOG_DEBUG(" Extract from asscoiated, BO = " << (uint32_t)m_macBeaconOrder << ", SO = " << (uint32_t)m_macSuperframeOrder << "\n");
                 m_dsmePanDescriptorIE.SetSuperframeField(m_macBeaconOrder,
                                                         m_macSuperframeOrder,
                                                         m_fnlCapSlot,
@@ -3282,8 +3284,8 @@ LrWpanMac::EndStartRequest()
             NS_LOG_DEBUG("**********************************************************************************************");       
             NS_LOG_DEBUG("");
             SetMlmeStartReqTime(Simulator::Now());
-            NS_LOG_DEBUG("m_mlmeStartReqTime = " << GetMlmeStartReqTime().GetSeconds());
-            NS_LOG_DEBUG("m_mlmeScanReqTime = " << GetMlmeScanReqTime().GetSeconds());
+            // NS_LOG_DEBUG("m_mlmeStartReqTime = " << GetMlmeStartReqTime().GetSeconds());
+            // NS_LOG_DEBUG("m_mlmeScanReqTime = " << GetMlmeScanReqTime().GetSeconds());
         }
     }
 }
@@ -3466,7 +3468,7 @@ void LrWpanMac::StartCAP(SuperframeType superframeType) {
                                                          << ")");
         NS_LOG_DEBUG("Active Slots duration " << activeSlot << " symbols");
         m_endCapTime = endCapTime;
-        NS_LOG_DEBUG("[StartCAP] m_endCapTime " << m_endCapTime);
+        // NS_LOG_DEBUG("[StartCAP] m_endCapTime " << m_endCapTime);
         m_capEvent =
             Simulator::Schedule(endCapTime, &LrWpanMac::StartCFP, this, SuperframeType::OUTGOING);
 
@@ -3511,17 +3513,24 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
 
     symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false); // symbols per second
 
-    if (superframeType == INCOMING) {
+    if (superframeType == INCOMING) 
+    {
         activeSlot = m_incomingSuperframeDuration / 16;
         cfpDuration = activeSlot * (15 - m_incomingFnlCapSlot);
         endCfpTime = Seconds((double)cfpDuration / symbolRate);
 
-        if (cfpDuration > 0) {
+        NS_LOG_DEBUG("CFP start , Current Time = " << Simulator::Now().As(Time::S));
+        NS_LOG_DEBUG("Each slot interval =  "<< (double)m_superframeDuration / 16 / 62500);
+
+        if (cfpDuration > 0) 
+        {
             m_incSuperframeStatus = CFP;
         }
 
-        if (m_macDSMEenabled) {
-            if (m_incomingFirstCFP) {
+        if (m_macDSMEenabled) 
+        {
+            if (m_incomingFirstCFP) 
+            {
                 
                 // just replace CAP portion with CFP
                 // cfpDuration = activeSlot * (m_fnlCapSlot + 1);
@@ -3540,8 +3549,9 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
                                         &LrWpanMac::StartCFP,
                                         this,
                                         SuperframeType::INCOMING);
-                
-            } else {      
+            } 
+            else 
+            {      
                 NS_LOG_DEBUG("Incoming superframe CFP duration " << cfpDuration << " symbols ("
                                                          << endCfpTime.As(Time::S) << ")");
 
@@ -3551,11 +3561,13 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
                                         SuperframeType::INCOMING);            
             } 
 
-            if (m_forDsmeNetDeviceIntegrateWithHigerLayer) {
+            if (m_forDsmeNetDeviceIntegrateWithHigerLayer) 
+            {
                 ScheduleGtsSyncToCoordDuringCfp(m_incSDindex);
             }
-
-        } else {
+        } 
+        else 
+        {
             NS_LOG_DEBUG("Incoming superframe CFP duration " << cfpDuration << " symbols ("
                                                          << endCfpTime.As(Time::S) << ")");
 
@@ -3565,11 +3577,16 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
                                     SuperframeType::INCOMING);
         }        
 
-    } else {
+    } 
+    else // superframeType == OUTGOING
+    {
         activeSlot = m_superframeDuration / 16;         // 一個slot的長度
         cfpDuration = activeSlot * (15 - m_fnlCapSlot); // CFP的時長
         endCfpTime = Seconds((double)cfpDuration / symbolRate);
 
+        NS_LOG_DEBUG("CFP start , Current Time = " << Simulator::Now().As(Time::S));
+        NS_LOG_DEBUG("Each slot interval =  "<< (double)m_superframeDuration / 16 / 62500);
+        
         if (cfpDuration > 0)
         {
             m_outSuperframeStatus = CFP;
@@ -3580,8 +3597,10 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
         //                                  this,
         //                                  SuperframeType::OUTGOING);
 
-        if (m_macDSMEenabled) {
-            if (m_firstCFP) {
+        if (m_macDSMEenabled) 
+        {
+            if (m_firstCFP) 
+            {
                 // just replace CAP portion with CFP
                 cfpDuration = activeSlot * (m_fnlCapSlot + 1);
                 endCfpTime = Seconds((double)cfpDuration / symbolRate);
@@ -3599,23 +3618,24 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
                                         &LrWpanMac::StartCFP,
                                         this,
                                         SuperframeType::OUTGOING);
-
-            } else {    
+            } 
+            else 
+            {    
                 NS_LOG_DEBUG("Outgoing superframe CFP duration " << cfpDuration << " symbols ("
                                                          << endCfpTime.As(Time::S) << ")"); 
-                NS_LOG_DEBUG("CFP start , Current Time = " << Simulator::Now().As(Time::S));
-                NS_LOG_DEBUG("Each slot interval =  "<< (double)m_superframeDuration / 16 / 62500);
                 m_cfpEvent = Simulator::Schedule(endCfpTime,
                                         &LrWpanMac::StartRemainingPeriod,
                                         this,
                                         SuperframeType::OUTGOING);
             }
 
-            if (m_forDsmeNetDeviceIntegrateWithHigerLayer) {
+            if (m_forDsmeNetDeviceIntegrateWithHigerLayer)
+            {
                 ScheduleGtsSyncToCoordDuringCfp(m_choosedSDIndexToSendBcn);
             }
-
-        } else {
+        } 
+        else 
+        {
             NS_LOG_DEBUG("Incoming superframe CFP duration " << cfpDuration << " symbols ("
                                                          << endCfpTime.As(Time::S) << ")");
                                                          
@@ -4020,7 +4040,7 @@ void LrWpanMac::PurgeDsmeACT() {
     if (m_macDsmeACT.size()) {
         for (auto it = m_macDsmeACT.begin(); it != m_macDsmeACT.end(); ++it) {
             for (unsigned int i = 0; i < it->second.size(); ++i) {
-                if (it->second[i].m_deallocated) {
+                if (it->second[i].m_deallocated) { // Check ACT element has been deallocated or not.
                     it->second.erase(it->second.begin() + i);
                 }
             }
@@ -4309,10 +4329,10 @@ void LrWpanMac::StartMultisuperframe(SuperframeType superframeType) {
     {
         endMultisuperframeTime = Seconds((double) m_multiSuperframeDuration / symbolRate);
 
-        NS_LOG_DEBUG("Start a OUTGOING Multisuperframe");
-        NS_LOG_DEBUG("Outgoing multisuperframe Active Portion (Beacon + CAP + CFP) + (Beacon + CAP + CFP)...: "
+        NS_LOG_DEBUG("Start Outgoing multisuperframe Active Portion (Beacon + CAP + CFP) + (Beacon + CAP + CFP)...: "
                     << m_multiSuperframeDuration << " symbols"
-                    << "(" << endMultisuperframeTime.As(Time::S) << ")");
+                    << "(" << endMultisuperframeTime.As(Time::S) << ")"
+                    << " Next Multi-Superframe will at : " << (Simulator::Now() + endMultisuperframeTime).As(Time::S));
         
         // Schedule next multisuperframe start timing, and keep calculating next time , run forever
         m_multisuperframeEndEvent = Simulator::Schedule(endMultisuperframeTime, 
@@ -4326,8 +4346,7 @@ void LrWpanMac::StartMultisuperframe(SuperframeType superframeType) {
 
         // substract the Beacon Rx Time slots
         endMultisuperframeTime -= (Simulator::Now() - m_macBeaconRxTime);
-        NS_LOG_DEBUG("Start a INCOMING Multisuperframe");
-        NS_LOG_DEBUG("Incoming multisuperframe Active Portion (Beacon + CAP + CFP) + (Beacon + CAP + CFP)...: "
+        NS_LOG_DEBUG("Start Incoming multisuperframe Active Portion (Beacon + CAP + CFP) + (Beacon + CAP + CFP)...: "
                     << m_incomingMultisuperframeDuration << " symbols"
                     << "(" << endMultisuperframeTime.As(Time::S) << ")");
     }
@@ -4387,8 +4406,9 @@ void LrWpanMac::StartRemainingPeriod(SuperframeType superframeType) {
             m_incSuperframeStatus = REMAINING;
         }
 
-        NS_LOG_DEBUG("Incoming superframe Remaining Portion duration "
-                     << remainingDurationUntilNextBcn << " symbols (" << endRemainingTime.As(Time::S) << ")");
+        // NS_LOG_DEBUG("Schedule Next Beacon");
+        // NS_LOG_DEBUG("Incoming superframe Remaining Portion duration "
+        //              << remainingDurationUntilNextBcn << " symbols (" << endRemainingTime.As(Time::S) << ")");
 
         m_beaconEvent = Simulator::Schedule(endRemainingTime, &LrWpanMac::AwaitBeacon, this);
 
@@ -4406,7 +4426,9 @@ void LrWpanMac::StartRemainingPeriod(SuperframeType superframeType) {
             }
         }
 
-    } else {
+    } 
+    else 
+    {
         // remainingDurationUntilNextBcn = m_beaconInterval - m_superframeDuration;
         // endRemainingTime = Seconds((double)remainingDurationUntilNextBcn / symbolRate);
         
@@ -4418,15 +4440,14 @@ void LrWpanMac::StartRemainingPeriod(SuperframeType superframeType) {
         remainingDurationUntilNextBcn = endRemainingTime.ToInteger(Time::S) * symbolRate;
 
         // std::cout << Simulator::Now().As(Time::MS) << std::endl;
-        // std::cout << m_startOfBcnSlot.As(Time::MS) << std::endl;
-        // std::cout << endRemainingTime2.As(Time::MS) << std::endl;
+        // NS_LOG_DEBUG(" m_startOfBcnSlot = "<< m_startOfBcnSlot.As(Time::MS));
+        // NS_LOG_DEBUG(" endRemainingTime = "<< endRemainingTime.As(Time::MS));
 
         if (remainingDurationUntilNextBcn > 0) {
             m_outSuperframeStatus = REMAINING;
         }
 
-        NS_LOG_DEBUG("Outgoing multisuperframe Remaining Portion duration "
-                     << remainingDurationUntilNextBcn << " symbols (" << endRemainingTime.As(Time::S) << ")");
+        // NS_LOG_DEBUG("Schedule Next Beacon");
                                               
         m_beaconEvent = Simulator::Schedule(endRemainingTime, &LrWpanMac::SendOneEnhancedBeacon, this);
 
@@ -5351,7 +5372,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         std::vector<uint16_t> newSDBitmap = m_macSDBitmap.GetSDBitmap(); // Create a new beacon bitmap, use the original first. 
 
                         // Make sure two vectors (bitmap) have same size.
-                        NS_LOG_DEBUG("newSDBitmap.size() = " << newSDBitmap.size() << "  incomingSDBitmap.size() = " << incomingSDBitmap.size());
+                        // NS_LOG_DEBUG("newSDBitmap.size() = " << newSDBitmap.size() << "  incomingSDBitmap.size() = " << incomingSDBitmap.size());
                         if(newSDBitmap.size() == 0)
                         {
                             newSDBitmap = incomingSDBitmap;
@@ -5495,7 +5516,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) {
                             if (m_macDSMEenabled && m_coord && !m_panCoor && m_sendBcn) {
                                 // NS_LOG_DEBUG("Simulator::Now() = " << Simulator::Now().As(Time::S));
-                                NS_LOG_DEBUG("m_startOfBcnSlotOfSyncParent = " << m_startOfBcnSlotOfSyncParent.As(Time::S));
+                                // NS_LOG_DEBUG("m_startOfBcnSlotOfSyncParent = " << m_startOfBcnSlotOfSyncParent.As(Time::S));
                                 Time scheduleBcnTime = Seconds(((double)m_incomingSuperframeDuration * m_choosedSDIndexToSendBcn) 
                                                             / symbolRate) // Calculate the total superframe time in BI
                                                             - (Simulator::Now() - m_startOfBcnSlotOfSyncParent); // Minus the times when the Parent coordinator send it beacon.
@@ -5503,7 +5524,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                 // NS_LOG_DEBUG("m_incomingSuperframeDuration = " << m_incomingSuperframeDuration);
                                 // NS_LOG_DEBUG("m_startOfBcnSlotOfSyncParent = " << m_startOfBcnSlotOfSyncParent.As(Time::S));
                                 // NS_LOG_DEBUG("m_choosedSDIndexToSendBcn = " << m_choosedSDIndexToSendBcn);
-                                NS_LOG_DEBUG("scheduleBcnTime = " << scheduleBcnTime.As(Time::S));
+                                // NS_LOG_DEBUG("scheduleBcnTime = " << scheduleBcnTime.As(Time::S));
                                 m_setMacState = Simulator::Schedule(scheduleBcnTime
                                                                     , &LrWpanMac::SetLrWpanMacState
                                                                     , this
