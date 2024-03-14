@@ -100,9 +100,12 @@ int main(int argc, char** argv) {
     uint16_t panChannelOfs = 0;
     
     std::vector<uint16_t> channelOffsets;
-    channelOffsets.push_back(panChannelOfs);
-    channelOffsets.push_back(0); //! Need to check sanity
+    channelOffsets.push_back(0);
     channelOffsets.push_back(1);
+    channelOffsets.push_back(2);
+    channelOffsets.push_back(3);
+    channelOffsets.push_back(4);
+    channelOffsets.push_back(5);
 
     uint16_t numOfChannelsSupported = 6;
 

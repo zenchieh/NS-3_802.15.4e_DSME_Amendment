@@ -261,7 +261,7 @@ LrWpanMac::LrWpanMac() {
 
     // m_macDSMESAB;
     // m_macDsmeACT;
-    m_macSDindex = 0;
+    m_macSDindex = -1;
     // m_macBcnBitmap;
     m_macChannelOfs = 0;
     m_macDeferredBcnUsed = false;
@@ -7093,7 +7093,7 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     if (m_macDSMEenabled && m_macCAPReductionFlag) {
                         if (m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) == 0) // Check current superframe is the first superframe or not.
                         {
-                            NS_LOG_DEBUG("m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) == 0");
+                            // NS_LOG_DEBUG("m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) == 0");
                             m_capEvent = Simulator::ScheduleNow(&LrWpanMac::StartCAP,
                                                                 this,
                                                                 SuperframeType::OUTGOING); 
