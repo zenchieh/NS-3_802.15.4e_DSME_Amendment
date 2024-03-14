@@ -1800,7 +1800,6 @@ void LrWpanMac::SendOneEnhancedBeacon() {
 
     if (m_csmaCa->IsSlottedCsmaCa()) {
         m_outSuperframeStatus = BEACON;
-        NS_LOG_DEBUG("Current SDIdx : " << m_macSDindex);
         if (isCAPReductionOn()
             && m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) != 0) {
             NS_LOG_DEBUG("Outgoing superframe Active Portion (Beacon + CFP + CFP): "
@@ -3453,9 +3452,9 @@ void LrWpanMac::StartCAP(SuperframeType superframeType) {
         m_incSuperframe = false;
 
         m_outSuperframeStatus = CAP;
-        activeSlot = m_superframeDuration / 16; // Beacon + 8 CAP + 7 CFP timeslot = 16 timeslot
-        capDuration = activeSlot * (m_fnlCapSlot + 1); // Beacon + CAP slot, unit : symbols
-        endCapTime = Seconds((double)capDuration / symbolRate);
+        activeSlot = m_superframeDuration / 16; // Beacon + 8 CAP + 7 CFP timeslot = 16 timeslot ， slot的時長 
+        capDuration = activeSlot * (m_fnlCapSlot + 1); // Beacon + CAP slot, unit : symbols ， CAP的時長 (symbol)
+        endCapTime = Seconds((double)capDuration / symbolRate); // CAP的時長 (sec)
         // Obtain the end of the CAP by adjust the time it took to send the beacon
         // Old Sync method
         // endCapTime -= (Simulator::Now() - m_macBeaconTxTime);
@@ -3519,8 +3518,8 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
         cfpDuration = activeSlot * (15 - m_incomingFnlCapSlot);
         endCfpTime = Seconds((double)cfpDuration / symbolRate);
 
-        NS_LOG_DEBUG("CFP start , Current Time = " << Simulator::Now().As(Time::S));
-        NS_LOG_DEBUG("Each slot interval =  "<< (double)m_superframeDuration / 16 / 62500);
+        NS_LOG_DEBUG("CFP start at : " << Simulator::Now().As(Time::S));
+        // NS_LOG_DEBUG("Each slot interval =  "<< (double)m_superframeDuration / 16 / 62500);
 
         if (cfpDuration > 0) 
         {
@@ -3584,19 +3583,15 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
         cfpDuration = activeSlot * (15 - m_fnlCapSlot); // CFP的時長
         endCfpTime = Seconds((double)cfpDuration / symbolRate);
 
-        NS_LOG_DEBUG("CFP start , Current Time = " << Simulator::Now().As(Time::S));
-        NS_LOG_DEBUG("Each slot interval =  "<< (double)m_superframeDuration / 16 / 62500);
+        NS_LOG_DEBUG("CFP start at = " << Simulator::Now().As(Time::S));
+        // NS_LOG_DEBUG("Each slot interval =  "<< (double)m_superframeDuration / 16 / 62500);
         
         if (cfpDuration > 0)
         {
             m_outSuperframeStatus = CFP;
         }
 
-        // m_cfpEvent = Simulator::Schedule(endCfpTime,
-        //                                  &LrWpanMac::StartInactivePeriod,
-        //                                  this,
-        //                                  SuperframeType::OUTGOING);
-
+        // NS_LOG_DEBUG("m_firstCFP : " << m_firstCFP);
         if (m_macDSMEenabled) 
         {
             if (m_firstCFP) 
@@ -3610,7 +3605,7 @@ LrWpanMac::StartCFP(SuperframeType superframeType)
                 // New Sync method
                 endCfpTime -= (m_macBeaconTxTime - m_BeaconStartTxTime);
 
-                NS_LOG_DEBUG("Outgoing superframe first CFP duration " << cfpDuration << " symbols ("
+                NS_LOG_DEBUG("(First CFP) Outgoing superframe first CFP duration " << cfpDuration << " symbols ("
                                                          << endCfpTime.As(Time::S) << ")");
                 
                 m_firstCFP = false;
@@ -5495,7 +5490,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
 
                         // TODO: get Incoming frame GTS Fields here
 
-                        if (m_macDSMEenabled 
+                        if (m_macDSMEenabled  //? Seems no use at CAP reduction
                             && (m_incSDindex % (m_incomingMultisuperframeDuration / m_incomingSuperframeDuration))) {
                             m_incMultisuperframeStartEvent = Simulator::ScheduleNow(&LrWpanMac::StartMultisuperframe, 
                                                                             this, 
@@ -5554,24 +5549,62 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         // CAP reduction 
                         // DSME-TODO
                         // 應該從 dsme pan descriptor 拿出資訊來檢查 CAP reduction
-                        if (m_macDSMEenabled && m_incomingCAPReductionFlag) {
-                            if (m_incSDindex % (m_incomingMultisuperframeDuration / m_incomingSuperframeDuration)) {
+
+                        NS_LOG_DEBUG("m_incSDindex : " << m_incSDindex);
+
+                        if (m_macDSMEenabled && m_incomingCAPReductionFlag) 
+                        {
+                            Time timeSinceBeaconTx = Simulator::Now() - m_macBeaconTxTime;
+                            // NS_LOG_DEBUG("timeSinceBeaconTx.GetSeconds() : " << timeSinceBeaconTx.GetSeconds());
+                            // NS_LOG_DEBUG("(double)(m_incomingSuperframeDuration / (double)symbolRate) : " << (double)(m_incomingSuperframeDuration / (double)symbolRate));
+                            if ((m_incSDindex % (m_incomingMultisuperframeDuration / m_incomingSuperframeDuration))
+                             || (m_macSDindex == 0 && (timeSinceBeaconTx.GetSeconds() >= (double)(m_incomingSuperframeDuration / (double)symbolRate))))
+                            {
                                 NS_LOG_DEBUG("Incoming superframe Active Portion (Beacon + CFP + CFP): "
                                             << m_incomingSuperframeDuration << " symbols");
                                 m_incomingFirstCFP = true;
                                 m_incCfpEvent = Simulator::ScheduleNow(&LrWpanMac::StartCFP,
                                                                     this,
                                                                     SuperframeType::INCOMING);
-                            } else {
+                            }
+                            else
+                            {
                                 m_incCapEvent = Simulator::ScheduleNow(&LrWpanMac::StartCAP,
                                                             this,
                                                             SuperframeType::INCOMING);  
                                                             
                                 m_setMacState =
-                                    Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_IDLE);  
+                                    Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_IDLE); 
                             }
+                            
+                            // Time timeSinceBeaconTx = Simulator::Now() - m_macBeaconTxTime;
 
-                        } else {
+                            // NS_LOG_DEBUG("m_macBeaconTxTime :" << m_macBeaconTxTime.As(Time::S));
+                            // NS_LOG_DEBUG("timeSinceBeaconTx :" << timeSinceBeaconTx.As(Time::S));
+                            // NS_LOG_DEBUG("SD :" << (double)(m_incomingSuperframeDuration)/(double)symbolRate);
+                            
+                            // if(m_macSDindex == 0 && (timeSinceBeaconTx.GetSeconds() < (double)(m_incomingSuperframeDuration / (double)symbolRate))) // If CAP reduction is enabled and current SDIDx = 0 (at the first superframe there is no reduction)
+                            // {
+                            //     m_incCapEvent = Simulator::ScheduleNow(&LrWpanMac::StartCAP,
+                            //                                 this,
+                            //                                 SuperframeType::INCOMING);  
+                                                            
+                            //     m_setMacState =
+                            //         Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_IDLE); 
+                            // } 
+                            // else 
+                            // {
+                            //     NS_LOG_DEBUG("Incoming superframe Active Portion (Beacon + CFP + CFP): "
+                            //                 << m_incomingSuperframeDuration << " symbols");
+                            //     m_incomingFirstCFP = true;
+                            //     m_incCfpEvent = Simulator::ScheduleNow(&LrWpanMac::StartCFP,
+                            //                                         this,
+                            //                                         SuperframeType::INCOMING);
+                            // }
+
+                        } 
+                        else 
+                        {
                             m_incCapEvent = Simulator::ScheduleNow(&LrWpanMac::StartCAP,
                                                             this,
                                                             SuperframeType::INCOMING);  
@@ -7058,18 +7091,24 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     }
 
                     if (m_macDSMEenabled && m_macCAPReductionFlag) {
-                        if (m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) == 0) {
+                        if (m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) == 0) // Check current superframe is the first superframe or not.
+                        {
+                            NS_LOG_DEBUG("m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) == 0");
                             m_capEvent = Simulator::ScheduleNow(&LrWpanMac::StartCAP,
                                                                 this,
                                                                 SuperframeType::OUTGOING); 
-                        } else {
+                        } 
+                        else 
+                        {
                             m_firstCFP = true;
                             m_cfpEvent = Simulator::ScheduleNow(&LrWpanMac::StartCFP,
                                                                 this,
                                                                 SuperframeType::OUTGOING);      
                         }
 
-                    } else {
+                    } 
+                    else 
+                    {
                         m_capEvent = Simulator::ScheduleNow(&LrWpanMac::StartCAP,
                                                             this,
                                                             SuperframeType::OUTGOING);                         
