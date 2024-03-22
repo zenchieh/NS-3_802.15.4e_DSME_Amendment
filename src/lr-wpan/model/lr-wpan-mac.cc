@@ -5104,7 +5104,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     receivedMacHdr.IsAckReq() &&
                     (receivedMacHdr.GetFrameVer() == LrWpanMacHeader::IEEE_802_15_4_2003 
                      || receivedMacHdr.GetFrameVer() == LrWpanMacHeader::IEEE_802_15_4_2006) 
-                    ) {
+                    ) 
+                {
                     // If this is a data or mac command frame, which is not a broadcast or
                     // multicast, with ack req set, generate and send an ack frame. If there is a
                     // CSMA medium access in progress we cancel the medium access for sending the
@@ -5236,7 +5237,11 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                                                 this,
                                                                 receivedMacHdr);
 
-                    } else {
+                    } 
+                    else 
+                    {
+                        //! Send Ack here when received a data pkt 
+                        // TODO : Need to check GACK is enabled or not
                         m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SendAck,
                                                            this,
                                                            receivedMacHdr.GetSeqNum());
@@ -5959,7 +5964,9 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         m_gtsRetrieve = false;
                     }
 
-                } else if (receivedMacHdr.IsData() && !m_mcpsDataIndicationCallback.IsNull()) {
+                } 
+                else if (receivedMacHdr.IsData() && !m_mcpsDataIndicationCallback.IsNull()) 
+                {
                     // If it is a data frame, push it up the stack.
                     // Fow hilow
                     if (!m_acceptAllHilowPkt) {
@@ -5974,8 +5981,10 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         m_macDsmeACT[m_curGTSSuperframeID][m_curGTSIdx].m_cnt = 0;
                     }
 
-                } else if (receivedMacHdr.IsAcknowledgment() && m_txPkt &&
-                        m_lrWpanMacState == MAC_ACK_PENDING) {
+                } 
+                else if (receivedMacHdr.IsAcknowledgment() && m_txPkt &&
+                        m_lrWpanMacState == MAC_ACK_PENDING) 
+                {
                     LrWpanMacHeader peekedMacHdr;
                     m_txPkt->PeekHeader(peekedMacHdr);          // the frame this device previously sent
 
@@ -5988,7 +5997,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         Time ifsWaitTime = Seconds((double)GetIfsSize() / symbolRate);
 
                         // We received an ACK to a command
-                        if (peekedMacHdr.IsCommand()) {
+                        if (peekedMacHdr.IsCommand()) 
+                        {
                             // check the original sent command frame which belongs to this received
                             // ACK
                             Ptr<Packet> pkt = m_txPkt->Copy();
@@ -5997,7 +6007,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             pkt->RemoveHeader(macHdr);
                             pkt->RemoveHeader(cmdPayload);
 
-                            switch (cmdPayload.GetCommandFrameType()) {
+                            switch (cmdPayload.GetCommandFrameType()) 
+                            {
                                 case CommandPayloadHeader::ASSOCIATION_REQ: {
                                     double symbolRate = m_phy->GetDataOrSymbolRate(false);
                                     // macResponeWaitTime
@@ -6263,7 +6274,9 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                 }
                             }
 
-                        } else {
+                        } 
+                        else 
+                        {
                             if (!m_mcpsDataConfirmCallback.IsNull()) {
                                 if (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()) {
                                     // For dsme-net-device-throughput... testing usage, So comment it
@@ -6348,7 +6361,7 @@ void
 LrWpanMac::SendAck(uint8_t seqno)
 {
     NS_LOG_FUNCTION(this << static_cast<uint32_t>(seqno));
-
+    NS_LOG_DEBUG("Send Ack");
     NS_ASSERT(m_lrWpanMacState == MAC_IDLE);
 
     // Generate a corresponding ACK Frame.
@@ -7170,8 +7183,10 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     }
                 
                 // For dsme-net-device-throughput... testing usage
-                } else if (m_forDsmeNetDeviceIntegrateWithHigerLayer && macHdr.IsData() 
-                            && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning())) {
+                }
+                else if (m_forDsmeNetDeviceIntegrateWithHigerLayer && macHdr.IsData() 
+                     && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning())) 
+                {
                     NS_LOG_DEBUG("Successfully sent a data packet during a GTS period.");
 
                     if (!m_mcpsDataConfirmCallback.IsNull()) {
@@ -7181,8 +7196,11 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                         m_mcpsDataConfirmCallback(confirmParams);
                     }
 
-                } else if (macHdr.IsData()) {
-                    std::cout << Simulator::Now().GetNanoSeconds() << ", " << GetShortAddress() << " successfully sent the data packet" << std::endl;
+                } 
+                else if (macHdr.IsData()) 
+                {
+                    NS_LOG_DEBUG("successfully sent the data packet !");
+                    // std::cout << Simulator::Now().GetNanoSeconds() << ", " << GetShortAddress() << " successfully sent the data packet" << std::endl;
 
                     // (*m_record)[GetShortAddress()] = {macHdr.GetShortDstAddr(), {Simulator::Now().GetNanoSeconds()}};
                     if (m_record != nullptr) {
@@ -7211,7 +7229,9 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
 
                 return;
                 
-            } else if (macHdr.IsCommand()) {
+            } 
+            else if (macHdr.IsCommand()) 
+            {
                 // We handle commands that do not require ACK (e.g. BeaconReq command)
                 // other command are handle by the previous if statement.
                 // Broadcasted coordinator realignment command would meet this.
@@ -7246,11 +7266,15 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                 
                 RemoveFirstTxQElement();
             
-            } else if (macHdr.IsData() && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning())) {
+            } 
+            else if (macHdr.IsData() && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning())) 
+            {
                 // Do nothing because Acknowledgment is not required
                 NS_LOG_DEBUG("Successfully sent a data packet during a GTS period.");
 
-            } else {
+            } 
+            else 
+            {
                 m_macTxOkTrace(m_txPkt);
                 // remove the copy of the packet that was just sent
                 if (!m_mcpsDataConfirmCallback.IsNull())
