@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
     
     unsigned int numOfCoord = 2; // PAN-C need to be included
     NodeContainer nodes;
-    nodes.Create(2);
+    nodes.Create(3);
 
     MobilityHelper mobility;
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -183,7 +183,7 @@ int main(int argc, char** argv) {
         params.m_sfrmOrd = superfrmOrder;
 
         BeaconBitmap bitmap(0, 1 << (bcnOrder - superfrmOrder));
-        bitmap.SetSDIndex(i);                  // SD = 8 目前占用
+        bitmap.SetSDIndex(i);                 
         params.m_bcnBitmap = bitmap;
 
         HoppingDescriptor hoppingDescriptor;

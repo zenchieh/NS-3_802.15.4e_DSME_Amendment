@@ -5353,6 +5353,16 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     if (m_macDSMEenabled && receivedMacHdr.GetFrameVer() == LrWpanMacHeader::IEEE_802_15_4) {
                         NS_LOG_DEBUG("Enhanced Beacon Received; forwarding up (m_macBeaconRxTime: "
                                  << m_macBeaconRxTime.As(Time::S) << ")");
+
+                        /**
+                         * !TODO : Here is a workaround, assume the pan-C addr is 00:01
+                         * Purpose - Cap reduction feature : Let the non coord device can sync cap and cfp period correctly.
+                        */
+                        Mac16Address panCoordAddr("00:01");
+                        if(m_coord == 0 && receivedMacHdr.GetShortSrcAddr() == panCoordAddr)
+                        {
+                            m_isFirstSuperframe = true;
+                        }
                     } else {
                         NS_LOG_DEBUG("Beacon Received; forwarding up (m_macBeaconRxTime: "
                                  << m_macBeaconRxTime.As(Time::S) << ")");
@@ -5589,14 +5599,31 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         // DSME-TODO
                         // 應該從 dsme pan descriptor 拿出資訊來檢查 CAP reduction
 
-                        NS_LOG_DEBUG("m_incSDindex : " << m_incSDindex);
-
                         if (m_macDSMEenabled && m_incomingCAPReductionFlag) 
                         {
                             Time timeSinceBeaconTx = Simulator::Now() - m_macBeaconTxTime;
                             // NS_LOG_DEBUG("timeSinceBeaconTx.GetSeconds() : " << timeSinceBeaconTx.GetSeconds());
                             // NS_LOG_DEBUG("(double)(m_incomingSuperframeDuration / (double)symbolRate) : " << (double)(m_incomingSuperframeDuration / (double)symbolRate));
-                            if ((m_incSDindex % (m_incomingMultisuperframeDuration / m_incomingSuperframeDuration))
+                            if((m_coord == 0 && m_isFirstSuperframe == false)) // Check for non-coord device (RFD), start a cap or cfp
+                            {
+                                NS_LOG_DEBUG("Incoming superframe Active Portion (Beacon + CFP + CFP): "
+                                            << m_incomingSuperframeDuration << " symbols");
+                                m_incomingFirstCFP = true;
+                                m_incCfpEvent = Simulator::ScheduleNow(&LrWpanMac::StartCFP,
+                                                                    this,
+                                                                    SuperframeType::INCOMING);
+                            }
+                            else if(m_coord == 0 && m_isFirstSuperframe == true) // Check for non-coord device (RFD), start a cap or cfp
+                            {
+                                m_incCapEvent = Simulator::ScheduleNow(&LrWpanMac::StartCAP,
+                                                            this,
+                                                            SuperframeType::INCOMING);  
+                                                            
+                                m_setMacState =
+                                    Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_IDLE);
+                                m_isFirstSuperframe = false;
+                            }
+                            else if ((m_incSDindex % (m_incomingMultisuperframeDuration / m_incomingSuperframeDuration)) // non first superframe period for cap reduction (coord device)
                              || (m_macSDindex == 0 && (timeSinceBeaconTx.GetSeconds() >= (double)(m_incomingSuperframeDuration / (double)symbolRate))))
                             {
                                 NS_LOG_DEBUG("Incoming superframe Active Portion (Beacon + CFP + CFP): "
@@ -5606,7 +5633,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                                                     this,
                                                                     SuperframeType::INCOMING);
                             }
-                            else
+                            else // First superframe period for cap reduction (coord device)
                             {
                                 m_incCapEvent = Simulator::ScheduleNow(&LrWpanMac::StartCAP,
                                                             this,
