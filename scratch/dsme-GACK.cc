@@ -36,6 +36,8 @@
 #define SO 6
 #define MO 12
 
+#define BIT(X) (1 << 2^X)
+
 #define CHNNEL_ADAPTATION 0
 #define CHNNEL_HOPPING 1
 
@@ -88,6 +90,7 @@ static void
 DataIndicationCoordinator(McpsDataIndicationParams params, Ptr<Packet> p)
 {
     NS_LOG_UNCOND(Simulator::Now().GetSeconds()
+                  << " PdDataIndication (the higher layer) "
                   << "s Coordinator Received DATA packet (size " << p->GetSize() << " bytes)");
 }
 
@@ -367,8 +370,8 @@ main(int argc, char* argv[])
     devPanC->GetMac()->SetChannelHoppingEnabled();
     dev1->GetMac()->SetChannelHoppingEnabled();
 
-    devPanC->GetMac()->SetNumOfChannelSupported(15);
-    dev1->GetMac()->SetNumOfChannelSupported(15);
+    devPanC->GetMac()->SetNumOfChannelSupported(16);
+    dev1->GetMac()->SetNumOfChannelSupported(16);
 
     dev1->GetMac()->SetChannelOffset(1);
 
@@ -403,16 +406,20 @@ main(int argc, char* argv[])
     startReqParams.m_dsmeSuperframeSpec.SetMultiSuperframeOrder(multiSuperframeOrder);
     startReqParams.m_dsmeSuperframeSpec.SetChannelDiversityMode(CHNNEL_HOPPING); 
     startReqParams.m_dsmeSuperframeSpec.SetCAPReductionFlag(false);
+    startReqParams.m_dsmeSuperframeSpec.SetGACKFlag(true); // Enabled the GACK feature - send group ack at the end of CFP slot.
 
     // Hopping Descriptor
+    uint16_t panCoordChannelOffset = 1;
     HoppingDescriptor hoppingDescriptor;
     hoppingDescriptor.m_HoppingSequenceID = 0x00; // 0x00 : Default hopping sequence, check table 34a in 802.15.4e spec.
     hoppingDescriptor.m_hoppingSeqLen = 0;
-    hoppingDescriptor.m_channelOfs = 1;
+    hoppingDescriptor.m_channelOfs = panCoordChannelOffset;
     hoppingDescriptor.m_channelOfsBitmapLen = 16;
-    hoppingDescriptor.m_channelOfsBitmap.resize(1, 2);    // offset = 1 目前占用 , 紀錄有哪些offset有被占用(bitmap, 1代表有在用)
-                                                          // 2 = 0b01000000...
-                                                          //        |  -> bit(1) channel offset : 1
+    // hoppingDescriptor.m_channelOfsBitmap.resize(1, 2);    // offset = 1 目前占用 , 紀錄有哪些offset有被占用(bitmap, 1代表有在用)
+    //                                                       // 2 = 0b01000000...
+    //                                                       //        |  -> bit(1) channel offset : 1
+    hoppingDescriptor.m_channelOfsBitmap.resize(1, BIT(panCoordChannelOffset)); // set the bitmap vector size to 1 and the value set as 2^panCoordChannelOffset.
+
     startReqParams.m_hoppingDescriptor = hoppingDescriptor;
     // MLME-START.request primitive is used by the PAN coordinator to initiate a new PAN or to begin using a new superframe configuration.
     Simulator::ScheduleWithContext(1,

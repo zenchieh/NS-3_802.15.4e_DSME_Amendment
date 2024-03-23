@@ -4312,13 +4312,47 @@ void LrWpanMac::EndGTS(SuperframeType superframeType) {
     // m_gtsRetrieve = false;
 }
 
+void LrWpanMac::StartSuperframe() 
+{
+    m_startFirstSuperframeEvent.Cancel();
+    if(m_curSuperframeIDx < (m_numOfSuperframes / m_numOfMultisuperframes) - 1 
+    && !m_isFirstSuperframe)
+    {
+        m_curSuperframeIDx++;
+    }
+    
+    NS_LOG_DEBUG("****************** SuperframeIDx : " << GetSuperframeIDx() << " start ******************");
+
+    uint64_t symbolRate;
+    symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false); // symbols per second
+    Time nextSuperframestartTime = Seconds((double) m_superframeDuration / symbolRate);
+    Simulator::Schedule(nextSuperframestartTime, 
+                        &LrWpanMac::StartSuperframe,
+                        this);
+    m_isFirstSuperframe = false;
+}
+
 void LrWpanMac::StartMultisuperframe(SuperframeType superframeType) {
     NS_LOG_FUNCTION(this);
 
     Time endMultisuperframeTime;
-    uint64_t symbolRate;
 
+    uint64_t symbolRate;    
     symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false); // symbols per second
+
+    // Reset the current superframeIDx to zero.
+    m_isFirstSuperframe = true;
+    SetSuperframeIDx(0);
+    // Schedule the time to add the superframeIDx.
+    if(Simulator::Now() <= Seconds((double) m_superframeDuration / symbolRate))
+    {
+
+        Time nextSuperframestartTime = Seconds((double) m_superframeDuration / symbolRate);
+        m_startFirstSuperframeEvent = Simulator::Schedule(nextSuperframestartTime, 
+                                      &LrWpanMac::StartSuperframe,
+                                      this);
+        // 
+    }
 
     if (superframeType == OUTGOING) 
     {
@@ -7199,7 +7233,7 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                 } 
                 else if (macHdr.IsData()) 
                 {
-                    NS_LOG_DEBUG("successfully sent the data packet !");
+                    NS_LOG_DEBUG("Send the data packet successfully !");
                     // std::cout << Simulator::Now().GetNanoSeconds() << ", " << GetShortAddress() << " successfully sent the data packet" << std::endl;
 
                     // (*m_record)[GetShortAddress()] = {macHdr.GetShortDstAddr(), {Simulator::Now().GetNanoSeconds()}};
@@ -9008,6 +9042,8 @@ LrWpanMac::isTxAckReq()
 }
 
 uint16_t LrWpanMac::GetDsmeCurrentHoppingChannel() {
+
+    // TODO : Need to fix here
     // m_macChannelOfs;
     // m_macHoppingSeqList.m_len;
     m_macHoppingSeqList.GetChannel(10);
@@ -9241,6 +9277,18 @@ LrWpanMac::ConvertExtAddrToShortAddr(Mac64Address ExtAddr)
     shortAddr.CopyFrom(buffer16MacAddr);
 
     return shortAddr;
+}
+
+uint16_t
+LrWpanMac::GetSuperframeIDx()
+{
+    return m_curSuperframeIDx;
+}
+
+void
+LrWpanMac::SetSuperframeIDx(uint16_t curSuperframeIDx)
+{
+    m_curSuperframeIDx = curSuperframeIDx;
 }
 
 } // namespace ns3

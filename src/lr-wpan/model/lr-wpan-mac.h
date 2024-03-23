@@ -706,11 +706,12 @@ struct MlmeAssociateResponseParams
 
 struct HoppingDescriptor {
     uint8_t m_HoppingSequenceID;               // hopping sequence ID (1 Octets)
-    uint16_t m_hoppingSeqLen;                  // Hopping Sequence Length 
-    HoppingSequence m_hoppingSeq;
+    // uint8_t m_panCoordinatorBSN;
     uint16_t m_channelOfs;                     // Channel hopping sepcification channel offset (2 Octets)
     uint8_t m_channelOfsBitmapLen;             // Channel hopping sepcification channel offset bitmap length (1 Octets)
     std::vector<uint16_t> m_channelOfsBitmap;  // Channel hopping sepcification channel offset bitmap (variable)
+    uint16_t m_hoppingSeqLen;                  // Hopping Sequence Length 
+    HoppingSequence m_hoppingSeq;
 };
 
 /**
@@ -2787,6 +2788,26 @@ class LrWpanMac : public Object
     // For the purpose of allocation collision free.
     uint16_t m_allocationSequence;
 
+    /**
+     * Indicates the current SuperframeIDx, the value will be added at the beginning of each superframe and reset at the beginning of each multisuperframe.
+    */
+    int16_t m_curSuperframeIDx;
+    /**
+     * Set the current SuperframeIDx, the value will be added at the beginning of each superframe and reset at the beginning of each multisuperframe.
+    */
+    void SetSuperframeIDx(uint16_t curSuperframeIDx);
+    /**
+     * Get the current SuperframeIDx, the value will be added at the beginning of each superframe and reset at the beginning of each multisuperframe.
+    */
+    uint16_t GetSuperframeIDx();
+
+    bool m_isFirstSuperframe = true;
+
+    /**
+     * The scheduled event to add superframeIDx.
+    */
+    void StartSuperframe();
+
     // Enhanced Beacon Scheduling allocation sequence.
     // For the purpose of allocation collision free.
     void SetAllocationSeq(uint16_t allocSeq);
@@ -4064,6 +4085,12 @@ class LrWpanMac : public Object
      * Scheduler event for the end of the outgoing Multisuperframe.
      */
     EventId m_multisuperframeEndEvent;
+
+    /**
+     * Dsme
+     * Scheduler event for the end of the outgoing Multisuperframe.
+     */
+    EventId m_startFirstSuperframeEvent;
 
     /**
      * Dsme
