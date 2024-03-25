@@ -217,7 +217,7 @@ int main(int argc, char** argv) {
     // superframe ID = 0
     for (int i = 0; i < 6; ++i) {
         int childIdx = 1 + i + 2;
-
+        std::cout << childIdx << "!!!";
         // Channel Offset setting
         lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
 
@@ -239,7 +239,7 @@ int main(int argc, char** argv) {
     // superframe ID = 1
     for (int i = 0; i < 6; ++i) {
         int childIdx = 2 + i + 8;
-
+        std::cout << childIdx << "!!!";
         // Channel Offset setting
         lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
 

@@ -3255,12 +3255,12 @@ LrWpanMac::EndStartRequest()
                     
                     PurgeDsmeACT();
 
-                    if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) {
-                        ScheduleGts(false);
-                    }
-
                 } else {
                     m_sendBcn = true;
+                }
+
+                if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) {
+                    ScheduleGts(false);
                 }
 
             } else {
@@ -3957,14 +3957,27 @@ void LrWpanMac::ScheduleGts(bool indication) {
                     if (m_coord) 
                     {
                         //! calculate the general time between beacon TX time (slot0) ~ CFP start time , which equals to CAP end time.
-                        activeSlot = m_superframeDuration / 16;                 // calculate slot time per active timeslot
-                        capDuration = activeSlot * (m_fnlCapSlot + 1);          // calculate CAP duration period, timeslot 0(Beacon) ~ timeslot 8, so we need to plus one
+                        activeSlot = m_superframeDuration / 16;                 // calculate slot time per active timeslot - (timeslot長度)
+                        capDuration = activeSlot * (m_fnlCapSlot + 1);          // calculate CAP duration period, timeslot 0(Beacon) ~ timeslot 8, so we need to plus one (CAP長度)
                         endCapTime = Seconds((double)capDuration / symbolRate); // calculate when the CAP end
                         // endCapTime -= (Simulator::Now() - m_macBeaconTxTime);
                         // superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
                         NS_LOG_DEBUG("it->second[i].m_superframeID = " << it->second[i].m_superframeID);
-                        superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration; // 這裡可能會出事，m_choosedSDIndexToSendBcn若 > m_superframeID?
+                        // NS_LOG_DEBUG("m_choosedSDIndexToSendBcn " << m_choosedSDIndexToSendBcn);
+                        if(it->second[i].m_superframeID > m_choosedSDIndexToSendBcn)
+                        {
+                            superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration;
+                        }
+                        else
+                        {
+                            superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
+                        }
                         endCapUntilTheGtsDuration = activeSlot * it->second[i].m_slotID;
+                        NS_LOG_DEBUG("activeSlot " << activeSlot);
+                        NS_LOG_DEBUG("capDuration " << capDuration);
+                        NS_LOG_DEBUG("endCapTime " << endCapTime);
+                        NS_LOG_DEBUG("superframeDurations " << superframeDurations);
+                        NS_LOG_DEBUG("endCapUntilTheGtsDuration " << endCapUntilTheGtsDuration);
                     } 
                     else
                     {
@@ -3982,7 +3995,7 @@ void LrWpanMac::ScheduleGts(bool indication) {
 
                     if (it->second[i].m_direction) // GTS for RX
                     {
-                        m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime
+                        m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime     // Schedule GTS start event
                                                         , &LrWpanMac::StartGTS
                                                         , this
                                                         , SuperframeType::INCOMING
@@ -4003,7 +4016,7 @@ void LrWpanMac::ScheduleGts(bool indication) {
                     } 
                     else  // GTS for TX
                     {
-                        m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime
+                        m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime     // Schedule GTS start event
                                                         , &LrWpanMac::StartGTS
                                                         , this
                                                         , SuperframeType::OUTGOING
@@ -4321,7 +4334,7 @@ void LrWpanMac::StartSuperframe()
         m_curSuperframeIDx++;
     }
     
-    NS_LOG_DEBUG("****************** SuperframeIDx : " << GetSuperframeIDx() << " start ******************");
+    NS_LOG_DEBUG("************************************ SuperframeIDx : " << GetSuperframeIDx() << " start ************************************");
 
     uint64_t symbolRate;
     symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false); // symbols per second

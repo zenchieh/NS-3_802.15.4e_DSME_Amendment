@@ -33,6 +33,9 @@ using namespace ns3;
 #define SO 3
 #define MO 5
 
+#define NUM_COORD 2 // The number of coord, PAN-C need to be included.
+#define NUM_RFD 1 // The number of RFD.
+
 #define BIT(X) (1 << 2^X)
 
 static double pktRecv = 0;
@@ -80,9 +83,8 @@ int main(int argc, char** argv) {
         LogComponentEnable("Ping6Application", LOG_LEVEL_INFO);
     }
     
-    unsigned int numOfCoord = 2; // PAN-C need to be included
     NodeContainer nodes;
-    nodes.Create(3);
+    nodes.Create(NUM_COORD + NUM_RFD);
 
     MobilityHelper mobility;
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -102,14 +104,20 @@ int main(int argc, char** argv) {
     uint16_t panChannelOfs = 0;
     
     std::vector<uint16_t> channelOffsets;
-    channelOffsets.push_back(0);
-    channelOffsets.push_back(1);
-    channelOffsets.push_back(2);
-    channelOffsets.push_back(3);
-    channelOffsets.push_back(4);
-    channelOffsets.push_back(5);
+    // Setting channel offset array
+    for(int i = 0; i < 16; i++)
+    {
+        channelOffsets.push_back(i);
+    }
 
     uint16_t numOfChannelsSupported = 6;
+
+    // // In this example, Hopping Sequence is {1, 2, 3, 4, 5, 6}
+    // std::vector<uint16_t> hoppingSequence;
+    // for(int i = 0; i < numOfChannelsSupported; i++)
+    // {
+    //     hoppingSequence[i] = i + 1;
+    // }
 
     // callback hook
     McpsDataConfirmCallback cb1;
@@ -169,8 +177,8 @@ int main(int argc, char** argv) {
                                         , startParams);
 
 
-    // 2nd level Coordinator setting
-    for (unsigned int i = 1; i < numOfCoord; ++i) {
+    // 2nd level Coordinator setting, let other coordinator associate with pan-C
+    for (unsigned int i = 1; i < NUM_COORD; ++i) {
         MlmeSyncRequestParams syncParams;
         syncParams.m_logChPage = 0; 
         syncParams.m_trackBcn = true; 
@@ -215,22 +223,37 @@ int main(int argc, char** argv) {
                                     , params);
     }
     
-    // // GTSs setting
-    // for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) {
-    //     lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>()->SetMcpsDataReqGts(true);
-    // }
+    // GTSs setting
+    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) {
+        lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>()->SetMcpsDataReqGts(true);
+    }
 
-    // for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) {
-    //     lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>()->GetMac()->ResizeScheduleGTSsEvent(bcnOrder, 
-    //                                                                                           multisuperfrmOrder, 
-    //                                                                                           superfrmOrder);
-    // }
+    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) {
+        lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>()->GetMac()->ResizeScheduleGTSsEvent(bcnOrder, 
+                                                                                              multisuperfrmOrder, 
+                                                                                              superfrmOrder);
+    }
 
-    // int pktSize = 60;
+    int pktSize = 60;
+    // superframe ID = 0
+    uint16_t superframeID = 0;
+    for (int i = 0; i < 1; ++i) {
+        int childIdx = i + NUM_COORD;
+        // Channel Offset setting
+        lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
 
-    // uint16_t superframeID = 1;
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
+                                , superframeID, i);
 
-    // // superframe id = 1
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
+                                , superframeID, i);
+    }
+
+
+
+    // // superframe ID = 1
+    // superframeID++;
+
     // for (int i = 0; i < 15; ++i) {
     //     int childIdx = i + 3;
 
