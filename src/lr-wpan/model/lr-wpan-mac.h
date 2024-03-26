@@ -2802,6 +2802,12 @@ class LrWpanMac : public Object
     uint16_t GetSuperframeIDx();
 
     bool m_isFirstSuperframe = true;
+    bool m_isFirstMultiSuperframe = true;
+
+    /**
+     * Indicate current Multisuperframe sequence.
+    */
+    int32_t m_multisuperframeSeq = -1;
 
     /**
      * The scheduled event to add superframeIDx.

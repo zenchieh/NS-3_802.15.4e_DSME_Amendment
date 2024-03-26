@@ -3742,7 +3742,7 @@ void LrWpanMac::ScheduleGtsSyncToCoord(uint16_t curSDIndex) {
                     // superframeTime = Seconds((double)superframeDurations / symbolRate);
                     // startGtsTime = endCapTime + gtsDuration + superframeTime;
 
-                    if (it->second[i].m_direction) {
+                    if (it->second[i].m_direction) { //RX
                         m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime
                                                         , &LrWpanMac::StartGTS
                                                         , this
@@ -3775,7 +3775,7 @@ void LrWpanMac::ScheduleGtsSyncToCoord(uint16_t curSDIndex) {
                                         << "(" << startGtsTime.As(Time::S) << ")");
                         }
 
-                    } else {
+                    } else { //TX 
                         m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime
                                                         , &LrWpanMac::StartGTS
                                                         , this
@@ -3950,20 +3950,21 @@ void LrWpanMac::ScheduleGts(bool indication) {
                     uint32_t activeSlot;
                     uint64_t superframeDurations;
                     uint64_t capDuration;
+                    uint64_t firstTimeslot;
                     uint64_t endCapUntilTheGtsDuration;
+                    uint64_t endCfpUntilTheGtsDuration;
                     Time endCapTime;
+                    Time endFirstTimeslotTime;
                     Time startGtsTime;
+                    Time gtsDuration;
+                    Time superframeTime;
+
+                    bool twoCfp = false;
 
                     if (m_coord) 
                     {
-                        //! calculate the general time between beacon TX time (slot0) ~ CFP start time , which equals to CAP end time.
-                        activeSlot = m_superframeDuration / 16;                 // calculate slot time per active timeslot - (timeslot長度)
-                        capDuration = activeSlot * (m_fnlCapSlot + 1);          // calculate CAP duration period, timeslot 0(Beacon) ~ timeslot 8, so we need to plus one (CAP長度)
-                        endCapTime = Seconds((double)capDuration / symbolRate); // calculate when the CAP end
-                        // endCapTime -= (Simulator::Now() - m_macBeaconTxTime);
-                        // superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
-                        NS_LOG_DEBUG("it->second[i].m_superframeID = " << it->second[i].m_superframeID);
-                        // NS_LOG_DEBUG("m_choosedSDIndexToSendBcn " << m_choosedSDIndexToSendBcn);
+                        activeSlot = m_superframeDuration / 16;
+
                         if(it->second[i].m_superframeID > m_choosedSDIndexToSendBcn)
                         {
                             superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration;
@@ -3972,26 +3973,78 @@ void LrWpanMac::ScheduleGts(bool indication) {
                         {
                             superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
                         }
-                        endCapUntilTheGtsDuration = activeSlot * it->second[i].m_slotID;
-                        NS_LOG_DEBUG("activeSlot " << activeSlot);
-                        NS_LOG_DEBUG("capDuration " << capDuration);
-                        NS_LOG_DEBUG("endCapTime " << endCapTime);
-                        NS_LOG_DEBUG("superframeDurations " << superframeDurations);
-                        NS_LOG_DEBUG("endCapUntilTheGtsDuration " << endCapUntilTheGtsDuration);
+
+                        if(isCAPReductionOn()) // TODO : 第二個multisuperframe開始的CAP不會有CAP，他會變成全部都CFP，要改為判斷這裡是不是superframeID = 0
+                        {
+                            firstTimeslot = activeSlot * 1;  // first timeslot is used for beacon tx
+                            endFirstTimeslotTime = Seconds((double) firstTimeslot / symbolRate);
+                            endCfpUntilTheGtsDuration = activeSlot * it->second[i].m_slotID;
+                            gtsDuration = Seconds((double)endCfpUntilTheGtsDuration / symbolRate);
+                            superframeTime = Seconds((double)superframeDurations / symbolRate);
+                            startGtsTime = endFirstTimeslotTime + gtsDuration + superframeTime;
+                            twoCfp = true;
+                            NS_LOG_DEBUG("activeSlot " << activeSlot);
+                            NS_LOG_DEBUG("firstTimeslot " << firstTimeslot);
+                            NS_LOG_DEBUG("endFirstTimeslotTime " << endFirstTimeslotTime);
+                            NS_LOG_DEBUG("superframeDurations " << superframeDurations);
+                            NS_LOG_DEBUG("endCfpUntilTheGtsDuration " << endCfpUntilTheGtsDuration);
+                            NS_LOG_DEBUG("startGtsTime " << startGtsTime);
+                        }
+                        else
+                        {
+                            //! calculate the general time between beacon TX time (slot0) ~ CFP start time , which equals to CAP end time.
+                            activeSlot = m_superframeDuration / 16;                 // calculate slot time per active timeslot - (timeslot長度)
+                            capDuration = activeSlot * (m_fnlCapSlot + 1);          // calculate CAP duration period, timeslot 0(Beacon) ~ timeslot 8, so we need to plus one (CAP長度)
+                            endCapTime = Seconds((double)capDuration / symbolRate); // calculate when the CAP end
+                            // endCapTime -= (Simulator::Now() - m_macBeaconTxTime);
+                            // superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
+                            NS_LOG_DEBUG("it->second[i].m_superframeID = " << it->second[i].m_superframeID);
+                            // NS_LOG_DEBUG("m_choosedSDIndexToSendBcn " << m_choosedSDIndexToSendBcn);
+
+                            endCapUntilTheGtsDuration = activeSlot * it->second[i].m_slotID;
+                            gtsDuration = Seconds((double)endCapUntilTheGtsDuration / symbolRate);
+                            superframeTime = Seconds((double)superframeDurations / symbolRate);
+                            startGtsTime = superframeTime + endCapTime + gtsDuration;
+                            NS_LOG_DEBUG("activeSlot " << activeSlot);
+                            NS_LOG_DEBUG("capDuration " << capDuration);
+                            NS_LOG_DEBUG("endCapTime " << endCapTime);
+                            NS_LOG_DEBUG("superframeDurations " << superframeDurations);
+                            NS_LOG_DEBUG("endCapUntilTheGtsDuration " << endCapUntilTheGtsDuration);
+                            NS_LOG_DEBUG("startGtsTime " << startGtsTime);
+                        }
+
                     } 
-                    else
+                    else // RFD , not coord
                     {
                         activeSlot = m_incomingSuperframeDuration / 16;
-                        capDuration = activeSlot * (m_incomingFnlCapSlot + 1);
-                        endCapTime = Seconds((double)capDuration / symbolRate);
-                        endCapTime -= (Simulator::Now() - m_macBeaconRxTime);
                         superframeDurations = (it->second[i].m_superframeID) * m_incomingSuperframeDuration;
-                        endCapUntilTheGtsDuration = activeSlot * it->second[i].m_slotID;
+                        if(isCAPReductionOn())
+                        {
+                            firstTimeslot = activeSlot * 1;  // first timeslot is used for beacon tx
+                            endFirstTimeslotTime = Seconds((double) firstTimeslot / symbolRate);
+                            endFirstTimeslotTime -= (Simulator::Now() - m_macBeaconRxTime);
+                            endCfpUntilTheGtsDuration = activeSlot * it->second[i].m_slotID;
+
+                            gtsDuration = Seconds((double)endCfpUntilTheGtsDuration / symbolRate);
+                            superframeTime = Seconds((double)superframeDurations / symbolRate);
+                            startGtsTime = endFirstTimeslotTime + gtsDuration + superframeTime;
+                            twoCfp = true;
+                        }
+                        else
+                        {
+                            capDuration = activeSlot * (m_incomingFnlCapSlot + 1);
+                            endCapTime = Seconds((double)capDuration / symbolRate);
+                            endCapTime -= (Simulator::Now() - m_macBeaconRxTime);
+                            endCapUntilTheGtsDuration = activeSlot * it->second[i].m_slotID;
+                            gtsDuration = Seconds((double)endCapUntilTheGtsDuration / symbolRate);
+                            superframeTime = Seconds((double)superframeDurations / symbolRate);
+                            startGtsTime = superframeTime + endCapTime + gtsDuration;
+                        }
                     }
                     
-                    Time gtsDuration = Seconds((double)endCapUntilTheGtsDuration / symbolRate);
-                    Time superframeTime = Seconds((double)superframeDurations / symbolRate);
-                    startGtsTime = superframeTime + endCapTime + gtsDuration;
+                    // gtsDuration = Seconds((double)endCapUntilTheGtsDuration / symbolRate);
+                    // superframeTime = Seconds((double)superframeDurations / symbolRate);
+                    // startGtsTime = superframeTime + endCapTime + gtsDuration;
 
                     if (it->second[i].m_direction) // GTS for RX
                     {
@@ -4004,15 +4057,34 @@ void LrWpanMac::ScheduleGts(bool indication) {
                         // DSME-TODO
                         it->second[i].m_allocated = true;
                         m_scheduleGTSsEvent[it->second[i].m_superframeID].push_back(m_gtsSchedulingEvent);
-                        
-                        NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
-                                    << " endCapTime (" << endCapTime.As(Time::S) << ")"
-                                    << " + "
-                                    << " endCapUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
-                                    << " + "
-                                    << " superframeTime (" << superframeTime.As(Time::S) << ")"
-                                    << " = "
-                                    << "(" << startGtsTime.As(Time::S) << ")");
+                        if (twoCfp) {
+                            NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
+                                        << " endFirstTimeslotTime (" << endFirstTimeslotTime.As(Time::S) << ")"
+                                        << " + "
+                                        << " endCfpUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
+                                        << " + "
+                                        << " superframeTime (" << superframeTime.As(Time::S) << ")"
+                                        << " = "
+                                        << "(" << startGtsTime.As(Time::S) << ")");
+
+                        } else {
+                            NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
+                                        << " endCapTime (" << endCapTime.As(Time::S) << ")"
+                                        << " + "
+                                        << " endCapUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
+                                        << " + "
+                                        << " superframeTime (" << superframeTime.As(Time::S) << ")"
+                                        << " = "
+                                        << "(" << startGtsTime.As(Time::S) << ")");
+                        }
+                        // NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
+                        //             << " endCapTime (" << endCapTime.As(Time::S) << ")"
+                        //             << " + "
+                        //             << " endCapUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
+                        //             << " + "
+                        //             << " superframeTime (" << superframeTime.As(Time::S) << ")"
+                        //             << " = "
+                        //             << "(" << startGtsTime.As(Time::S) << ")");
                     } 
                     else  // GTS for TX
                     {
@@ -4026,14 +4098,34 @@ void LrWpanMac::ScheduleGts(bool indication) {
                         it->second[i].m_allocated = true;
                         m_scheduleGTSsEvent[it->second[i].m_superframeID].push_back(m_gtsSchedulingEvent);
 
-                        NS_LOG_DEBUG("Schedule an Tx GTS that will launch at:" 
-                                    << " endCapTime (" << endCapTime.As(Time::S) << ")"
-                                    << " + "
-                                    << " endCapUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
-                                    << " + "
-                                    << " superframeTime (" << superframeTime.As(Time::S) << ")"
-                                    << " = "
-                                    << "(" << startGtsTime.As(Time::S) << ")");
+                        if (twoCfp) {
+                            NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
+                                        << " endFirstTimeslotTime (" << endFirstTimeslotTime.As(Time::S) << ")"
+                                        << " + "
+                                        << " endCfpUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
+                                        << " + "
+                                        << " superframeTime (" << superframeTime.As(Time::S) << ")"
+                                        << " = "
+                                        << "(" << startGtsTime.As(Time::S) << ")");
+
+                        } else {
+                            NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
+                                        << " endCapTime (" << endCapTime.As(Time::S) << ")"
+                                        << " + "
+                                        << " endCapUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
+                                        << " + "
+                                        << " superframeTime (" << superframeTime.As(Time::S) << ")"
+                                        << " = "
+                                        << "(" << startGtsTime.As(Time::S) << ")");
+                        }
+                        // NS_LOG_DEBUG("Schedule an Tx GTS that will launch at:" 
+                        //             << " endCapTime (" << endCapTime.As(Time::S) << ")"
+                        //             << " + "
+                        //             << " endCapUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
+                        //             << " + "
+                        //             << " superframeTime (" << superframeTime.As(Time::S) << ")"
+                        //             << " = "
+                        //             << "(" << startGtsTime.As(Time::S) << ")");
                     }
                 }
             }
@@ -4343,13 +4435,21 @@ void LrWpanMac::StartSuperframe()
                         &LrWpanMac::StartSuperframe,
                         this);
     m_isFirstSuperframe = false;
+
+    if(m_curSuperframeIDx == ((m_numOfSuperframes / m_numOfMultisuperframes) - 1))
+    {
+        // Simulator::Schedule(nextSuperframestartTime, 
+        //             &LrWpanMac::StartCAP,
+        //             this);
+    }
 }
 
 void LrWpanMac::StartMultisuperframe(SuperframeType superframeType) {
     NS_LOG_FUNCTION(this);
 
-    Time endMultisuperframeTime;
+    m_multisuperframeSeq++;
 
+    Time endMultisuperframeTime;
     uint64_t symbolRate;    
     symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false); // symbols per second
 
@@ -4692,19 +4792,26 @@ uint16_t LrWpanMac::GenerateSABSubBlockCapOn(uint8_t slotID, uint8_t numSlot) {
 }
 
 void LrWpanMac::AddDsmeACTEntity(uint16_t superframeID, macDSMEACTEntity entity) {
-    if (superframeID >= (m_numOfSuperframes / m_numOfMultisuperframes)) {
+    if (superframeID >= (m_numOfSuperframes / m_numOfMultisuperframes)) 
+    {
+        // Sanity check
         NS_FATAL_ERROR(this << " the superframe ID: " << superframeID 
                           << " is larger than the number of superframe in: " << (m_numOfSuperframes / m_numOfMultisuperframes));
     }
 
-    if (m_macCAPReductionFlag) {
-        if (entity.m_slotID >= 15) {
+    if (m_macCAPReductionFlag) 
+    {
+        if (entity.m_slotID >= 15)  // Sanity check
+        {
             NS_FATAL_ERROR(this << " the slot ID: " << entity.m_slotID
                         << " is larger than the number of CFP timeslots: 15");
         }
 
-    } else {
-        if (entity.m_slotID >= 7) {
+    }
+    else 
+    {
+        if (entity.m_slotID >= 7)  // Sanity check
+        {
             NS_FATAL_ERROR(this << " the slot ID: " << entity.m_slotID
                         << " is larger than the number of CFP timeslots: 7");
         }
@@ -7179,13 +7286,20 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
 
                     if (m_macDSMEenabled && m_macCAPReductionFlag) {
                         if (m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) == 0) // Check current superframe is the first superframe or not.
-                        {
+                        {                    
+                            // uint64_t symbolRate;
+                            // symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false)    ; 
+                            // uint64_t nextmultisuperframeDuraion = (m_numOfSuperframes / m_numOfMultisuperframes) * m_superframeDuration;
+                            // Time endmultisuperframeTime = Seconds((double)nextmultisuperframeDuraion / symbolRate);
+
                             // NS_LOG_DEBUG("m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) == 0");
                             m_capEvent = Simulator::ScheduleNow(&LrWpanMac::StartCAP,
                                                                 this,
                                                                 SuperframeType::OUTGOING); 
+                            // Simulator::Schedule(endmultisuperframeTime, &LrWpanMac::StartCAP, this, SuperframeType::OUTGOING);                                  
+
                         } 
-                        else 
+                        else // The coordinator which is not PAN-C. Also, in CAP reduction, other coordinators will schedule CFP here.
                         {
                             m_firstCFP = true;
                             m_cfpEvent = Simulator::ScheduleNow(&LrWpanMac::StartCFP,

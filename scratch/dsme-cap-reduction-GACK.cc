@@ -235,8 +235,8 @@ int main(int argc, char** argv) {
     }
 
     int pktSize = 60;
-    // superframe ID = 0
-    uint16_t superframeID = 0;
+
+    uint16_t superframeID = 1;
     for (int i = 0; i < 1; ++i) {
         int childIdx = i + NUM_COORD;
         // Channel Offset setting
