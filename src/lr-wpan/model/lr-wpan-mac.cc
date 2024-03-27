@@ -4299,20 +4299,17 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         }  
         else 
         {
-            ch = (m_macChannelOfs + m_macDsmeACT[superframeID][idx].m_slotID) % m_numOfChannels;
             if(isCAPReductionOn() && m_curGTSSuperframeID != 0)
             {
                 cfpSlotNum = 15; // parameters " l " in the formula.
                 NS_LOG_DEBUG("m_macPANCoordinatorBSN = " << (uint16_t)m_macPANCoordinatorBSN.GetValue());
                 ch = (m_curGTSSuperframeID * cfpSlotNum + m_macDsmeACT[superframeID][idx].m_slotID + m_macDsmeACT[superframeID][idx].m_channelID + (uint16_t)m_macPANCoordinatorBSN.GetValue()) % m_numOfChannels;
             }
-            else if(isCAPReductionOn() && m_curGTSSuperframeID == 0) // SDIDx = 0, the superframe with the only CAP portion.
-            {
-                
-            }
             else
             {
-
+                cfpSlotNum = 7; // parameters " l " in the formula.
+                NS_LOG_DEBUG("m_macPANCoordinatorBSN = " << (uint16_t)m_macPANCoordinatorBSN.GetValue());
+                ch = (m_curGTSSuperframeID * cfpSlotNum + m_macDsmeACT[superframeID][idx].m_slotID + m_macDsmeACT[superframeID][idx].m_channelID + (uint16_t)m_macPANCoordinatorBSN.GetValue()) % m_numOfChannels;
             }
         }
 
@@ -4344,20 +4341,19 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         if (m_forDsmeNetDeviceIntegrateWithHigerLayer) {
             ch = (m_macDsmeACT[superframeID][idx].m_channelID + m_macDsmeACT[superframeID][idx].m_slotID) 
                             % m_numOfChannels;
-        } else {
+        } else 
+        {
             if(isCAPReductionOn() && m_curGTSSuperframeID != 0)
             {
                 cfpSlotNum = 15; // parameters " l " in the formula.
                 NS_LOG_DEBUG("m_macPANCoordinatorBSN = " << (uint16_t)m_macPANCoordinatorBSN.GetValue());
                 ch = (m_curGTSSuperframeID * cfpSlotNum + m_macDsmeACT[superframeID][idx].m_slotID + m_macDsmeACT[superframeID][idx].m_channelID + (uint16_t)m_macPANCoordinatorBSN.GetValue()) % m_numOfChannels;
             }
-            else if(isCAPReductionOn() && m_curGTSSuperframeID == 0) // SDIDx = 0, the superframe with the only CAP portion.
-            {
-                
-            }
             else
             {
-
+                cfpSlotNum = 7; // parameters " l " in the formula.
+                NS_LOG_DEBUG("m_macPANCoordinatorBSN = " << (uint16_t)m_macPANCoordinatorBSN.GetValue());
+                ch = (m_curGTSSuperframeID * cfpSlotNum + m_macDsmeACT[superframeID][idx].m_slotID + m_macDsmeACT[superframeID][idx].m_channelID + (uint16_t)m_macPANCoordinatorBSN.GetValue()) % m_numOfChannels;
             }
         }
 

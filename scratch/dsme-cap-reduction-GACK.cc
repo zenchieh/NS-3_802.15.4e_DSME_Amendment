@@ -306,8 +306,8 @@ int main(int argc, char** argv) {
     // lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Ping-6LoW-lr-wpan-beacon.tr"));
     // lrWpanHelper.EnablePcapAll(std::string("Ping-6LoW-lr-wpan-beacon"), true);
 
-    Simulator::Stop(Seconds(1.96607));
-    // Simulator::Stop(Seconds(50));
+    // Simulator::Stop(Seconds(1.96607));
+    Simulator::Stop(Seconds(50));
 
     Simulator::Run();
 
