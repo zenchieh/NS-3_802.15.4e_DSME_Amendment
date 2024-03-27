@@ -6780,11 +6780,23 @@ LrWpanMac::IfsWaitTimeout(Time ifsTime)
     {
         NS_LOG_DEBUG("LIFS of " << m_macLIFSPeriod << " symbols (" << ifsTime.As(Time::S)
                                 << ") completed ");
+        if(m_incGtsEvent.IsRunning() || (m_gtsEvent.IsRunning() && m_lrWpanMacState == MAC_ACK_PENDING)) 
+        {
+            // Here add change state in order to let mac state keep at MAC_GTS. (原本會卡住，一個GTS就只能傳一個封包)
+            // >> More packet can be sent in the GTS
+            ChangeMacState(MAC_GTS);
+        }
     }
     else if (ifsTime == sifsTime)
     {
         NS_LOG_DEBUG("SIFS of " << m_macSIFSPeriod << " symbols (" << ifsTime.As(Time::S)
                                 << ") completed ");
+        if(m_incGtsEvent.IsRunning() || (m_gtsEvent.IsRunning() && m_lrWpanMacState == MAC_ACK_PENDING) )
+        {
+            // Here add change state in order to let mac state keep at MAC_GTS. (原本會卡住，一個GTS就只能傳一個封包)
+            // >> More packet can be sent in the GTS
+            ChangeMacState(MAC_GTS);
+        }
     }
     else
     {
@@ -6793,6 +6805,7 @@ LrWpanMac::IfsWaitTimeout(Time ifsTime)
 
     m_macIfsEndTrace(ifsTime);
     CheckQueue();
+
 }
 
 void LrWpanMac::DsmeGtsRespWaitTimeout() {
@@ -9055,7 +9068,7 @@ LrWpanMac::SetPanId(uint16_t panId)
 void
 LrWpanMac::ChangeMacState(LrWpanMacState newState)
 {
-    NS_LOG_LOGIC(this << " change lrwpan mac state from " << m_lrWpanMacState << " to "
+    NS_LOG_DEBUG(this << " change lrwpan mac state from " << m_lrWpanMacState << " to "
                       << newState);
     m_macStateLogger(m_lrWpanMacState, newState);
     m_lrWpanMacState = newState;

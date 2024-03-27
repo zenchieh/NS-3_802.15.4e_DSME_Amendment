@@ -234,7 +234,7 @@ int main(int argc, char** argv) {
                                                                                               superfrmOrder);
     }
 
-    int pktSize = 60;
+    int pktSize = 10;
 
     uint16_t superframeID = 1;
     for (int i = 0; i < 1; ++i) {
@@ -248,7 +248,7 @@ int main(int argc, char** argv) {
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
                                 , superframeID, i);
 
-        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.001);                      
+        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.0001);                      
     }
 
 
@@ -302,12 +302,12 @@ int main(int argc, char** argv) {
 
     // // lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(2), lrwpanDevices.Get(1)->GetAddress(), pktSize, 300, 100000.0, 125.8295);
 
-    // AsciiTraceHelper ascii;
-    // lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Ping-6LoW-lr-wpan-beacon.tr"));
-    // lrWpanHelper.EnablePcapAll(std::string("Ping-6LoW-lr-wpan-beacon"), true);
+    AsciiTraceHelper ascii;
+    lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Gack.tr"));
+    lrWpanHelper.EnablePcapAll(std::string("Gack"), true);
 
-    // Simulator::Stop(Seconds(1.96607));
-    Simulator::Stop(Seconds(50));
+    Simulator::Stop(Seconds(1.96607));
+    // Simulator::Stop(Seconds(50));
 
     Simulator::Run();
 

@@ -123,17 +123,17 @@ typedef enum
  */
 typedef enum
 {
-    MAC_IDLE,               //!< MAC_IDLE
-    MAC_CSMA,               //!< MAC_CSMA
-    MAC_SENDING,            //!< MAC_SENDING
-    MAC_ACK_PENDING,        //!< MAC_ACK_PENDING
-    CHANNEL_ACCESS_FAILURE, //!< CHANNEL_ACCESS_FAILURE
-    CHANNEL_IDLE,           //!< CHANNEL_IDLE
-    SET_PHY_TX_ON,          //!< SET_PHY_TX_ON
-    MAC_GTS,                //!< MAC_GTS
-    MAC_GTS_SENDING,        
-    MAC_INACTIVE,           //!< MAC_INACTIVE
-    MAC_CSMA_DEFERRED       //!< MAC_CSMA_DEFERRED
+    MAC_IDLE,               //!< MAC_IDLE 0
+    MAC_CSMA,               //!< MAC_CSMA 1
+    MAC_SENDING,            //!< MAC_SENDING 2 
+    MAC_ACK_PENDING,        //!< MAC_ACK_PENDING 3 
+    CHANNEL_ACCESS_FAILURE, //!< CHANNEL_ACCESS_FAILURE 4
+    CHANNEL_IDLE,           //!< CHANNEL_IDLE 5
+    SET_PHY_TX_ON,          //!< SET_PHY_TX_ON 6
+    MAC_GTS,                //!< MAC_GTS 7
+    MAC_GTS_SENDING,        //!< 8
+    MAC_INACTIVE,           //!< MAC_INACTIVE 9
+    MAC_CSMA_DEFERRED       //!< MAC_CSMA_DEFERRED 10
 } LrWpanMacState;
 
 /**
