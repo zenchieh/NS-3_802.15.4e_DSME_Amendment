@@ -276,7 +276,8 @@ LrWpanMac::LrWpanMac() {
 
     // m_macChannelOfsBitmap;
 
-    m_macPANCoordinatorBSN = SequenceNumber8(uniformVar->GetValue());;
+    // m_macPANCoordinatorBSN = SequenceNumber8(uniformVar->GetValue());;
+    m_macPANCoordinatorBSN = 0;
 
     // m_macNeighborInformationTable;
 
@@ -4164,12 +4165,13 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
 
     NS_LOG_DEBUG("Current superframeID : " << m_curGTSSuperframeID << " GTSIDx : " << m_curGTSIdx);
 
-    if (m_macDsmeACT[superframeID][idx].m_direction) {  
-        m_macDsmeACT[superframeID][idx].m_cnt++;
+    if (m_macDsmeACT[superframeID][idx].m_direction) {  // TODO : 這裡怪怪的，應該要是判斷經過m_macDSMEGTSExpirationTime次數的MSF沒收到封包，才要執行expiration，而不是算次數
+        // m_macDsmeACT[superframeID][idx].m_cnt++;
     }
 
     // GTS expiration
     if (m_macDsmeACT[superframeID][idx].m_cnt > m_macDSMEGTSExpirationTime) {
+        NS_LOG_DEBUG("GTS expiration");
         m_macDsmeACT[superframeID][idx].m_expired = true;
 
         if (!m_mlmeDsmeGtsIndicationCallback.IsNull()) {
@@ -4209,18 +4211,24 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
     }
 
     if (m_macDsmeACT[superframeID][idx].m_allocated) {
-        Time startGtsTime;
 
-        uint64_t symbolRate;
-        symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false); // symbols per second
+        Time startGtsTime;        
+        uint64_t symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false);  // symbols per second
 
-        if (m_coord) {
+        if (m_coord) 
+        {
             startGtsTime = Seconds((double) m_multiSuperframeDuration / symbolRate);
-        } else {
+        } 
+        else 
+        {
             startGtsTime = Seconds((double) m_incomingMultisuperframeDuration / symbolRate);
         }
 
-        if (m_macDsmeACT[superframeID][idx].m_direction) {
+        /*
+         * Schedule StartGTS  
+        */
+        if (m_macDsmeACT[superframeID][idx].m_direction) // RX
+        {
             m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime
                                                         , &LrWpanMac::StartGTS
                                                         , this
@@ -4231,7 +4239,9 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
             NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
                         << "(" << startGtsTime.As(Time::S) << ")");
 
-        } else {
+        } 
+        else // TX
+        {
             m_gtsSchedulingEvent = Simulator::Schedule(startGtsTime
                                                         , &LrWpanMac::StartGTS
                                                         , this
@@ -4244,9 +4254,12 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         }
     }
 
-    if (m_coord) {
+    if (m_coord) 
+    {
         activeSlot = m_superframeDuration / 16;
-    } else {
+    } 
+    else 
+    {
         activeSlot = m_incomingSuperframeDuration / 16;
     }
 
@@ -4254,14 +4267,15 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
     uint64_t gtsDuration = activeSlot * m_macDsmeACT[superframeID][idx].m_numSlot;
 
     // debug
-    Time endGtsTime;
+    Time endGtsTime; // TODO : ?? 這裡是幹嘛用的 ?? 為了要sync?
     if (m_macDsmeACT[superframeID][idx].m_slotID == 6 || m_macDsmeACT[superframeID][idx].m_slotID == 15) {
         endGtsTime = Seconds((double)gtsDuration / symbolRate) - MilliSeconds(50);
     } else {
         endGtsTime = Seconds((double)gtsDuration / symbolRate) - NanoSeconds(1);
     }
 
-    if (superframeType == OUTGOING) {
+    if (superframeType == OUTGOING) 
+    {
         NS_LOG_DEBUG("Outgoing Gts Tx duration " << gtsDuration << " symbols ("
                                                  << endGtsTime.As(Time::S) << ")");
     
@@ -4276,25 +4290,41 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         
         // channel hopping part
         uint16_t ch;
-
+        uint8_t cfpSlotNum;
         // For dsme-net-device setting
-        if (m_forDsmeNetDeviceIntegrateWithHigerLayer) {
+        if (m_forDsmeNetDeviceIntegrateWithHigerLayer) 
+        {
             ch = (m_macDsmeACT[superframeID][idx].m_channelID + m_macDsmeACT[superframeID][idx].m_slotID) 
                             % m_numOfChannels;
-        } else {
+        }  
+        else 
+        {
             ch = (m_macChannelOfs + m_macDsmeACT[superframeID][idx].m_slotID) % m_numOfChannels;
+            if(isCAPReductionOn() && m_curGTSSuperframeID != 0)
+            {
+                cfpSlotNum = 15; // parameters " l " in the formula.
+                NS_LOG_DEBUG("m_macPANCoordinatorBSN = " << (uint16_t)m_macPANCoordinatorBSN.GetValue());
+                ch = (m_curGTSSuperframeID * cfpSlotNum + m_macDsmeACT[superframeID][idx].m_slotID + m_macDsmeACT[superframeID][idx].m_channelID + (uint16_t)m_macPANCoordinatorBSN.GetValue()) % m_numOfChannels;
+            }
+            else if(isCAPReductionOn() && m_curGTSSuperframeID == 0) // SDIDx = 0, the superframe with the only CAP portion.
+            {
+                
+            }
+            else
+            {
+
+            }
         }
-        // uint16_t ch = (m_macChannelOfs + m_macDsmeACT[superframeID][idx].m_slotID) % m_numOfChannelSupported;
 
-        ch += 11;
-
+        ch += 11; // Because the channel in 802.15.4 2.4GHz band channel use 11~26 , we need to add offset 11 here.
         NS_LOG_DEBUG("Hop to Channel Num: " << ch); // debug
 
         LrWpanPhyPibAttributes pibAttr;
         pibAttr.phyCurrentChannel = ch;
         m_phy->PlmeSetAttributeRequest(LrWpanPibAttributeIdentifier::phyCurrentChannel, &pibAttr);                                
         
-    } else {
+    } 
+    else {
         NS_LOG_DEBUG("Incoming Gts Rx duration " << gtsDuration << " symbols ("
                                                  << endGtsTime.As(Time::S) << ")");
         
@@ -4309,19 +4339,29 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         
         // channel hopping part
         uint16_t ch;
-
+        uint8_t cfpSlotNum;
         // For dsme-net-device setting
         if (m_forDsmeNetDeviceIntegrateWithHigerLayer) {
             ch = (m_macDsmeACT[superframeID][idx].m_channelID + m_macDsmeACT[superframeID][idx].m_slotID) 
                             % m_numOfChannels;
         } else {
-            ch = (m_macChannelOfs + m_macDsmeACT[superframeID][idx].m_slotID) % m_numOfChannels;
+            if(isCAPReductionOn() && m_curGTSSuperframeID != 0)
+            {
+                cfpSlotNum = 15; // parameters " l " in the formula.
+                NS_LOG_DEBUG("m_macPANCoordinatorBSN = " << (uint16_t)m_macPANCoordinatorBSN.GetValue());
+                ch = (m_curGTSSuperframeID * cfpSlotNum + m_macDsmeACT[superframeID][idx].m_slotID + m_macDsmeACT[superframeID][idx].m_channelID + (uint16_t)m_macPANCoordinatorBSN.GetValue()) % m_numOfChannels;
+            }
+            else if(isCAPReductionOn() && m_curGTSSuperframeID == 0) // SDIDx = 0, the superframe with the only CAP portion.
+            {
+                
+            }
+            else
+            {
+
+            }
         }
-        // uint16_t ch = (m_macChannelOfs + m_macDsmeACT[superframeID][idx].m_slotID) % m_numOfChannelSupported;
 
-
-        ch += 11;
-
+        ch += 11; // Because the channel in 802.15.4 2.4GHz band channel use 11~26 , we need to add offset 11 here.
         NS_LOG_DEBUG("Hop to Channel Num: " << ch); // debug
 
         LrWpanPhyPibAttributes pibAttr;
@@ -5510,6 +5550,11 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         panDescriptor.m_channelHoppingSpec = receivedDsmePANDescriptorIEHeaderIE.GetChannelHopping();
                         panDescriptor.m_gACKSpec = receivedDsmePANDescriptorIEHeaderIE.GetGroupACK();
 
+                        if(receivedMacHdr.GetShortSrcAddr() == Mac16Address("00:01") && m_shortAddress != Mac16Address("00:01"))
+                        {
+                          m_macPANCoordinatorBSN = receivedDsmePANDescriptorIEHeaderIE.GetChannelHopping().GetPANCoordinatorBSN();
+
+                        }
                         // NS_LOG_DEBUG("SD Bitmap In IE of the Enhanced Beacon" << receivedDsmePANDescriptorIEHeaderIE.GetBeaconBitmap()); // debug
                         // NS_LOG_DEBUG("Channel Hopping In IE of the Enhanced Beacon" << receivedDsmePANDescriptorIEHeaderIE.GetChannelHopping()); // debug
          

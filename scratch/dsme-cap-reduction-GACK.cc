@@ -247,7 +247,10 @@ int main(int argc, char** argv) {
 
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
                                 , superframeID, i);
+
+        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.001);                      
     }
+
 
 
 
@@ -303,7 +306,8 @@ int main(int argc, char** argv) {
     // lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Ping-6LoW-lr-wpan-beacon.tr"));
     // lrWpanHelper.EnablePcapAll(std::string("Ping-6LoW-lr-wpan-beacon"), true);
 
-    Simulator::Stop(Seconds(2000));
+    Simulator::Stop(Seconds(1.96607));
+    // Simulator::Stop(Seconds(50));
 
     Simulator::Run();
 
