@@ -44,6 +44,8 @@
 #undef NS_LOG_APPEND_CONTEXT
 #define NS_LOG_APPEND_CONTEXT std::clog << "[address " << m_shortAddress << "] ";
 
+#define MCPS_DATA_SENDING_LOG 0
+
 namespace ns3
 {
 
@@ -443,8 +445,9 @@ LrWpanMac::McpsDataRequest(McpsDataRequestParams params, Ptr<Packet> p)
 {
     NS_LOG_FUNCTION(this << p);
 
+#if MCPS_DATA_SENDING_LOG
     NS_LOG_DEBUG("Prepare a data packet with size:" << p->GetSize() << " bytes");
-
+#endif
     m_mcpsDataRequestParams = params;
 
     McpsDataConfirmParams confirmParams;
@@ -600,7 +603,9 @@ LrWpanMac::McpsDataRequest(McpsDataRequestParams params, Ptr<Packet> p)
 
     if (b1 == TX_OPTION_GTS) {
 
+#if MCPS_DATA_SENDING_LOG
         NS_LOG_DEBUG("Sending a data packet during a GTS period.");
+#endif
 
         // DSME-TODO
         // NS_ASSERT(m_lrWpanMacState == MAC_GTS);
