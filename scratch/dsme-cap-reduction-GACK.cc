@@ -235,20 +235,36 @@ int main(int argc, char** argv) {
     }
 
     int pktSize = 10;
-
     uint16_t superframeID = 1;
     for (int i = 0; i < 1; ++i) {
         int childIdx = i + NUM_COORD;
         // Channel Offset setting
         lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
 
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
-                                , superframeID, i);
 
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
-                                , superframeID, i);
+        // Setting the GTS of Coord and devices with channel offset & TX/RX direction & SPFIdx & slotIDx etc.
+        for(int slotIdx; slotIdx < 3; slotIdx++)
+        {
+            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
+                                , superframeID, slotIdx);
 
+            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
+                                , superframeID, slotIdx);       
+        }        
+
+        // Setting parameters of sending the data packets.
         lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.0001);                      
+
+        // Setting the GTS for Group Ack slot (at slot 7 & slot 14 for CAP reduction).
+        // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
+        //                     , superframeID, 7);
+        // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
+        //                     , superframeID, 7);  
+
+        // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
+        //                     , superframeID, 14);     
+        // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
+        //                     , superframeID, 14);    
     }
 
 

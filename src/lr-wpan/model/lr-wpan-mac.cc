@@ -4059,7 +4059,7 @@ void LrWpanMac::ScheduleGts(bool indication) {
                         it->second[i].m_allocated = true;
                         m_scheduleGTSsEvent[it->second[i].m_superframeID].push_back(m_gtsSchedulingEvent);
                         if (twoCfp) {
-                            NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
+                            NS_LOG_DEBUG("Rx GTS that will launch at:" 
                                         << " endFirstTimeslotTime (" << endFirstTimeslotTime.As(Time::S) << ")"
                                         << " + "
                                         << " endCfpUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
@@ -4069,7 +4069,7 @@ void LrWpanMac::ScheduleGts(bool indication) {
                                         << "(" << startGtsTime.As(Time::S) << ")");
 
                         } else {
-                            NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
+                            NS_LOG_DEBUG("Rx GTS that will launch at:" 
                                         << " endCapTime (" << endCapTime.As(Time::S) << ")"
                                         << " + "
                                         << " endCapUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
@@ -4100,7 +4100,7 @@ void LrWpanMac::ScheduleGts(bool indication) {
                         m_scheduleGTSsEvent[it->second[i].m_superframeID].push_back(m_gtsSchedulingEvent);
 
                         if (twoCfp) {
-                            NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
+                            NS_LOG_DEBUG("Tx GTS that will launch at:" 
                                         << " endFirstTimeslotTime (" << endFirstTimeslotTime.As(Time::S) << ")"
                                         << " + "
                                         << " endCfpUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
@@ -4110,7 +4110,7 @@ void LrWpanMac::ScheduleGts(bool indication) {
                                         << "(" << startGtsTime.As(Time::S) << ")");
 
                         } else {
-                            NS_LOG_DEBUG("Schedule an Rx GTS that will launch at:" 
+                            NS_LOG_DEBUG("Tx GTS that will launch at:" 
                                         << " endCapTime (" << endCapTime.As(Time::S) << ")"
                                         << " + "
                                         << " endCapUntilTheGtsDuration (" << gtsDuration.As(Time::S) << ")"
@@ -4163,7 +4163,7 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
     m_curGTSSuperframeID = superframeID;
     m_curGTSIdx = idx;
 
-    NS_LOG_DEBUG("Current superframeID : " << m_curGTSSuperframeID << " GTSIDx : " << m_curGTSIdx);
+    NS_LOG_DEBUG("Current superframeID : " << m_curGTSSuperframeID << " GTSIDx : " << (int)m_macDsmeACT[superframeID][idx].m_slotID);
 
     if (m_macDsmeACT[superframeID][idx].m_direction) {  // TODO : 這裡怪怪的，應該要是判斷經過m_macDSMEGTSExpirationTime次數的MSF沒收到封包，才要執行expiration，而不是算次數
         // m_macDsmeACT[superframeID][idx].m_cnt++;
@@ -4366,8 +4366,6 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
     }
 
     SetLrWpanMacStateToGTS(superframeID, idx);
-
-
 
     if (m_gtsContinuePktSendingFromCap && !m_txQueue.empty()) {
         Ptr<TxQueueElement> txQElement = m_txQueue.front();
@@ -8628,18 +8626,18 @@ LrWpanMac::PlmeSetAttributeConfirm(LrWpanPhyEnumeration status, LrWpanPibAttribu
 void LrWpanMac::SetLrWpanMacStateToGTS(uint16_t superframeID, int idx) {
     ChangeMacState(MAC_GTS);
 
-    if (m_gtsRetrieve) {
-        m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_RX_ON);
-        return;
-    }
-
-    // if (m_macDsmeACT[superframeID][idx].m_direction) {
+    // if (m_gtsRetrieve) {
     //     m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_RX_ON);
-    // } else {
-    //     m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
+    //     return;
     // }
 
-    m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_RX_ON);
+    if (m_macDsmeACT[superframeID][idx].m_direction) {
+        m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_RX_ON);
+    } else {
+        m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
+    }
+
+    // m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_RX_ON);
 }
 
 void
