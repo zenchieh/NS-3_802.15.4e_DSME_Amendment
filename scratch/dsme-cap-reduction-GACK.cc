@@ -48,7 +48,7 @@ typedef enum
 } LrWpanDsmeChannelDiversity;
 
 static void
-dataSentMacConfirm(McpsDataConfirmParams params)
+dataSentMacConfirm(McpsDataConfirmParams params) // McpsDataConfirmCallBack
 {
     // In the case of transmissions with the Ack flag activated, the transaction is only
     // successful if the Ack was received.
@@ -265,6 +265,20 @@ int main(int argc, char** argv) {
         //                     , superframeID, 14);     
         // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
         //                     , superframeID, 14);    
+    }
+
+    for (int i = 0; i < 1; ++i) {
+        int childIdx = i + NUM_COORD;
+        // Channel Offset setting
+        lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
+
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
+                                , superframeID, 1);
+
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
+                                , superframeID, 1);
+
+        // lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.0001);                      
     }
 
 
