@@ -1117,4 +1117,21 @@ operator<<(std::ostream& os, const CapabilityField& capabilityField)
     return os;
 }
 
+
+/***********************************************************
+ *              Self Designed Enhanced Group Ack Field
+ ***********************************************************/
+
+EnhancedGroupACK::EnhancedGroupACK()
+{
+    m_groupAckHashTableBitmap = 0;
+}
+
+
+void
+EnhancedGroupACK::SetBit(int bitLocation)
+{
+    m_groupAckHashTableBitmap |= (1 << bitLocation);
+}
+
 } // namespace ns3

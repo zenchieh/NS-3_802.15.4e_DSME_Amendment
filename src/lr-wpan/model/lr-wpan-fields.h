@@ -569,6 +569,7 @@ std::ostream &operator << (std::ostream &os, const ChannelHopping& channelHoppin
 
 /**
  * \ingroup lr-wpan
+ * [Legacy Spec Group Ack]
  * Represent the DSME Group ACK Specification information field in DSME PAN descriptor IE.
  * See IEEE Std 802.15.4e-2012 Section 5.2.4.9.5 Figure 48aa
  */
@@ -615,6 +616,32 @@ private:
     uint8_t  m_sspecGACK2SlotID;                // Group ACK sepcification GACK2 Slot ID (Bit 44-47)
     uint8_t  m_sspecGACK2ChannelID;             // Group ACK sepcification GACK2 Channel ID (Bit 48-55)
 };
+
+/**
+ * \ingroup lr-wpan
+ * [Self Designed hash Group Ack]
+ * Use the self designed hash group ack to reduce the overhead and the scalability.
+ */
+class EnhancedGroupACK {
+public:
+
+    EnhancedGroupACK();    
+
+    /**
+     * Set a specific bit to one in the hash table.
+    */
+    void SetBit(int bitLocation);
+
+    uint32_t GetGetSerializedSize() const;
+
+    Buffer::Iterator Serialize(Buffer::Iterator i) const;
+
+    Buffer::Iterator Deserialize(Buffer::Iterator i);
+
+private:
+    uint64_t m_groupAckHashTableBitmap;
+};
+
 
 /**
  * \ingroup lr-wpan
