@@ -630,16 +630,19 @@ public:
     /**
      * Set a specific bit to one in the hash table.
     */
-    void SetBit(int bitLocation);
+    void SetBit(uint64_t bitmap, int bitLocation);
 
-    uint32_t GetGetSerializedSize() const;
+    uint64_t GetLeftHashTableBitmap() const;
+    uint64_t GetRightHashTableBitmap() const;
 
+    uint32_t GetSerializedSize() const;
     Buffer::Iterator Serialize(Buffer::Iterator i) const;
-
     Buffer::Iterator Deserialize(Buffer::Iterator i);
 
 private:
-    uint64_t m_groupAckHashTableBitmap;
+    uint64_t m_groupAckLeftHashTableBitmap;
+    uint64_t m_groupAckRightHashTableBitmap;
+
 };
 
 

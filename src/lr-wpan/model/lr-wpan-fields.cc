@@ -1119,19 +1119,54 @@ operator<<(std::ostream& os, const CapabilityField& capabilityField)
 
 
 /***********************************************************
- *              Self Designed Enhanced Group Ack Field
+ *          Self Designed Enhanced Group Ack Field
  ***********************************************************/
 
 EnhancedGroupACK::EnhancedGroupACK()
 {
-    m_groupAckHashTableBitmap = 0;
+    m_groupAckLeftHashTableBitmap = 0;
+    m_groupAckRightHashTableBitmap = 0;
 }
-
 
 void
-EnhancedGroupACK::SetBit(int bitLocation)
+EnhancedGroupACK::SetBit(uint64_t bitmap, int bitLocation)
 {
-    m_groupAckHashTableBitmap |= (1 << bitLocation);
+    bitmap |= (1 << bitLocation);
 }
+
+uint32_t
+EnhancedGroupACK::GetSerializedSize() const
+{
+    return 16;
+}
+
+uint64_t
+EnhancedGroupACK::GetLeftHashTableBitmap() const
+{
+    return m_groupAckLeftHashTableBitmap;
+}
+
+uint64_t
+EnhancedGroupACK::GetRightHashTableBitmap() const
+{
+    return m_groupAckRightHashTableBitmap;
+}
+
+Buffer::Iterator
+EnhancedGroupACK::Serialize(Buffer::Iterator i) const
+{
+    i.WriteHtolsbU16(GetLeftHashTableBitmap());
+    i.WriteHtolsbU16(GetRightHashTableBitmap());
+    return i;
+}
+Buffer::Iterator
+EnhancedGroupACK::Deserialize(Buffer::Iterator i)
+{
+    m_groupAckLeftHashTableBitmap =  i.ReadLsbtohU16();
+    m_groupAckRightHashTableBitmap =  i.ReadLsbtohU16();
+    return i;
+}
+
+
 
 } // namespace ns3
