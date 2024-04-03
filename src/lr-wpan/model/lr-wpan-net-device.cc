@@ -501,6 +501,41 @@ bool LrWpanNetDevice::SendInGts(Ptr<Packet> packet, const Address& dest, uint16_
     return true;
 }
 
+bool LrWpanNetDevice::SendGACKInGts(Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber) {
+    // TODO
+    NS_LOG_FUNCTION(this << packet << dest << protocolNumber);
+
+    if (packet->GetSize() > GetMtu()) {
+        NS_LOG_ERROR("Fragmentation is needed for this packet, drop the packet ");
+        return false;
+    }
+
+    McpsDataRequestParams m_mcpsDataRequestParams;
+
+    Mac16Address dst16;
+
+    if (Mac48Address::IsMatchingType(dest)) {
+        uint8_t buf[6];
+        dest.CopyTo(buf);
+        dst16.CopyFrom(buf + 4);
+
+    } else {
+        dst16 = Mac16Address::ConvertFrom(dest);
+    }
+
+    m_mcpsDataRequestParams.m_dstAddr = dst16;
+    m_mcpsDataRequestParams.m_dstAddrMode = SHORT_ADDR;
+    m_mcpsDataRequestParams.m_dstPanId = m_mac->GetPanId();
+    m_mcpsDataRequestParams.m_srcAddrMode = SHORT_ADDR;
+
+    m_mcpsDataRequestParams.m_txOptions = TX_OPTION_ACK;
+    m_mcpsDataRequestParams.m_txOptions |= TX_OPTION_GTS;
+
+    m_mcpsDataRequestParams.m_msduHandle = 0;
+    m_mac->McpsDataRequest(m_mcpsDataRequestParams, packet);
+    return true;
+}
+
 bool
 LrWpanNetDevice::SendFrom(Ptr<Packet> packet,
                           const Address& source,

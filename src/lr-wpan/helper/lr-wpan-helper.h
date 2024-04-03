@@ -193,6 +193,7 @@ class LrWpanHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
 
     void GenerateTraffic(Ptr<NetDevice> dev, Address dst, int packet_size, double start, double duration, double interval);
     void SendPacket(Ptr<NetDevice> dev, Address dst, int packet_size, double interval,double end);
+    void SendGACKPacket(Ptr<NetDevice> dev, Address dst, int packet_size, double interval,double end);
 
   private:
     /**

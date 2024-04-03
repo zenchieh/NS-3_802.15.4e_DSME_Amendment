@@ -161,6 +161,7 @@ class LrWpanNetDevice : public NetDevice
     bool SupportsSendFrom() const override;
 
     bool SendInGts(Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber);
+    bool SendGACKInGts(Ptr<Packet> packet, const Address& dest, uint16_t protocolNumber);
 
     /**
      * The callback used by the MAC to hand over incoming packets to the

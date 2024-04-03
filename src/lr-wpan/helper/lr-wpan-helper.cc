@@ -340,6 +340,23 @@ void LrWpanHelper::SendPacket(Ptr<NetDevice> dev, Address dst, int packet_size, 
     }
 }
 
+void LrWpanHelper::SendGACKPacket(Ptr<NetDevice> dev, Address dst, int packet_size, double interval, double end) {
+    // TODO
+    NS_LOG_DEBUG("Sending Packet");
+
+    if (Simulator::Now().GetSeconds() <= end) {
+        Ptr<Packet> pkt = Create<Packet> (packet_size);
+        // dev->Send(pkt, dst, 0x86DD);
+
+        Ptr<LrWpanNetDevice> device = DynamicCast<LrWpanNetDevice>(dev);
+        device->SendGACKInGts(pkt, dst, 0x86DD);
+    }
+
+    if (Simulator::Now().GetSeconds() <= (end + interval)) {
+        Simulator::Schedule(Seconds(interval), &LrWpanHelper::SendGACKPacket, this, dev, dst, packet_size, interval, end);
+    }
+}
+
 void
 LrWpanHelper::AssociateToPan(NetDeviceContainer c, uint16_t panId)
 {

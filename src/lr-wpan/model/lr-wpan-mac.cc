@@ -3213,8 +3213,8 @@ LrWpanMac::EndStartRequest()
                 m_dsmePanDescriptorIE.SetChannelHopping(channelHoppingField); 
 
                 // DSME-TODO
-                // GroupACK groupAckField;
-                // m_dsmePanDescriptorIE.SetGroupACK(groupAckField);
+                GroupACK groupAckField;
+                m_dsmePanDescriptorIE.SetGroupACK(groupAckField);
 
                 // multi-superframe duration
                 m_multiSuperframeDuration = 
@@ -5621,7 +5621,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         // DSME-TODO
 
                         // Group ACK Specification
-                        // DSME-TODO
+                        // DSME-TODO            
 
                         HeaderIETermination termination;
                         p->RemoveHeader(termination);
