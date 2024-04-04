@@ -35,11 +35,11 @@ int main(int argc, char** argv) {
         addrArr[i].CopyTo(buffer16MacAddr);
         std::cout << "addrArr : " << AddrConvertToInt(buffer16MacAddr) << "\n";
         char addrBuf[20];
-        sprintf(addrBuf, "%d", AddrConvertToInt(buffer16MacAddr));
+        sprintf(addrBuf, "%d", AddrConvertToInt(buffer16MacAddr) + 3);
         std::cout << "addrBuf : " << addrBuf << "\n";
 
         uint32_t buffer_hash = Hash64(addrBuf, 20);        
-        std::cout << "buffer_hash : " << buffer_hash % 64 << "\n";
+        std::cout << "buffer_hash : " << buffer_hash % 61 << "\n";
     }
 
 

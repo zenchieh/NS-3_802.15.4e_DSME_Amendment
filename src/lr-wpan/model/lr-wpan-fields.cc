@@ -1124,8 +1124,7 @@ operator<<(std::ostream& os, const CapabilityField& capabilityField)
 
 EnhancedGroupACK::EnhancedGroupACK()
 {
-    m_groupAckLeftHashTableBitmap = 0;
-    m_groupAckRightHashTableBitmap = 0;
+    m_groupAckHashTableBitmap = 0;
 }
 
 void
@@ -1141,30 +1140,41 @@ EnhancedGroupACK::GetSerializedSize() const
 }
 
 uint64_t
-EnhancedGroupACK::GetLeftHashTableBitmap() const
+EnhancedGroupACK::GetHashTableBitmap() const
 {
-    return m_groupAckLeftHashTableBitmap;
+    return m_groupAckHashTableBitmap;
 }
 
-uint64_t
-EnhancedGroupACK::GetRightHashTableBitmap() const
+uint16_t
+EnhancedGroupACK::GetHashTableBitmapSize() const
 {
-    return m_groupAckRightHashTableBitmap;
+    return 64;
+}
+
+void
+EnhancedGroupACK::ResetHashTableBitmap()
+{
+    m_groupAckHashTableBitmap = 0;
 }
 
 Buffer::Iterator
 EnhancedGroupACK::Serialize(Buffer::Iterator i) const
 {
-    i.WriteHtolsbU16(GetLeftHashTableBitmap());
-    i.WriteHtolsbU16(GetRightHashTableBitmap());
+    i.WriteHtolsbU64(GetHashTableBitmap());
     return i;
 }
 Buffer::Iterator
 EnhancedGroupACK::Deserialize(Buffer::Iterator i)
 {
-    m_groupAckLeftHashTableBitmap =  i.ReadLsbtohU16();
-    m_groupAckRightHashTableBitmap =  i.ReadLsbtohU16();
+    m_groupAckHashTableBitmap =  i.ReadLsbtohU64();
     return i;
+}
+
+std::ostream &operator << (std::ostream &os, const EnhancedGroupACK& enhancedGroupACK) 
+{
+    os << " Enhanced group ack hash table bitmap = " << uint64_t(enhancedGroupACK.GetHashTableBitmap())
+       << " , bitmap size = " << uint16_t(enhancedGroupACK.GetHashTableBitmapSize());
+    return os;
 }
 
 

@@ -632,19 +632,32 @@ public:
     */
     void SetBit(uint64_t bitmap, int bitLocation);
 
-    uint64_t GetLeftHashTableBitmap() const;
-    uint64_t GetRightHashTableBitmap() const;
+    /**
+     * Get the hash table of the enhanced group ack field.
+     * \return the bitmap of the packet received condition : 0 -> failed , 1 -> successful.
+     */
+    uint64_t GetHashTableBitmap() const;
+
+    /**
+     * Reset the hash table of the enhanced group ack field.
+     */
+    void ResetHashTableBitmap();
+
+    /**
+     * Get the hash table size of the enhanced group ack field.
+     * \return the size of the bitmap.
+     */
+    uint16_t GetHashTableBitmapSize() const;
 
     uint32_t GetSerializedSize() const;
     Buffer::Iterator Serialize(Buffer::Iterator i) const;
     Buffer::Iterator Deserialize(Buffer::Iterator i);
 
 private:
-    uint64_t m_groupAckLeftHashTableBitmap;
-    uint64_t m_groupAckRightHashTableBitmap;
-
+    uint64_t m_groupAckHashTableBitmap;
 };
 
+std::ostream &operator << (std::ostream &os, const EnhancedGroupACK& enhancedGroupACK);
 
 /**
  * \ingroup lr-wpan

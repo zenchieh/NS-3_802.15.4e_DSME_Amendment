@@ -43,16 +43,32 @@
 #include <tuple>
 #include <map>
 
+/**
+ * Self-Designed enhanced group ack flags
+*/ 
+#define GROUP_ACK_FIRST_SLOT 7
+#define GROUP_ACK_SECOND_SLOT 14
 namespace ns3
 {
 
 class Packet;
 class LrWpanCsmaCa;
 
+typedef enum
+{
+    GROUP_ACK_DISABLED = 0,     //!< GROUP_ACK_DISABLED (disable group ack feature)
+    GROUP_ACK_LEGACY = 1,       //!< GROUP_ACK_LEGACY
+    GROUP_ACK_ENHANCED = 2,     //!< GROUP_ACK_ENHANCED (Self-designed)
+    GROUP_ACK_RESERVED = 3,     //!< GROUP_ACK_RESERVED
+
+} LrWpanGroupAckPolicy;
+
+
+
 class BeaconSchedulingPerformance
 {
     public:
-
+        // TODO : beacon scheduling
         double m_bcnSchedulingSuccessRatio = 0;
         double m_bcnSchedulingPeriod = 0;
         double m_bcnSchedulingTotalPktCount = 0;
@@ -1487,6 +1503,13 @@ struct macDSMEACTEntity {
 class LrWpanMac : public Object
 {
   public:
+
+    /**
+     * Default constructor.
+     */
+    LrWpanMac();
+    ~LrWpanMac() override;
+
     /**
      * Get the type ID.
      *
@@ -1541,15 +1564,6 @@ class LrWpanMac : public Object
      * See IEEE 802.15.4-2011, section 6.4.1, Table 51.
      */
     static constexpr uint32_t aMaxSIFSFrameSize = 18;
-
-
-
-
-    /**
-     * Default constructor.
-     */
-    LrWpanMac();
-    ~LrWpanMac() override;
 
     /**
      * Check if the receiver will be enabled when the MAC is idle.
@@ -2808,6 +2822,35 @@ class LrWpanMac : public Object
      * Indicate current Multisuperframe sequence.
     */
     int32_t m_multisuperframeSeq = -1;
+
+    /**
+     * The enhanced group ack bitmap store at LrWpanMac (device MAC).
+    */
+    uint64_t m_enhancedGACKBitmap;
+
+    /**
+     * Indicate the group ack policy that the decice currently used.
+    */
+    LrWpanGroupAckPolicy m_groupAckPolicy;
+
+    /**
+     * The scheduled event to add superframeIDx.
+    */
+    void SetGroupAckPolicy(LrWpanGroupAckPolicy policy); 
+
+    /**
+     * (Input) addr + pkt seq  ---> Hash function --- > (output) hash table key
+    */
+    uint32_t GetHashTableKey(Mac16Address devAddr, uint32_t packetSeq);
+
+    /**
+     * Check the hash key is collision or not.
+    */
+    bool IsHashTableKeyCollision(uint32_t inputHashTableKey);
+
+    uint32_t CheckCollision(uint32_t Key, uint64_t hashedVal);
+    uint32_t DoDoubleHash(uint32_t Key, uint64_t hashedVal);
+    uint32_t DoQuadraticProb(uint32_t key, uint32_t count);
 
     /**
      * The scheduled event to add superframeIDx.

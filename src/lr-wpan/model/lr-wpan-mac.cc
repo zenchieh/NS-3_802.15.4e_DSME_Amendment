@@ -301,6 +301,7 @@ LrWpanMac::LrWpanMac() {
     m_bcnScehdulingFailCnt = 0;
     m_allocationSequence = 0;
     m_bcnSchedulingCtrlPktCount = 0;
+    m_groupAckPolicy = GROUP_ACK_DISABLED;
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -4428,6 +4429,18 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         ChangeMacState(MAC_GTS_SENDING);
         m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
     }
+
+    if((int)m_macDsmeACT[superframeID][idx].m_slotID == GROUP_ACK_FIRST_SLOT ||
+       (int)m_macDsmeACT[superframeID][idx].m_slotID == GROUP_ACK_SECOND_SLOT)
+    {
+        // NS_LOG_DEBUG("My Group Ack policy =  " << m_groupAckPolicy); for debug , Enhanced group ack = 2
+        // TODO : Send a group ack here
+        if(m_macDsmeACT[superframeID][idx].m_direction == 0) // TX
+        {
+            // SendGroupAck();
+        }
+    }
+
 }
 
 void LrWpanMac::EndGTS(SuperframeType superframeType) {
@@ -9501,5 +9514,69 @@ LrWpanMac::SetSuperframeIDx(uint16_t curSuperframeIDx)
 {
     m_curSuperframeIDx = curSuperframeIDx;
 }
+
+void LrWpanMac::SetGroupAckPolicy(LrWpanGroupAckPolicy policy) 
+{
+    m_groupAckPolicy = policy;
+}
+
+uint32_t LrWpanMac::GetHashTableKey(Mac16Address devAddr, uint32_t packetSeq)
+{
+
+    uint8_t buffer16MacAddr[2];
+    devAddr.CopyTo(buffer16MacAddr);
+
+    int bufSize = 20;
+    char addrBuf[bufSize];
+    // Addr ConvertTo Int
+    sprintf(addrBuf, "%d", (int)((buffer16MacAddr[0] << 8) | buffer16MacAddr[1]) + packetSeq); // We use the dev addr + packet sequence to generate the unique key.
+    
+    // Generate the value of hash table key, use hash function.
+    // Then mod 61 (beacause the group ack hash table bitmap is 64 bit, we find a closest prime numbers here , which is 61).
+    uint32_t primeNumClosestToBitmapSize = 61;
+    uint64_t hashedValue = Hash64(addrBuf, bufSize);
+    uint32_t hashTableKey = hashedValue % primeNumClosestToBitmapSize;     
+
+    hashTableKey = CheckCollision(hashTableKey, hashedValue);
+
+    return hashTableKey;
+}
+
+bool LrWpanMac::IsHashTableKeyCollision(uint32_t inputHashTableKey)
+{
+    // Check the spcific bit of the bitmap
+    uint64_t mask = 1 << inputHashTableKey;
+    NS_LOG_DEBUG("m_enhancedGACKBitmap & mask = " << (m_enhancedGACKBitmap & mask));
+    return (m_enhancedGACKBitmap & mask); // TODO Need to check Sanity    
+}
+
+uint32_t LrWpanMac::CheckCollision(uint32_t key, uint64_t hashedVal)
+{
+    // First Check the key is collision (duplicate with previous keys) or not.
+    if(IsHashTableKeyCollision(key))
+    {
+        // Do the ** double hashing ** or ** Quadratic probing if there is a collision.
+        // key = DoDoubleHash(key, hashedVal);
+        key = DoQuadraticProb(key, 1);
+    }
+
+    return key;
+}
+
+uint32_t LrWpanMac::DoQuadraticProb(uint32_t key, uint32_t count)
+{
+    // Do the ** Quadratic probing ** if there is a collision.
+    // initial count = 1;
+
+    if (!IsHashTableKeyCollision(key)) // 沒重複了，可以Return
+    {
+        return key;
+    }
+
+    uint32_t newKey = key + (count ^ 2);  // ! May excceed to limit of table size, need check
+    return DoQuadraticProb(newKey, count + 1);
+}
+
+
 
 } // namespace ns3
