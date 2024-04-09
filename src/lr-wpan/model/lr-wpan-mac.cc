@@ -4273,10 +4273,14 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
     uint64_t gtsDuration = activeSlot * m_macDsmeACT[superframeID][idx].m_numSlot;
 
     // debug
-    Time endGtsTime; // TODO : ?? 這裡是幹嘛用的 ?? 為了要sync?
-    if (m_macDsmeACT[superframeID][idx].m_slotID == 6 || m_macDsmeACT[superframeID][idx].m_slotID == 15) {
-        endGtsTime = Seconds((double)gtsDuration / symbolRate) - MilliSeconds(50);
-    } else {
+    Time endGtsTime; 
+    if (m_macDsmeACT[superframeID][idx].m_slotID == 6 || m_macDsmeACT[superframeID][idx].m_slotID == 15) 
+    {
+        // endGtsTime = Seconds((double)gtsDuration / symbolRate) - MilliSeconds(50); // TODO : ?? 這裡是幹嘛用的 ?? 為了要sync?
+        endGtsTime = Seconds((double)gtsDuration / symbolRate);
+    }
+    else 
+    {
         endGtsTime = Seconds((double)gtsDuration / symbolRate) - NanoSeconds(1);
     }
 
@@ -5448,6 +5452,25 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     {
                         //! Send Ack here when received a data pkt 
                         // TODO : Need to check GACK is enabled or not
+
+                        if(m_groupAckPolicy == GROUP_ACK_ENHANCED)
+                        {
+                            NS_LOG_DEBUG("Enhanced Group Ack enabled, aggregate acks into Group Acks");
+                            // start generate the hash table key and write into bitmap.
+                            NS_LOG_DEBUG("Generate the hash table key , addr = " << receivedMacHdr.GetShortSrcAddr() << " seq = " << (uint32_t)receivedMacHdr.GetSeqNum());
+                            uint32_t bitLocation = GenerateHashTableKey(receivedMacHdr.GetShortSrcAddr(),(uint32_t)receivedMacHdr.GetSeqNum());
+
+                            // Set group ack bitmap according to the key location
+                            m_enhancedGACKBitmap |= 1 << bitLocation;
+                            NS_LOG_DEBUG("key , addr = " << bitLocation);
+                            PrintGroupAckBitmap();
+
+                        }
+                        else // Normal flow
+                        {
+                            // TODO : move the normal flow to here.
+                        }
+
                         m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SendAck,
                                                            this,
                                                            receivedMacHdr.GetSeqNum());
@@ -9520,7 +9543,7 @@ void LrWpanMac::SetGroupAckPolicy(LrWpanGroupAckPolicy policy)
     m_groupAckPolicy = policy;
 }
 
-uint32_t LrWpanMac::GetHashTableKey(Mac16Address devAddr, uint32_t packetSeq)
+uint32_t LrWpanMac::GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSeq)
 {
 
     uint8_t buffer16MacAddr[2];
@@ -9535,8 +9558,11 @@ uint32_t LrWpanMac::GetHashTableKey(Mac16Address devAddr, uint32_t packetSeq)
     // Then mod 61 (beacause the group ack hash table bitmap is 64 bit, we find a closest prime numbers here , which is 61).
     uint32_t primeNumClosestToBitmapSize = 61;
     uint64_t hashedValue = Hash64(addrBuf, bufSize);
+
+    // Do the first hash function by mod
     uint32_t hashTableKey = hashedValue % primeNumClosestToBitmapSize;     
 
+    // Check is collision with exist keys
     hashTableKey = CheckCollision(hashTableKey, hashedValue);
 
     return hashTableKey;
@@ -9567,14 +9593,155 @@ uint32_t LrWpanMac::DoQuadraticProb(uint32_t key, uint32_t count)
 {
     // Do the ** Quadratic probing ** if there is a collision.
     // initial count = 1;
-
+    // TODO : Need to check if larger than bitmap size, otherwise, it will overflow.
     if (!IsHashTableKeyCollision(key)) // 沒重複了，可以Return
     {
         return key;
     }
 
+    NS_LOG_DEBUG("Key collision");
+
     uint32_t newKey = key + (count ^ 2);  // ! May excceed to limit of table size, need check
     return DoQuadraticProb(newKey, count + 1);
+}
+
+void LrWpanMac::PrintGroupAckBitmap()
+{
+    std::bitset<64> bitmap(m_enhancedGACKBitmap); 
+    std::string bitmapStr = bitmap.to_string();
+    NS_LOG_DEBUG("Group Ack Bitmap : " << bitmapStr);
+}
+
+void LrWpanMac::ResetGroupAckBitmap()
+{
+    m_enhancedGACKBitmap = 0;
+}
+
+void LrWpanMac::SendEnhancedGroupAck()
+{
+    NS_LOG_FUNCTION(this);
+    NS_ASSERT(m_lrWpanMacState == MAC_IDLE);
+    NS_ASSERT(GetShortAddress() != Mac16Address("ff:ff"));
+
+    if(m_macPanId == 0xffff) // TODO : This is a workaround !! Root cause do not found yet ..
+    {                        // After a device leave the PAN (disassociation), the PAN id is set to 0xffff.
+        return;
+    }
+
+    LrWpanMacHeader macHdr;                         // Enhanced Group Ack MDR
+    BeaconPayloadHeader macPayload;                 // Enhanced Group Ack payload
+    Ptr<Packet> beaconPacket = Create<Packet>();
+    LrWpanMacTrailer macTrailer;
+
+    // Set MHD Frame control field
+
+    macHdr.SetType(LrWpanMacHeader::LRWPAN_MAC_ACKNOWLEDGMENT);
+    macHdr.SetSeqNum(m_macDsn.GetValue());
+    m_macDsn++;
+
+
+    macHdr.SetSecDisable();
+    macHdr.SetNoAckReq();
+
+    // DSME: indicate this is a enhanced beacon
+    macHdr.SetFrameVer(LrWpanMacHeader::IEEE_802_15_4);
+
+    macHdr.SetDstAddrMode(LrWpanMacHeader::SHORTADDR);
+    macHdr.SetDstAddrFields(GetPanId(), Mac16Address("ff:ff")); // broadcast packet
+
+    // see IEEE 802.15.4-2011 Section 5.1.2.4
+    if (GetShortAddress() == Mac16Address("ff:fe")) {
+        macHdr.SetSrcAddrMode(LrWpanMacHeader::EXTADDR);
+        macHdr.SetSrcAddrFields(GetPanId(), GetExtendedAddress());
+    } else {
+        macHdr.SetSrcAddrMode(LrWpanMacHeader::SHORTADDR);
+        macHdr.SetSrcAddrFields(GetPanId(), GetShortAddress());
+    }
+
+    // If a broadcast data or command frame is pending
+    //, the Frame Pending field shall be set to one
+    // See IEEE 802.15.4e-2012 5.2.2.1.1
+    if (m_indTxQueue.size()) {
+        macHdr.SetFrmPend();
+
+        // DSME-TODO
+        // Set the Pending Address Fields
+    }
+    
+    beaconPacket->AddHeader(macPayload);
+
+    // DSME PAN Descriptor IE should be sent in periodic enhanced beacon frame (DSME beacon mode)
+    if (m_macDSMEenabled && m_csmaCa->IsSlottedCsmaCa()) {  
+        macHdr.SetIEListPresent(); // If there is a IE , set to one
+
+        PayloadIETermination termination;
+        beaconPacket->AddHeader(termination);       
+
+        HeaderIETermination termination2;
+        beaconPacket->AddHeader(termination2);
+
+        TimeSync timeSync;
+        timeSync.SetBeaconTimeStamp(m_startOfBcnSlot.ToInteger(Time::NS));
+
+        // timeSync.SetBeaconOffsetTimeStamp();
+        m_dsmePanDescriptorIE.SetTimeSync(timeSync);
+
+        // NS_LOG_DEBUG("TEST : " << m_macSDBitmap);
+        m_dsmePanDescriptorIE.SetBeaconBitmap(m_macSDBitmap);
+
+        ChannelHopping channelHoppingField;
+        channelHoppingField.SetHoppingSequenceID(m_macHoppingSeqID);
+        channelHoppingField.SetPANCoordinatorBSN(m_macPANCoordinatorBSN.GetValue() - 1);
+        channelHoppingField.SetChannelOffset(m_macChannelOfs);
+        channelHoppingField.SetChannelOffsetBitmapLength(m_macChannelOfsBitmapLen);
+        channelHoppingField.SetChannelOffsetBitmap(m_macChannelOfsBitmap);
+        m_dsmePanDescriptorIE.SetChannelHopping(channelHoppingField); 
+
+        PendingAddrFields pndAddrFields = GetPendingAddrFields();
+        m_dsmePanDescriptorIE.SetPendingAddrFields(pndAddrFields);
+        
+        // DSME-TODO
+        m_dsmePanDescriptorIE.SetHeaderIEDescriptor(m_dsmePanDescriptorIE.GetSerializedSize() - 2
+                                                    , HEADERIE_DSME_PAN_DESCRIPTOR); // debug     
+
+        beaconPacket->AddHeader(m_dsmePanDescriptorIE);
+    }
+
+    beaconPacket->AddHeader(macHdr); 
+
+    // Calculate FCS if the global attribute ChecksumEnable is set.
+    if (Node::ChecksumEnabled()) {
+        macTrailer.EnableFcs(true);
+        macTrailer.SetFcs(beaconPacket);
+    }
+
+    beaconPacket->AddTrailer(macTrailer);
+
+    // Set the Beacon packet to be transmitted
+    m_txPkt = beaconPacket;
+
+    if (m_csmaCa->IsSlottedCsmaCa()) {
+        m_outSuperframeStatus = BEACON;
+        if (isCAPReductionOn()
+            && m_macSDindex % (m_multiSuperframeDuration / m_superframeDuration) != 0) {
+            NS_LOG_DEBUG("Outgoing superframe Active Portion (Beacon + CFP + CFP): "
+                        << m_superframeDuration << " symbols"
+                        <<" Next Beacon will at : " << (Simulator::Now() + Seconds((double) m_beaconInterval / 62500)).As(Time::S));
+
+        } else {
+            NS_LOG_DEBUG("Outgoing superframe Active Portion (Beacon + CAP + CFP): "
+                    << m_superframeDuration << " symbols"
+                    <<" Next Beacon will at : " << (Simulator::Now() + Seconds((double) m_beaconInterval / 62500)).As(Time::S));
+        }
+ 
+    } else {
+        NS_LOG_DEBUG("Outgoing Enhanced Beacon Frame response to Enhanced Beacon Request" );
+    }
+
+    m_BeaconStartTxTime = Simulator::Now();
+
+    ChangeMacState(MAC_SENDING);
+    m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
 }
 
 

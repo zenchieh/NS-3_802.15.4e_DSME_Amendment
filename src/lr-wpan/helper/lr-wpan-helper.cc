@@ -325,7 +325,8 @@ void LrWpanHelper::GenerateTraffic(Ptr<NetDevice> dev, Address dst, int packet_s
 }
 
 void LrWpanHelper::SendPacket(Ptr<NetDevice> dev, Address dst, int packet_size, double interval, double end) {
-    NS_LOG_DEBUG("Sending Packet");
+
+    // NS_LOG_DEBUG("Sending Packet");
 
     if (Simulator::Now().GetSeconds() <= end) {
         Ptr<Packet> pkt = Create<Packet> (packet_size);

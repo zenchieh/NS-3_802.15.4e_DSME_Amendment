@@ -30,6 +30,7 @@ NS_OBJECT_ENSURE_REGISTERED(LrWpanMacHeader);
 
 LrWpanMacHeader::LrWpanMacHeader()
 {
+    // Setting frame control field
     SetType(LRWPAN_MAC_DATA); // Assume Data frame
     SetSecDisable();          // Assume there is No Aux Sec but
     SetNoFrmPend();           // No Frame Pending
@@ -46,6 +47,7 @@ LrWpanMacHeader::LrWpanMacHeader()
 
 LrWpanMacHeader::LrWpanMacHeader(enum LrWpanMacType wpanMacType, uint8_t seqNum)
 {
+    // Setting frame control field
     SetType(wpanMacType);
     SetSeqNum(seqNum);
     SetSecDisable();        // Assume there is No Aux Sec but

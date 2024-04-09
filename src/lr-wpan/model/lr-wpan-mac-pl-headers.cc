@@ -2048,10 +2048,83 @@ uint16_t TestNewHeader::GetData() const {
 
 
 
+/***********************************************************
+ *                  Enhanced Group Ack IE
+ ***********************************************************/
 
+NS_OBJECT_ENSURE_REGISTERED(EnhancedGroupAckDescriptorIE);
 
+EnhancedGroupAckDescriptorIE::EnhancedGroupAckDescriptorIE()
+{
+    m_u8GroupAckBitmap = 0;
+}
 
+EnhancedGroupAckDescriptorIE::~EnhancedGroupAckDescriptorIE()
+{
 
+}
+
+void EnhancedGroupAckDescriptorIE::SetHeaderIEDescriptor()
+{
+    m_descriptor.SetLength(ieLength); // According to the length set before
+    m_descriptor.SetHeaderElementID(HEADERIE_ENHANCED_GACK);
+}
+
+void EnhancedGroupAckDescriptorIE::SetIELength(uint32_t length)
+{
+    ieLength = length;
+}
+
+uint32_t EnhancedGroupAckDescriptorIE::GetIELength() const
+{
+    return ieLength;
+}
+
+// TypeId EnhancedGroupAckDescriptorIE::GetTypeId() {
+//     // static TypeId tid = TypeId("ns3::EnhancedGroupAckDescriptorIE")
+//     //                         .SetParent<Header>()
+//     //                         .SetGroupName("LrWpan")
+//     //                         .AddConstructor<EnhancedGroupAckDescriptorIE>();
+//     // return tid;
+//     return 0;
+// }
+
+// TypeId EnhancedGroupAckDescriptorIE::GetInstanceTypeId() const
+// {
+//     // return GetTypeId();
+// }
+
+uint32_t EnhancedGroupAckDescriptorIE::GetSerializedSize() const
+{
+    
+    uint32_t size = GetIELength(); // According to the size
+    return size;
+}
+
+void EnhancedGroupAckDescriptorIE::Serialize(Buffer::Iterator start) const {
+    Buffer::Iterator i = start;
+
+    // if(GetIELength() == 64) TODO : Dynamic adjust size
+    // {
+
+    // }
+
+    i.WriteHtolsbU64(m_u8GroupAckBitmap);
+
+}
+
+uint32_t EnhancedGroupAckDescriptorIE::Deserialize(Buffer::Iterator start) {
+    
+    Buffer::Iterator i = start;
+    m_u8GroupAckBitmap = i.ReadLsbtohU64();
+    return i.GetDistanceFrom(start);
+}
+
+void EnhancedGroupAckDescriptorIE::PrintBitmap(){
+    std::bitset<64> bitmap(m_u8GroupAckBitmap); 
+    std::string bitmapStr = bitmap.to_string();
+    std::cout << bitmapStr;
+}
 
 
 

@@ -62,7 +62,7 @@ dataSentMacConfirm(McpsDataConfirmParams params) // McpsDataConfirmCallBack
 
 static void dataIndication(McpsDataIndicationParams params, Ptr<Packet> p) {
     NS_LOG_UNCOND(Simulator::Now().GetSeconds()
-                  << " secs | Received DATA packet of size " << p->GetSize());
+                  << " secs | The RX higher layer received DATA packet of size " << p->GetSize() << "bytes");
     pktRecv += 1;
 }
 
@@ -260,9 +260,9 @@ int main(int argc, char** argv) {
 
         // Setting the GTS for Group Ack slot (at slot 7 & slot 14 for CAP reduction).
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
-                            , superframeID, 7);
+                            , superframeID, 6);
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
-                            , superframeID, 7);  
+                            , superframeID, 6);  
 
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
                             , superframeID, 14);     

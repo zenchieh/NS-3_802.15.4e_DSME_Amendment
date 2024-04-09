@@ -141,7 +141,8 @@ enum HeaderElementIDs {
     HEADERIE_LOW_LANTENCY_NET_INFO = 0x20,       //!< Low Latency Network Info
     HEADERIE_LIST_TERMINATION_1    = 0x7e,       //!< List Termination 1
     HEADERIE_LIST_TERMINATION_2    = 0x7f,       //!< List Termination 2
-    HEADERIE_RESERVED              = 0x21        //!< Reserved
+    HEADERIE_ENHANCED_GACK         = 0x21,       //!< Reserved
+    HEADERIE_RESERVED              = 0x22        //!< Reserved
 };
 
 /** 
@@ -239,7 +240,7 @@ public:
 
 private:
     HeaderIEDescriptor m_descriptor;
- 
+    // IE content
     SuperframeField m_superframeField;
     PendingAddrFields m_pndAddrFields;
     DsmeSuperFrameField m_dsmeSuperframeField;
@@ -248,6 +249,38 @@ private:
     ChannelHopping m_channelHoppingField;
     GroupACK m_gack;
 };
+
+/**
+ * \ingroup lr-wpan
+ * Self Designed Enhanced Group Header IE
+ */
+class EnhancedGroupAckDescriptorIE : public Header {
+public:
+    EnhancedGroupAckDescriptorIE();
+    ~EnhancedGroupAckDescriptorIE();
+
+    void SetHeaderIEDescriptor();
+    void SetIELength(uint32_t length);
+    uint32_t GetIELength() const;
+    // static TypeId GetTypeId();
+    // TypeId GetInstanceTypeId() const;
+
+    uint32_t GetSerializedSize() const override;
+    void Serialize(Buffer::Iterator start) const override;
+    uint32_t Deserialize(Buffer::Iterator start) override;
+
+    void PrintBitmap();
+
+private:
+    HeaderIEDescriptor m_descriptor;
+
+    uint32_t ieLength;  // TODO: if we decide to use dynamic adjust bitmap size, this variable needs to add into IE content
+
+    // IE content
+    uint64_t m_u8GroupAckBitmap;
+    // uint128_t m_u16GroupAckBitmap;
+};
+
 
 /**
  * \ingroup lr-wpan

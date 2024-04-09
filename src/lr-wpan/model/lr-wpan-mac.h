@@ -42,6 +42,7 @@
 #include <memory>
 #include <tuple>
 #include <map>
+#include <bitset>
 
 /**
  * Self-Designed enhanced group ack flags
@@ -2841,7 +2842,7 @@ class LrWpanMac : public Object
     /**
      * (Input) addr + pkt seq  ---> Hash function --- > (output) hash table key
     */
-    uint32_t GetHashTableKey(Mac16Address devAddr, uint32_t packetSeq);
+    uint32_t GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSeq);
 
     /**
      * Check the hash key is collision or not.
@@ -3104,6 +3105,10 @@ class LrWpanMac : public Object
      * Convert Extend addr to short addr.
     */
     Mac16Address ConvertExtAddrToShortAddr(Mac64Address ExtAddr);
+
+    void PrintGroupAckBitmap();
+    void ResetGroupAckBitmap();
+    void SendEnhancedGroupAck();
 
   protected:
     // Inherited from Object.
