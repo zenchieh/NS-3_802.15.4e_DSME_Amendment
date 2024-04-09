@@ -2066,7 +2066,7 @@ EnhancedGroupAckDescriptorIE::~EnhancedGroupAckDescriptorIE()
 
 void EnhancedGroupAckDescriptorIE::SetHeaderIEDescriptor()
 {
-    m_descriptor.SetLength(ieLength); // According to the length set before
+    m_descriptor.SetLength(ieLength); // According to the length set before, The length field specifies the number of octets in the IE Content
     m_descriptor.SetHeaderElementID(HEADERIE_ENHANCED_GACK);
 }
 
@@ -2103,7 +2103,7 @@ uint32_t EnhancedGroupAckDescriptorIE::GetSerializedSize() const
 
 void EnhancedGroupAckDescriptorIE::Serialize(Buffer::Iterator start) const {
     Buffer::Iterator i = start;
-
+    i = m_descriptor.Serialize(i);
     // if(GetIELength() == 64) TODO : Dynamic adjust size
     // {
 
@@ -2116,14 +2116,48 @@ void EnhancedGroupAckDescriptorIE::Serialize(Buffer::Iterator start) const {
 uint32_t EnhancedGroupAckDescriptorIE::Deserialize(Buffer::Iterator start) {
     
     Buffer::Iterator i = start;
+    i = m_descriptor.Deserialize(i);
     m_u8GroupAckBitmap = i.ReadLsbtohU64();
+    // PrintBitmap();
     return i.GetDistanceFrom(start);
 }
 
 void EnhancedGroupAckDescriptorIE::PrintBitmap(){
     std::bitset<64> bitmap(m_u8GroupAckBitmap); 
     std::string bitmapStr = bitmap.to_string();
-    std::cout << bitmapStr;
+    std::cout << "EnhancedGroupAckDescriptorIE - Bitmap = " << bitmapStr;
+}
+
+void EnhancedGroupAckDescriptorIE::SetGroupAckBitmap(uint64_t bitmap)
+{
+    m_u8GroupAckBitmap = bitmap;
+}
+
+
+void EnhancedGroupAckDescriptorIE::Print(std::ostream &os) const {
+    os << "| m_u8GroupAckBitmap | = " << m_u8GroupAckBitmap << std::endl;
+
+}
+
+TypeId
+EnhancedGroupAckDescriptorIE::GetTypeId()
+{
+    static TypeId tid = TypeId("ns3::EnhancedGroupAckDescriptorIE")
+                            .SetParent<Header>()
+                            .SetGroupName("LrWpan")
+                            .AddConstructor<EnhancedGroupAckDescriptorIE>();
+    return tid;
+}
+
+TypeId
+EnhancedGroupAckDescriptorIE::GetInstanceTypeId() const
+{
+    return GetTypeId();
+}
+
+uint64_t EnhancedGroupAckDescriptorIE::GetGroupAckBitmap() const
+{
+    return m_u8GroupAckBitmap;
 }
 
 

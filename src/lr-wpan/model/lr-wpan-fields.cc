@@ -1166,7 +1166,7 @@ EnhancedGroupACK::Serialize(Buffer::Iterator i) const
 Buffer::Iterator
 EnhancedGroupACK::Deserialize(Buffer::Iterator i)
 {
-    m_groupAckHashTableBitmap =  i.ReadLsbtohU64();
+    m_groupAckHashTableBitmap = i.ReadLsbtohU64();
     return i;
 }
 

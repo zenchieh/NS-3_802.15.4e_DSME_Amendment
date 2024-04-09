@@ -261,13 +261,17 @@ public:
 
     void SetHeaderIEDescriptor();
     void SetIELength(uint32_t length);
+    void SetGroupAckBitmap(uint64_t bitmap);
+    uint64_t GetGroupAckBitmap() const; 
     uint32_t GetIELength() const;
-    // static TypeId GetTypeId();
-    // TypeId GetInstanceTypeId() const;
+    static TypeId GetTypeId();
+    TypeId GetInstanceTypeId() const;
 
     uint32_t GetSerializedSize() const override;
     void Serialize(Buffer::Iterator start) const override;
     uint32_t Deserialize(Buffer::Iterator start) override;
+
+    void Print(std::ostream &os) const override;
 
     void PrintBitmap();
 

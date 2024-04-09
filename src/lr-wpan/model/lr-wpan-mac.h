@@ -47,7 +47,7 @@
 /**
  * Self-Designed enhanced group ack flags
 */ 
-#define GROUP_ACK_FIRST_SLOT 7
+#define GROUP_ACK_FIRST_SLOT 6
 #define GROUP_ACK_SECOND_SLOT 14
 namespace ns3
 {
