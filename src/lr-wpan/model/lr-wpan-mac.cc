@@ -4446,7 +4446,6 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
             Simulator::Schedule(Time("3ms"), 
                                 &LrWpanMac::SendEnhancedGroupAck,
                                 this);
-            ResetGroupAckBitmap();
         }
     }
 
@@ -6639,12 +6638,12 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                 
                 if(receivedMacHdr.IsAcknowledgment() && receivedMacHdr.IsIEListPresent() && m_groupAckPolicy == GROUP_ACK_ENHANCED) // E-GACK
                 {
-                    NS_LOG_DEBUG("Received Enhanced Group Ack");
                     LrWpanMacHeader peekedMacHdr;
                     EnhancedGroupAckDescriptorIE receivedEnhancedGackIE;
                     p->RemoveHeader(receivedEnhancedGackIE);
-                    receivedEnhancedGackIE.PrintBitmap();
-                    NS_LOG_DEBUG("Received bitmap = " << receivedEnhancedGackIE.GetGroupAckBitmap());
+                    NS_LOG_DEBUG("Received Enhanced Group Ack Bitmap = " << receivedEnhancedGackIE);
+                    
+                    // TODO : Check with device own pkt sending table.
                 }
             }
             else
@@ -7619,6 +7618,7 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
         else if(macHdr.IsAcknowledgment() && macHdr.IsIEListPresent())
         {
             NS_LOG_DEBUG("Successfully sent a Group Ack packet.");
+            ResetGroupAckBitmap();
             m_txPkt = nullptr;;
         }
         else 
@@ -9745,10 +9745,10 @@ void LrWpanMac::SendEnhancedGroupAck()
     enhancedGackDescriptorIE.SetHeaderIEDescriptor();
 
     // For testing purpose
-    uint64_t testBitmap = 4;
-    enhancedGackDescriptorIE.SetGroupAckBitmap(testBitmap); 
+    // uint64_t testBitmap = 4;
+    // enhancedGackDescriptorIE.SetGroupAckBitmap(testBitmap); 
 
-    // enhancedGackDescriptorIE.SetGroupAckBitmap(m_enhancedGACKBitmap);  
+    enhancedGackDescriptorIE.SetGroupAckBitmap(m_enhancedGACKBitmap);  
     
     // Add Header IE
     enhancedGroupAckPacket->AddHeader(enhancedGackDescriptorIE);

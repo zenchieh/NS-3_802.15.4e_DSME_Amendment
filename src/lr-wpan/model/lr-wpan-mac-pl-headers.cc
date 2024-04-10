@@ -2128,6 +2128,12 @@ void EnhancedGroupAckDescriptorIE::PrintBitmap(){
     std::cout << "EnhancedGroupAckDescriptorIE - Bitmap = " << bitmapStr;
 }
 
+std::ostream& operator << (std::ostream &os, const EnhancedGroupAckDescriptorIE& enhancedGroupAckDescriptorIE) {
+
+    os << std::bitset<64>(enhancedGroupAckDescriptorIE.GetGroupAckBitmap()); 
+    return os;
+}
+
 void EnhancedGroupAckDescriptorIE::SetGroupAckBitmap(uint64_t bitmap)
 {
     m_u8GroupAckBitmap = bitmap;

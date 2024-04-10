@@ -62,7 +62,7 @@ dataSentMacConfirm(McpsDataConfirmParams params) // McpsDataConfirmCallBack
 
 static void dataIndication(McpsDataIndicationParams params, Ptr<Packet> p) {
     NS_LOG_UNCOND(Simulator::Now().GetSeconds()
-                  << " secs | The RX higher layer received DATA packet of size " << p->GetSize() << "bytes");
+                  << " secs | The RX higher layer received DATA packet of size " << p->GetSize() << " bytes");
     pktRecv += 1;
 }
 

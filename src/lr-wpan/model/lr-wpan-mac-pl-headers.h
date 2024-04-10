@@ -285,6 +285,9 @@ private:
     // uint128_t m_u16GroupAckBitmap;
 };
 
+std::ostream& operator << (std::ostream &os, const EnhancedGroupAckDescriptorIE& enhancedGroupAckDescriptorIE);
+
+
 
 /**
  * \ingroup lr-wpan
