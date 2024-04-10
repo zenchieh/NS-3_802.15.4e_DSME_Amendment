@@ -2842,7 +2842,7 @@ class LrWpanMac : public Object
     /**
      * (Input) addr + pkt seq  ---> Hash function --- > (output) hash table key
     */
-    uint32_t GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSeq);
+    uint64_t GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSeq);
 
     /**
      * Check the hash key is collision or not.

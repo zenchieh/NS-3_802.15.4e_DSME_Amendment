@@ -4441,7 +4441,12 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         // TODO : Send a group ack here
         if(m_macDsmeACT[superframeID][idx].m_direction == 0) // TX
         {
-            Simulator::ScheduleNow(&LrWpanMac::SendEnhancedGroupAck, this);
+            // Delay 3ms for the GTS TX-RX time diff
+            // This will avoid for sending GACK packet before the receiver turn on RX.
+            Simulator::Schedule(Time("3ms"), 
+                                &LrWpanMac::SendEnhancedGroupAck,
+                                this);
+            ResetGroupAckBitmap();
         }
     }
 
@@ -5102,11 +5107,11 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                 break;
         }
 
-        NS_LOG_DEBUG("receivedMacHdr.GetSrcPanId()" << receivedMacHdr.GetSrcPanId());
-        NS_LOG_DEBUG("receivedMacHdr.GetDstPanId()" << receivedMacHdr.GetDstPanId());
+        // NS_LOG_DEBUG("receivedMacHdr.GetSrcPanId()" << receivedMacHdr.GetSrcPanId());
+        // NS_LOG_DEBUG("receivedMacHdr.GetDstPanId()" << receivedMacHdr.GetDstPanId());
 
-        NS_LOG_DEBUG("receivedMacHdr.GetShortDstAddr()" << receivedMacHdr.GetShortDstAddr());
-        NS_LOG_DEBUG("receivedMacHdr.GetShortSrcAddr()" << receivedMacHdr.GetShortSrcAddr());
+        // NS_LOG_DEBUG("receivedMacHdr.GetShortDstAddr()" << receivedMacHdr.GetShortDstAddr());
+        // NS_LOG_DEBUG("receivedMacHdr.GetShortSrcAddr()" << receivedMacHdr.GetShortSrcAddr());
 
         if (m_macPromiscuousMode) 
         {
@@ -5470,11 +5475,11 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             NS_LOG_DEBUG("Enhanced Group Ack enabled, aggregate acks into Group Acks");
                             // start generate the hash table key and write into bitmap.
                             NS_LOG_DEBUG("Generate the hash table key , addr = " << receivedMacHdr.GetShortSrcAddr() << " seq = " << (uint32_t)receivedMacHdr.GetSeqNum());
-                            uint32_t bitLocation = GenerateHashTableKey(receivedMacHdr.GetShortSrcAddr(),(uint32_t)receivedMacHdr.GetSeqNum());
+                            uint64_t bitLocation = GenerateHashTableKey(receivedMacHdr.GetShortSrcAddr(),(uint32_t)receivedMacHdr.GetSeqNum());
 
                             // Set group ack bitmap according to the key location
-                            m_enhancedGACKBitmap |= 1 << bitLocation;
-                            NS_LOG_DEBUG("key , addr = " << bitLocation);
+                            m_enhancedGACKBitmap |= ((uint64_t)1 << bitLocation);
+                            NS_LOG_DEBUG("bitLocation = " << bitLocation);
                             PrintGroupAckBitmap();
 
                         }
@@ -9587,7 +9592,7 @@ void LrWpanMac::SetGroupAckPolicy(LrWpanGroupAckPolicy policy)
     m_groupAckPolicy = policy;
 }
 
-uint32_t LrWpanMac::GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSeq)
+uint64_t LrWpanMac::GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSeq)
 {
 
     uint8_t buffer16MacAddr[2];
@@ -9604,7 +9609,7 @@ uint32_t LrWpanMac::GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSe
     uint64_t hashedValue = Hash64(addrBuf, bufSize);
 
     // Do the first hash function by mod
-    uint32_t hashTableKey = hashedValue % primeNumClosestToBitmapSize;     
+    uint64_t hashTableKey = hashedValue % primeNumClosestToBitmapSize;     
 
     // Check is collision with exist keys
     hashTableKey = CheckCollision(hashTableKey, hashedValue);
@@ -9616,7 +9621,7 @@ bool LrWpanMac::IsHashTableKeyCollision(uint32_t inputHashTableKey)
 {
     // Check the spcific bit of the bitmap
     uint64_t mask = 1 << inputHashTableKey;
-    NS_LOG_DEBUG("m_enhancedGACKBitmap & mask = " << (m_enhancedGACKBitmap & mask));
+    // NS_LOG_DEBUG("m_enhancedGACKBitmap & mask = " << (m_enhancedGACKBitmap & mask));
     return (m_enhancedGACKBitmap & mask); // TODO Need to check Sanity    
 }
 

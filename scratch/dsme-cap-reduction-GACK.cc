@@ -246,7 +246,8 @@ int main(int argc, char** argv) {
 
 
         // Setting the GTS of Coord and devices with channel offset & TX/RX direction & SPFIdx & slotIDx etc.
-        for(int slotIdx; slotIdx < 3; slotIdx++)
+        // allocate slot 0 ~ slot 2
+        for(int slotIdx = 0; slotIdx < 3; slotIdx++)
         {
             lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
                                 , superframeID, slotIdx);
@@ -256,9 +257,14 @@ int main(int argc, char** argv) {
         }        
 
         // Setting parameters of sending the data packets.
-        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.0001);                      
+        // This will continuously TX packet , non stop.
+        // lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.0001);      
 
-        // Setting the GTS for Group Ack slot (at slot 7 & slot 14 for CAP reduction).
+        // This will send packet at slot 0 ~ slot 2 (allocated slots like above)
+        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 0.023, 0.0001);  
+
+
+        // Setting the GTS for Group Ack slot (at slot 6 & slot 14 for CAP reduction).
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
                             , superframeID, 6);
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
@@ -270,19 +276,19 @@ int main(int argc, char** argv) {
                             , superframeID, 14);    
     }
 
-    for (int i = 0; i < 1; ++i) {
-        int childIdx = i + NUM_COORD;
-        // Channel Offset setting
-        lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
+    // for (int i = 0; i < 1; ++i) {
+    //     int childIdx = i + NUM_COORD;
+    //     // Channel Offset setting
+    //     lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
 
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
-                                , superframeID, 1);
+    //     lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
+    //                             , superframeID, 1);
 
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
-                                , superframeID, 1);
+    //     lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
+    //                             , superframeID, 1);
 
-        // lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.0001);                      
-    }
+    //     lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.0001);                      
+    // }
 
 
 
