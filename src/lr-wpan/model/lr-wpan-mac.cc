@@ -6642,8 +6642,15 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     EnhancedGroupAckDescriptorIE receivedEnhancedGackIE;
                     p->RemoveHeader(receivedEnhancedGackIE);
                     NS_LOG_DEBUG("Received Enhanced Group Ack Bitmap = " << receivedEnhancedGackIE);
+
+                    // For debug, check the pktBuffer sanity.
+                    for (size_t i = 0; i < m_groupAckPktBuffer.size(); i++) {
+                        NS_LOG_DEBUG("m_groupAckPktBuffer element = " << m_groupAckPktBuffer[i]);
+                    }                  
                     
                     // TODO : Check with device own pkt sending table.
+
+
                 }
             }
             else
@@ -7518,6 +7525,14 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                 {
                     NS_LOG_DEBUG("Send the data packet successfully !");
                     // std::cout << Simulator::Now().GetNanoSeconds() << ", " << GetShortAddress() << " successfully sent the data packet" << std::endl;
+
+                    /**
+                     * Recording the packet sequence number before received a enhanced group ack bitmap.
+                    */
+                    if(m_groupAckPolicy == GROUP_ACK_ENHANCED && m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning())
+                    {
+                        m_groupAckPktBuffer.push_back((uint32_t)macHdr.GetSeqNum());
+                    }
 
                     // (*m_record)[GetShortAddress()] = {macHdr.GetShortDstAddr(), {Simulator::Now().GetNanoSeconds()}};
                     if (m_record != nullptr) {

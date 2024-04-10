@@ -2835,6 +2835,11 @@ class LrWpanMac : public Object
     LrWpanGroupAckPolicy m_groupAckPolicy;
 
     /**
+     * Recording the packet sequence which transmit before receive a Enhanced Group Ack bitmap.
+    */
+    std::vector<uint32_t> m_groupAckPktBuffer;
+
+    /**
      * The scheduled event to add superframeIDx.
     */
     void SetGroupAckPolicy(LrWpanGroupAckPolicy policy); 
