@@ -5473,28 +5473,31 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         {
                             NS_LOG_DEBUG("Enhanced Group Ack enabled, aggregate acks into Group Acks");
                             // start generate the hash table key and write into bitmap.
-                            NS_LOG_DEBUG("Generate the hash table key , addr = " << receivedMacHdr.GetShortSrcAddr() << " seq = " << (uint32_t)receivedMacHdr.GetSeqNum());
+                            NS_LOG_DEBUG("Generate the hash table key , addr = " << receivedMacHdr.GetShortSrcAddr() << " seq = " << (uint32_t)receivedMacHdr.GetSeqNum() << " Push back into pktbuf");
                             uint64_t bitLocation = GenerateHashTableKey(receivedMacHdr.GetShortSrcAddr(),(uint32_t)receivedMacHdr.GetSeqNum());
 
                             // Set group ack bitmap according to the key location
                             m_enhancedGACKBitmap |= ((uint64_t)1 << bitLocation);
                             NS_LOG_DEBUG("bitLocation = " << bitLocation);
                             PrintGroupAckBitmap();
+                
+                            if (m_incGtsEvent.IsRunning() || m_gtsEvent.IsRunning()) 
+                            { 
+                                ChangeMacState(MAC_GTS);
+                            }
 
                         }
                         else // Normal flow
                         {
-                            // TODO : move the normal flow to here.
+                            m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SendAck,
+                                                            this,
+                                                            receivedMacHdr.GetSeqNum());
+                            // if (!receivedMacHdr.IsData()) {
+                            //     m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SendAck,
+                            //                                             this,
+                            //                                             receivedMacHdr.GetSeqNum());
+                            // }
                         }
-
-                        m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SendAck,
-                                                           this,
-                                                           receivedMacHdr.GetSeqNum());
-                        // if (!receivedMacHdr.IsData()) {
-                        //     m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SendAck,
-                        //                                             this,
-                        //                                             receivedMacHdr.GetSeqNum());
-                        // }
                     }
                     
                     // 應該是要 coordinator 有想要挑 beacon timeslot 就要發送
@@ -6666,6 +6669,18 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             newBitmap &= ~((uint64_t)1 << bitLocation);
                             receivedEnhancedGackIE.SetGroupAckBitmap(newBitmap);
                             // NS_LOG_DEBUG("After processing, Bitmap = " << receivedEnhancedGackIE);
+
+                            if (!m_mcpsDataConfirmCallback.IsNull()) 
+                            {
+                                if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) 
+                                {
+                                    // Received Ack packet, send McpsDataConfirmParams to the higher layer to trigger McpsDataConfirm.
+                                    McpsDataConfirmParams confirmParams;
+                                    confirmParams.m_msduHandle = m_mcpsDataRequestParams.m_msduHandle;
+                                    confirmParams.m_status = IEEE_802_15_4_SUCCESS;
+                                    m_mcpsDataConfirmCallback(confirmParams);
+                                }                                
+                            }
                         }
                         else // If the expect location in the bitmap is not 1 , the packet is transmit fail.
                         {
@@ -6674,7 +6689,18 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     }                    
 
                     ResetGroupAckBitmap();   
-                    ResetGroupAckBuffer();       
+                    ResetGroupAckBuffer();   
+
+                    Time ifsWaitTime = Seconds((double)m_macLIFSPeriod / symbolRate);                            
+                    if (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()) 
+                    {
+                        m_txPkt = nullptr;
+                        m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_GTS);
+                        m_ifsEvent = Simulator::Schedule(ifsWaitTime,
+                                                        &LrWpanMac::IfsWaitTimeout,
+                                                        this,
+                                                        ifsWaitTime);
+                    }     
                 }
             }
             else
@@ -7555,6 +7581,7 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     */
                     if(m_groupAckPolicy == GROUP_ACK_ENHANCED && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()))
                     {
+                        // NS_LOG_DEBUG("Push back into pktbuf , seq = " << (uint32_t)macHdr.GetSeqNum());
                         m_groupAckPktBuffer.push_back((uint32_t)macHdr.GetSeqNum());
                     }
 
@@ -7576,19 +7603,23 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     }
                 }
                 
-                // Time waitTime = Seconds(static_cast<double>(GetMacAckWaitDuration()) / symbolRate);
-                NS_ASSERT(m_ackWaitTimeout.IsExpired());
-                m_ackWaitTimeout = Simulator::Schedule(waitTime, &LrWpanMac::AckWaitTimeout, this);
                 m_setMacState.Cancel();
 
                 // TODO : If enabled E-GACK, no need to ACK_PENDING, maybe wait a ifs time is enough.
                 if(m_groupAckPolicy == GROUP_ACK_ENHANCED)
                 {
-
+                    m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_ACK_PENDING);
+                    ifsWaitTime = Seconds(static_cast<double>(m_macSIFSPeriod) / symbolRate);
+                    m_ifsEvent =  Simulator::Schedule(ifsWaitTime, &LrWpanMac::IfsWaitTimeout, this, ifsWaitTime);
                 }
-
-                m_setMacState =
-                    Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_ACK_PENDING);
+                else
+                {
+                    // Time waitTime = Seconds(static_cast<double>(GetMacAckWaitDuration()) / symbolRate);
+                    NS_ASSERT(m_ackWaitTimeout.IsExpired());
+                    m_ackWaitTimeout = Simulator::Schedule(waitTime, &LrWpanMac::AckWaitTimeout, this);
+                    m_setMacState =
+                        Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_ACK_PENDING);
+                }
 
                 return;
                 
@@ -9639,7 +9670,7 @@ uint64_t LrWpanMac::GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSe
     devAddr.CopyTo(buffer16MacAddr);
 
     int bufSize = 20;
-    char addrBuf[bufSize];
+    char addrBuf[bufSize] = {0};
     // Addr ConvertTo Int
     sprintf(addrBuf, "%d", (int)((buffer16MacAddr[0] << 8) | buffer16MacAddr[1]) + packetSeq); // We use the dev addr + packet sequence to generate the unique key.
     

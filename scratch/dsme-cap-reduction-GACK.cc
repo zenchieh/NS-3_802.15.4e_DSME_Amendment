@@ -261,8 +261,9 @@ int main(int argc, char** argv) {
         // lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.0001);      
 
         // This will send packet at slot 0 ~ slot 2 (allocated slots like above)
-        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 0.023, 0.0001);  
-
+        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 0.005, 0.0001);  
+        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.1232, 0.005, 0.0001);
+        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.1308, 0.005, 0.0001);
 
         // Setting the GTS for Group Ack slot (at slot 6 & slot 14 for CAP reduction).
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
