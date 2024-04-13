@@ -7553,7 +7553,7 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     /**
                      * Recording the packet sequence number before received a enhanced group ack bitmap.
                     */
-                    if(m_groupAckPolicy == GROUP_ACK_ENHANCED && m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning())
+                    if(m_groupAckPolicy == GROUP_ACK_ENHANCED && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()))
                     {
                         m_groupAckPktBuffer.push_back((uint32_t)macHdr.GetSeqNum());
                     }
@@ -9130,6 +9130,7 @@ LrWpanMac::FindVacantBeaconTimeSlot(BeaconBitmap beaconBitmap)
             return SLOT_UNDIFINED;
             break;
     }
+    return vacantBeaconSlot;
 }
 
 LrWpanAssociationStatus

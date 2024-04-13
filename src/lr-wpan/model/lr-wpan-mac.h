@@ -2806,7 +2806,7 @@ class LrWpanMac : public Object
     /**
      * Indicates the current SuperframeIDx, the value will be added at the beginning of each superframe and reset at the beginning of each multisuperframe.
     */
-    int16_t m_curSuperframeIDx;
+    uint32_t m_curSuperframeIDx;
     /**
      * Set the current SuperframeIDx, the value will be added at the beginning of each superframe and reset at the beginning of each multisuperframe.
     */
