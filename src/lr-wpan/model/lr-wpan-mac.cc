@@ -6643,14 +6643,38 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     p->RemoveHeader(receivedEnhancedGackIE);
                     NS_LOG_DEBUG("Received Enhanced Group Ack Bitmap = " << receivedEnhancedGackIE);
 
-                    // For debug, check the pktBuffer sanity.
-                    for (size_t i = 0; i < m_groupAckPktBuffer.size(); i++) {
-                        NS_LOG_DEBUG("m_groupAckPktBuffer element = " << m_groupAckPktBuffer[i]);
-                    }                  
-                    
-                    // TODO : Check with device own pkt sending table.
+                    if(receivedEnhancedGackIE.GetGroupAckBitmap() == 0)
+                    {
+                        NS_LOG_DEBUG("There is no packet need to Group Ack");
+                        return;
+                    }
 
+                    NS_LOG_DEBUG("Starting Check received Group Ack bitmap");
 
+                    for (size_t i = 0; i < m_groupAckPktBuffer.size(); i++) 
+                    {
+                        // After received E-GACK bitmap, start vertify the ack seq with the same hash function to generate the key.
+                        uint64_t bitLocation = GenerateHashTableKey(m_shortAddress, m_groupAckPktBuffer[i]);
+                        m_enhancedGACKBitmap |= ((uint64_t)1 << bitLocation);
+                        NS_LOG_DEBUG("m_groupAckPktBuffer element = " << m_groupAckPktBuffer[i] << " , bitLocation = " << bitLocation);
+
+                        // Check the corresponding location.
+                        if(receivedEnhancedGackIE.GetGroupAckBitmap() & ((uint64_t)1 << bitLocation))
+                        {
+                            NS_LOG_DEBUG("Seq : " << m_groupAckPktBuffer[i] << " Ack successfully");
+                            uint64_t newBitmap = receivedEnhancedGackIE.GetGroupAckBitmap();
+                            newBitmap &= ~((uint64_t)1 << bitLocation);
+                            receivedEnhancedGackIE.SetGroupAckBitmap(newBitmap);
+                            // NS_LOG_DEBUG("After processing, Bitmap = " << receivedEnhancedGackIE);
+                        }
+                        else // If the expect location in the bitmap is not 1 , the packet is transmit fail.
+                        {
+                            NS_LOG_DEBUG("Packet with seq num " << m_groupAckPktBuffer[i] << " transmit fail, ready to retransmit");
+                        }
+                    }                    
+
+                    ResetGroupAckBitmap();   
+                    ResetGroupAckBuffer();       
                 }
             }
             else
@@ -9635,7 +9659,7 @@ uint64_t LrWpanMac::GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSe
 bool LrWpanMac::IsHashTableKeyCollision(uint32_t inputHashTableKey)
 {
     // Check the spcific bit of the bitmap
-    uint64_t mask = 1 << inputHashTableKey;
+    uint64_t mask = (uint64_t)1 << inputHashTableKey;
     // NS_LOG_DEBUG("m_enhancedGACKBitmap & mask = " << (m_enhancedGACKBitmap & mask));
     return (m_enhancedGACKBitmap & mask); // TODO Need to check Sanity    
 }
@@ -9663,7 +9687,7 @@ uint32_t LrWpanMac::DoQuadraticProb(uint32_t key, uint32_t count)
         return key;
     }
 
-    NS_LOG_DEBUG("Key collision");
+    NS_LOG_DEBUG("Found key " << key << " collision");
 
     uint32_t newKey = key + (count ^ 2);  // ! May excceed to limit of table size, need check
     return DoQuadraticProb(newKey, count + 1);
@@ -9783,10 +9807,15 @@ void LrWpanMac::SendEnhancedGroupAck()
     // Set the Beacon packet to be transmitted
     m_txPkt = enhancedGroupAckPacket;
 
-    NS_LOG_DEBUG("Send a Group Ack Packet" );
+    NS_LOG_DEBUG("Send a Group Ack Packet");
 
     ChangeMacState(MAC_GTS_SENDING);
     m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
+}
+
+void LrWpanMac::ResetGroupAckBuffer()
+{
+    m_groupAckPktBuffer.clear();
 }
 
 
