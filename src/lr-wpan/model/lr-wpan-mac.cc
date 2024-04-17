@@ -3990,12 +3990,12 @@ void LrWpanMac::ScheduleGts(bool indication) {
                             superframeTime = Seconds((double)superframeDurations / symbolRate);
                             startGtsTime = endFirstTimeslotTime + gtsDuration + superframeTime;
                             twoCfp = true;
-                            NS_LOG_DEBUG("activeSlot " << activeSlot);
-                            NS_LOG_DEBUG("firstTimeslot " << firstTimeslot);
-                            NS_LOG_DEBUG("endFirstTimeslotTime " << endFirstTimeslotTime);
-                            NS_LOG_DEBUG("superframeDurations " << superframeDurations);
-                            NS_LOG_DEBUG("endCfpUntilTheGtsDuration " << endCfpUntilTheGtsDuration);
-                            NS_LOG_DEBUG("startGtsTime " << startGtsTime);
+                            // NS_LOG_DEBUG("activeSlot " << activeSlot);
+                            // NS_LOG_DEBUG("firstTimeslot " << firstTimeslot);
+                            // NS_LOG_DEBUG("endFirstTimeslotTime " << endFirstTimeslotTime);
+                            // NS_LOG_DEBUG("superframeDurations " << superframeDurations);
+                            // NS_LOG_DEBUG("endCfpUntilTheGtsDuration " << endCfpUntilTheGtsDuration);
+                            // NS_LOG_DEBUG("startGtsTime " << startGtsTime);
                         }
                         else
                         {
@@ -9741,6 +9741,7 @@ void LrWpanMac::ResetGroupAckBitmap()
 void LrWpanMac::SendEnhancedGroupAck()
 {
     NS_LOG_FUNCTION(this);
+    NS_LOG_DEBUG("m_lrWpanMacState - " << m_lrWpanMacState);
     NS_ASSERT(m_lrWpanMacState == MAC_GTS); // If error check here
     NS_ASSERT(m_groupAckPolicy == GROUP_ACK_ENHANCED);
 
