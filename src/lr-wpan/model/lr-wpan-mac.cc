@@ -4274,10 +4274,11 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
 
     // debug
     Time endGtsTime; 
-    if (m_macDsmeACT[superframeID][idx].m_slotID == 6 || m_macDsmeACT[superframeID][idx].m_slotID == 15) 
+    if (m_macDsmeACT[superframeID][idx].m_slotID == 6 || m_macDsmeACT[superframeID][idx].m_slotID == 14) 
     {
-        // endGtsTime = Seconds((double)gtsDuration / symbolRate) - MilliSeconds(50); // TODO : ?? 這裡是幹嘛用的 ?? 為了要sync?
-        endGtsTime = Seconds((double)gtsDuration / symbolRate);
+        // ? 這裡因為時間sync的關係，不讓ENDGTS先完成會使macState出錯，是一個workaround
+        endGtsTime = Seconds((double)gtsDuration / symbolRate) - NanoSeconds(10); 
+        // endGtsTime = Seconds((double)gtsDuration / symbolRate);
     }
     else 
     {
