@@ -36,11 +36,13 @@ using namespace ns3;
 #define NUM_COORD 2 // The number of coord, PAN-C need to be included.
 #define NUM_RFD 1 // The number of RFD.
 
+#define TREE_DEGREE 1 // The maximum degree of a node in the tree.
+
 #define BIT(X) (1 << 2^X)
 
 static double pktRecv = 0;
 static double pktSent = 0;
-static double throughput = 0;
+// static double throughput = 0;
 
 typedef enum
 {
@@ -134,7 +136,8 @@ int main(int argc, char** argv) {
     uint8_t channelNum = 11;
     bool capReduction = true;
 
-    for (unsigned int i = 0; i < lrwpanDevices.GetN(); ++i) {
+    for (unsigned int i = 0; i < lrwpanDevices.GetN(); ++i) 
+    {
         Ptr<LrWpanNetDevice> dev = lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>();
         dev->GetMac()->SetMcpsDataConfirmCallback(cb1);
         dev->GetMac()->SetMcpsDataIndicationCallback(cb2);
@@ -148,7 +151,9 @@ int main(int argc, char** argv) {
         dev->GetMac()->SetGroupAckPolicy(LrWpanGroupAckPolicy::GROUP_ACK_ENHANCED);
     }
 
-    // Pan Coord mlme-start.request params
+    /**
+     * Pan Coord Settings
+     */ 
     MlmeStartRequestParams startParams;
     startParams.m_panCoor = true;
     startParams.m_PanId = panId;
@@ -228,11 +233,13 @@ int main(int argc, char** argv) {
     }
     
     // GTSs setting
-    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) {
+    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) 
+    {
         lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>()->SetMcpsDataReqGts(true);
     }
 
-    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) {
+    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) 
+    {
         lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>()->GetMac()->ResizeScheduleGTSsEvent(bcnOrder, 
                                                                                               multisuperfrmOrder, 
                                                                                               superfrmOrder);
@@ -240,139 +247,75 @@ int main(int argc, char** argv) {
 
     // Setting packet size
     int pktSize = 10;
-    // Superframe ID = 1
+    // This case, now we only test Superframe ID = 1.
     uint16_t superframeID = 1;
-    for (int i = 0; i < 1; ++i) {
-        int childIdx = i + NUM_COORD;
-        // Channel Offset setting
-        lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
-        
-        // Setting the GTS of Coord and devices with channel offset & TX/RX direction & SPFIdx & slotIDx etc.
-        // allocate slot 0 ~ slot 5
-        for(int slotIdx = 0; slotIdx < 6; slotIdx++)
+
+    // Setting RFDs & Coords CFP Configurations
+    /**
+     *! CFP & GTS Setting
+    */
+    for(int coorIDx = 0; coorIDx < NUM_COORD - 1; coorIDx++) // minus one beacause of PAN-C 
+    {
+        int coordLrWpanDevIdx = coorIDx + 1; // plus one because the lrWpanDevIDx of PAN-C is 0
+        for(int deviceIdx = 0; deviceIdx < TREE_DEGREE; deviceIdx++)
         {
-            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
-                                , superframeID, slotIdx);
+            int childLrWpanDevIdx = deviceIdx + NUM_COORD + (coorIDx * TREE_DEGREE);
+            lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[coordLrWpanDevIdx]);
 
-            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
-                                , superframeID, slotIdx);       
-        }     
-        // allocate slot 7 ~ slot 13
-        for(int slotIdx = 7; slotIdx < 14; slotIdx++)
-        {
-            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
-                                , superframeID, slotIdx);
+            /**
+             *! CFP & GTS Setting
+            */
+            // Setting the GTS of Coord and devices with channel offset & TX/RX direction & SPFIdx & slotIDx etc.
+            // allocate slot 0 ~ slot 14
 
-            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
-                                , superframeID, slotIdx);       
-        } 
+            for(int slotIdx = 0; slotIdx < 15; slotIdx++)
+            {
+                if(slotIdx == 6 || slotIdx == 14)
+                {
+                    // Setting the GTS for Enhanced Group Ack slot (at slot 6 & slot 14 for CAP reduction).
+                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
+                                            channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);
+                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
+                                            channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx); 
+                }
+                else
+                {
+                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Coord for RX
+                                            channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);
 
-        // Setting parameters of sending the data packets.
-        // This will continuously TX packet in the setting interval, non stop.
+                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Devices for TX
+                                            channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);    
+                }
+            }
 
-        double slot_0_StartTime = 1.11553;
-        double slot_7_StartTime = 1.16928;
-        /**
-         * slotTimeInterval (aka. slot time or aBaseSlotDuration) calculated by 
-         * aBaseSuperframeDuration * 2^superframeOrder / aNumSuperframeSlots / symbol Rate
-         * which can be written as ---> (960*2^SO/16) / 62500
-         * In this case , SO = 3,  slotTimeInterval = (960*2^3/16) / 62500 = 0.00768
-        */
-        double slotTimeInterval = 0.00768;
+            /**
+             *! TX & packet traffic settings
+            */
+            // Setting parameters of sending the data packets.
+            // This will continuously TX packet in the setting interval with non-stop transmission , in order to test max throuhgput.
 
-        for(int slotIndex = 0; slotIndex < 6; slotIndex++) // slot 0 ~ slot 5
-        {   
-            double setTime = slot_0_StartTime + slotIndex * slotTimeInterval;
-            lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, setTime, 0.005, 0.0001);  // slot 0 
-            // std::cout << "setTime = " << setTime << "\n";
+            double slot_0_StartTime = 1.11553;
+            // double slot_7_StartTime = 1.16928;
+            /**
+             * slotTimeInterval (aka. slot time or aBaseSlotDuration) calculated by 
+             * aBaseSuperframeDuration * 2^superframeOrder / aNumSuperframeSlots / symbol Rate
+             * which can be written as ---> (960*2^SO/16) / 62500
+             * In this case , SO = 3,  slotTimeInterval = (960*2^3/16) / 62500 = 0.00768
+            */
+            double setTime = slot_0_StartTime;
+            double slotTimeInterval = 0.00768;
+
+            for(int slotIndex = 0; slotIndex < 15; slotIndex++) 
+            {   
+                if(slotIndex != 6 && slotIndex != 14)
+                {
+                    lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childLrWpanDevIdx), lrwpanDevices.Get(coordLrWpanDevIdx)->GetAddress(), pktSize, setTime, 0.005, 0.0001);  
+                    // std::cout << "setTime = " << setTime << "\n";
+                }
+                setTime += slotTimeInterval;
+            }   
         }
-
-        for(int slotIndex = 0; slotIndex < 7; slotIndex++) // slot 7 ~ slot 13 , totaly 7 (0~6) slots
-        {   
-            double setTime = slot_7_StartTime + slotIndex * slotTimeInterval;
-            lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, setTime, 0.005, 0.0001);  // slot 0 
-            // std::cout << "setTime = " << setTime << "\n";
-        }
-
-
-
-        // Setting the GTS for Group Ack slot (at slot 6 & slot 14 for CAP reduction).
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
-                            , superframeID, 6);
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
-                            , superframeID, 6);  
-                            
-
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
-                            , superframeID, 14);     
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
-                            , superframeID, 14);    
     }
-
-    // for (int i = 0; i < 1; ++i) {
-    //     int childIdx = i + NUM_COORD;
-    //     // Channel Offset setting
-    //     lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
-
-    //     lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
-    //                             , superframeID, 1);
-
-    //     lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
-    //                             , superframeID, 1);
-
-    //     lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100000.0, 0.0001);                      
-    // }
-
-
-
-
-    // // superframe ID = 1
-    // superframeID++;
-
-    // for (int i = 0; i < 15; ++i) {
-    //     int childIdx = i + 3;
-
-    //     // Channel Offset setting
-    //     lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[1]);
-
-    //     // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, superframeID, i);
-    //     // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, superframeID, i);
-
-    //     lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[1]
-    //                             , superframeID, i);
-
-    //     lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[1]
-    //                             , superframeID, i);
-
-    //     lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 200, 100000.0, 125.8295);
-    // }
-
-    // // superframe id = 2
-    // for (int i = 0; i < 15; ++i) {
-    //     int childIdx = i + 18;
-
-    //     // Channel Offset setting
-    //     lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[2]);
-
-    //     // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(2)->GetObject<LrWpanNetDevice>(), true, 1, superframeID, i);
-    //     // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, superframeID, i);
-
-    //     lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(2)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[2]
-    //                             , superframeID, i);
-
-    //     lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[2]
-    //                             , superframeID, i);
-
-    //     lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(2)->GetAddress(), pktSize, 200, 100000.0, 125.8295);
-    // }
-    
-    // // lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[1]);
-    // // lrwpanDevices.Get(2)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[1]);
-
-    // // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, 1, 0);
-    // // lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(2)->GetObject<LrWpanNetDevice>(), false, 1, 1, 0);
-
-    // // lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(2), lrwpanDevices.Get(1)->GetAddress(), pktSize, 300, 100000.0, 125.8295);
 
     AsciiTraceHelper ascii;
     lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Gack.tr"));
