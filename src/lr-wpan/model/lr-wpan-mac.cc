@@ -3942,6 +3942,11 @@ void LrWpanMac::ScheduleGts(bool indication) {
         return;
     }
 
+    if(m_panCoor)
+    {
+        return;
+    }
+
     // m_macDsmeACT is a map , 
     // key (it->first) = uint16_t superframeID , value (it->second) = vector macDsmeACTEntity
     if (m_macDsmeACT.size()) 
@@ -3971,10 +3976,14 @@ void LrWpanMac::ScheduleGts(bool indication) {
                     if (m_coord) 
                     {
                         activeSlot = m_superframeDuration / 16;
-
+                        // NS_LOG_DEBUG("it->second[i].m_superframeID =  " <<it->second[i].m_superframeID);
+                        // NS_LOG_DEBUG("it->second[i].m_slotID =  " <<(int)it->second[i].m_slotID);
+                        // NS_LOG_DEBUG("m_choosedSDIndexToSendBcn =  " << m_choosedSDIndexToSendBcn);
                         if(it->second[i].m_superframeID > m_choosedSDIndexToSendBcn)
                         {
-                            superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration;
+                            // NS_LOG_DEBUG("GGGGGGGGGGGGGGGGGGGGGGG ");
+                            // superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration;
+                            superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
                         }
                         else
                         {
@@ -5474,7 +5483,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         {
                             NS_LOG_DEBUG("Enhanced Group Ack enabled, aggregate acks into Group Acks");
                             // start generate the hash table key and write into bitmap.
-                            NS_LOG_DEBUG("Generate the hash table key , addr = " << receivedMacHdr.GetShortSrcAddr() << " seq = " << (uint32_t)receivedMacHdr.GetSeqNum() << " Push back into pktbuf");
+                            NS_LOG_DEBUG("Generate the hash table key , addr = " << receivedMacHdr.GetShortSrcAddr() << " seq = " 
+                                          << (uint32_t)receivedMacHdr.GetSeqNum() << " Push back into packet buffer");
                             uint64_t bitLocation = GenerateHashTableKey(receivedMacHdr.GetShortSrcAddr(),(uint32_t)receivedMacHdr.GetSeqNum());
 
                             // Set group ack bitmap according to the key location
@@ -9228,8 +9238,8 @@ LrWpanMac::SetPanId(uint16_t panId)
 void
 LrWpanMac::ChangeMacState(LrWpanMacState newState)
 {
-    NS_LOG_DEBUG(this << " change lrwpan mac state from " << m_lrWpanMacState << " to "
-                      << newState);
+    // NS_LOG_DEBUG(this << " change lrwpan mac state from " << m_lrWpanMacState << " to "
+    //                   << newState);
     m_macStateLogger(m_lrWpanMacState, newState);
     m_lrWpanMacState = newState;
 }
