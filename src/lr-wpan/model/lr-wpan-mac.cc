@@ -3979,16 +3979,16 @@ void LrWpanMac::ScheduleGts(bool indication) {
                         // NS_LOG_DEBUG("it->second[i].m_superframeID =  " <<it->second[i].m_superframeID);
                         // NS_LOG_DEBUG("it->second[i].m_slotID =  " <<(int)it->second[i].m_slotID);
                         // NS_LOG_DEBUG("m_choosedSDIndexToSendBcn =  " << m_choosedSDIndexToSendBcn);
-                        if(it->second[i].m_superframeID > m_choosedSDIndexToSendBcn)
-                        {
-                            // NS_LOG_DEBUG("GGGGGGGGGGGGGGGGGGGGGGG ");
-                            // superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration;
-                            superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
-                        }
-                        else
-                        {
-                            superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
-                        }
+                        // if(it->second[i].m_superframeID > m_choosedSDIndexToSendBcn)  // ? 搞不太清楚這裡原本為什麼要這樣做
+                        // {
+                        //     // superframeDurations = (it->second[i].m_superframeID - m_choosedSDIndexToSendBcn) * m_superframeDuration;
+                        //     superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
+                        // }
+                        // else
+                        // {
+                        //     superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration;
+                        // }
+                        superframeDurations = (it->second[i].m_superframeID) * m_superframeDuration; // 這樣做就可以正常跑
 
                         if(isCAPReductionOn()) // TODO : 第二個multisuperframe開始的CAP不會有CAP，他會變成全部都CFP，要改為判斷這裡是不是superframeID = 0
                         {
