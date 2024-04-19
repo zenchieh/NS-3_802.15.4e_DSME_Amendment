@@ -1455,7 +1455,7 @@ uint32_t DsmePANDescriptorIE::GetSerializedSize() const {
     size += m_timeSynField.GetSerializedSize();
     size += m_beaconBitmapField.GetSerializedSize();
     size += m_channelHoppingField.GetSerializedSize();
-    // size += m_gack.GetGetSerializedSize();
+    size += m_gack.GetSerializedSize();
 
     return size;
 }
@@ -1469,7 +1469,7 @@ void DsmePANDescriptorIE::Serialize(Buffer::Iterator start) const {
     i = m_timeSynField.Serialize(i);
     i = m_beaconBitmapField.Serialize(i);
     i = m_channelHoppingField.Serialize(i);
-    // i = m_gack.Serialize(i);
+    i = m_gack.Serialize(i);
 }
 
 uint32_t DsmePANDescriptorIE::Deserialize(Buffer::Iterator start) {
@@ -1483,7 +1483,7 @@ uint32_t DsmePANDescriptorIE::Deserialize(Buffer::Iterator start) {
     i = m_timeSynField.Deserialize(i);
     i = m_beaconBitmapField.Deserialize(i);
     i = m_channelHoppingField.Deserialize(i);
-    // i = m_gack.Deserialize(i);
+    i = m_gack.Deserialize(i);
 
     // std::cout << "DsmePANDescriptorIE::Deserialize End" << std::endl;
 

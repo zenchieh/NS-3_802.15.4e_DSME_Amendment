@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
         // Cap Reduction setting
         dev->GetMac()->SetCAPReduction(capReduction);
 
-        // Set the group ack policy tp self-designed enhanced group.
+        // Set the group ack policy to self-designed enhanced group ack.
         dev->GetMac()->SetGroupAckPolicy(LrWpanGroupAckPolicy::GROUP_ACK_ENHANCED);
     }
 

@@ -1781,6 +1781,8 @@ void LrWpanMac::SendOneEnhancedBeacon() {
         channelHoppingField.SetChannelOffsetBitmapLength(m_macChannelOfsBitmapLen);
         channelHoppingField.SetChannelOffsetBitmap(m_macChannelOfsBitmap);
         m_dsmePanDescriptorIE.SetChannelHopping(channelHoppingField); 
+        NS_LOG_DEBUG("test : " << m_legacyGroupAck); //! 這裡沒寫進去
+        m_dsmePanDescriptorIE.SetGroupACK(m_legacyGroupAck);
 
         PendingAddrFields pndAddrFields = GetPendingAddrFields();
         m_dsmePanDescriptorIE.SetPendingAddrFields(pndAddrFields);
@@ -5604,6 +5606,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
 
                     DsmePANDescriptorIE receivedDsmePANDescriptorIEHeaderIE;
 
+                    GroupACK receivedGroupAckField;
+
                     // Extract the Header and Payload IE List here
                     if (m_macDSMEenabled && receivedMacHdr.GetFrameVer() == LrWpanMacHeader::IEEE_802_15_4
                         && receivedMacHdr.IsIEListPresent()) {
@@ -5619,7 +5623,15 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         //!< Received beacon bitmap from one beacon
                         panDescriptor.m_bcnBitmap = receivedDsmePANDescriptorIEHeaderIE.GetBeaconBitmap();
                         panDescriptor.m_channelHoppingSpec = receivedDsmePANDescriptorIEHeaderIE.GetChannelHopping();
+
                         panDescriptor.m_gACKSpec = receivedDsmePANDescriptorIEHeaderIE.GetGroupACK();
+                        receivedGroupAckField = panDescriptor.m_gACKSpec;
+
+                        if(m_groupAckPolicy == GROUP_ACK_LEGACY)
+                        {
+                            //! 這裡parse packet 怪怪的
+                            NS_LOG_DEBUG("Received Pan descriptor IE - Group Ack " << receivedGroupAckField);
+                        }
 
                         if(receivedMacHdr.GetShortSrcAddr() == Mac16Address("00:01") && m_shortAddress != Mac16Address("00:01"))
                         {
@@ -5688,12 +5700,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         // incoming multi-superframe duration
                         m_incomingMultisuperframeDuration = 
                             (static_cast<uint32_t>(1 << m_incomingMultisuperframeOrder)) * aBaseSuperframeDuration;
-
-                        // Channel Hopping Specification
-                        // DSME-TODO
-
-                        // Group ACK Specification
-                        // DSME-TODO            
+        
 
                         HeaderIETermination termination;
                         p->RemoveHeader(termination);

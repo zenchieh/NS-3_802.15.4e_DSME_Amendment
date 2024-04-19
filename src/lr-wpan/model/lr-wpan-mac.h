@@ -2860,6 +2860,11 @@ class LrWpanMac : public Object
     uint32_t DoQuadraticProb(uint32_t key, uint32_t count);
 
     /**
+     * The IEEE 802.15.4e legacy group ack field infos.
+    */
+    GroupACK m_legacyGroupAck;
+
+    /**
      * The scheduled event to add superframeIDx.
     */
     void StartSuperframe();

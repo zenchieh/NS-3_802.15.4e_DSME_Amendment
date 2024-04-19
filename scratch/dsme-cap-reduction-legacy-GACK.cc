@@ -36,6 +36,13 @@ using namespace ns3;
 #define NUM_COORD 2 // The number of coord, PAN-C need to be included.
 #define NUM_RFD 1 // The number of RFD.
 
+#define GACK_1_CHANNEL_IDX 3
+#define GACK_2_CHANNEL_IDX 3
+#define GACK_1_SPF_IDX 1
+#define GACK_2_SPF_IDX 3
+#define GACK_1_SLOT_IDX 5
+#define GACK_2_SLOT_IDX 5
+
 #define BIT(X) (1 << 2^X)
 
 static double pktRecv = 0;
@@ -142,6 +149,9 @@ int main(int argc, char** argv) {
         
         // Cap Reduction setting
         dev->GetMac()->SetCAPReduction(capReduction);
+
+        // Set the group ack policy to IEEE 802.15.4e legacy group ack.
+        dev->GetMac()->SetGroupAckPolicy(LrWpanGroupAckPolicy::GROUP_ACK_LEGACY);
     }
 
     // Pan Coord mlme-start.request params
@@ -172,13 +182,18 @@ int main(int argc, char** argv) {
     dsmeSuperframeField.SetGACKFlag(true);
     startParams.m_dsmeSuperframeSpec = dsmeSuperframeField;
 
+    /**
+     * GroupACK field will be sent at PAN descriptor header IE (aka. a field in Enhanced beacon)
+    */
     GroupACK groupAckField;
-    groupAckField.SetGACK1ChannelID(3);
-    groupAckField.SetGACK1SlotID(5);
-    groupAckField.SetGACK1SuperframeID(1);
-    groupAckField.SetGACK2ChannelID(3);
-    groupAckField.SetGACK2SlotID(5);
-    groupAckField.SetGACK2SuperframeID(3);
+    groupAckField.SetGACK1ChannelID(GACK_1_CHANNEL_IDX);
+    groupAckField.SetGACK1SlotID(GACK_1_SLOT_IDX);   
+    //  GACK 1 located at Superframe ID = 1 & slot 5    
+    groupAckField.SetGACK1SuperframeID(GACK_1_SPF_IDX);
+    groupAckField.SetGACK2ChannelID(GACK_1_CHANNEL_IDX);
+    //  GACK 1 located at Superframe ID = 3 & slot 5 
+    groupAckField.SetGACK2SlotID(GACK_2_SLOT_IDX);
+    groupAckField.SetGACK2SuperframeID(GACK_2_SPF_IDX);
 
     lrWpanHelper.AssociateToBeaconPan(lrwpanDevices
                                         , Mac16Address("00:01")
@@ -216,6 +231,7 @@ int main(int argc, char** argv) {
         panDescriptor.m_coorPanId = panId;
         panDescriptor.m_coorShortAddr = Mac16Address("00:01");
         panDescriptor.m_logCh = channelNum;
+        panDescriptor.m_gACKSpec = groupAckField;
 
         SuperframeField superframeField;
         superframeField.SetSuperframeOrder(superfrmOrder);
@@ -249,7 +265,6 @@ int main(int argc, char** argv) {
         // Channel Offset setting
         lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
 
-
         // Setting the GTS of Coord and devices with channel offset & TX/RX direction & SPFIdx & slotIDx etc.
         for(int slotIdx = 0; slotIdx < 3; slotIdx++)
         {
@@ -261,6 +276,7 @@ int main(int argc, char** argv) {
         }        
 
         // Setting parameters of sending the data packets.
+        // Set interval to a large number in order to let traffic only send one packet.
         lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100.0, 100000.0);    // Slot 0
         lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.1240, 100.0, 100000.0);     // Slot 1 
         lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.1310, 100.0, 100000.0);     // Slot 2
@@ -271,9 +287,9 @@ int main(int argc, char** argv) {
         */
         // Setting the GTS-GACK1 for Group Ack slot 
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
-                            , superframeID, 5);
+                            , superframeID, GACK_1_SLOT_IDX);
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
-                            , superframeID, 5);  
+                            , superframeID, GACK_1_SLOT_IDX);  
 
 
         superframeID = 2;
@@ -282,13 +298,13 @@ int main(int argc, char** argv) {
                             , superframeID, 7);
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
                             , superframeID, 7);
-
+        
         superframeID = 3;
         // Setting the GTS-GACK2 for Group Ack slot 
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
-                            , superframeID, 5);
+                            , superframeID, GACK_2_SLOT_IDX);
         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
-                            , superframeID, 5);  
+                            , superframeID, GACK_2_SLOT_IDX);  
  
     }
 

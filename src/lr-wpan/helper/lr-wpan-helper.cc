@@ -489,6 +489,11 @@ void LrWpanHelper::CoordBoostrap(Ptr<NetDevice> dev, PanDescriptor descriptor, u
     device->GetMac()->SetDescIndexOfAssociatedPan(0);
     device->GetMac()->SetTimeSlotToSendBcn(sdIndex);
 
+    if(device->GetMac()->m_groupAckPolicy == GROUP_ACK_LEGACY)
+    {
+        device->GetMac()->m_legacyGroupAck = descriptor.m_gACKSpec;
+    }
+
     Ptr<UniformRandomVariable> uniformRandomVariable =
                     CreateObject<UniformRandomVariable>();
     Time jitter = Time(MilliSeconds(uniformRandomVariable->GetInteger(10, 20)));       

@@ -601,7 +601,10 @@ public:
 
     uint8_t GetGACK2ChannelID() const;
 
-    uint32_t GetGetSerializedSize() const;
+    uint32_t GetSerializedSize() const;
+
+    uint64_t GetGroupAck() const;
+    void SetGroupAck(uint64_t groupAck);
 
     Buffer::Iterator Serialize(Buffer::Iterator i) const;
 
@@ -616,6 +619,8 @@ private:
     uint8_t  m_sspecGACK2SlotID;                // Group ACK sepcification GACK2 Slot ID (Bit 44-47)
     uint8_t  m_sspecGACK2ChannelID;             // Group ACK sepcification GACK2 Channel ID (Bit 48-55)
 };
+
+std::ostream &operator << (std::ostream &os, const GroupACK& GroupACK);
 
 /**
  * \ingroup lr-wpan

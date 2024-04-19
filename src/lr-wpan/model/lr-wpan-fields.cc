@@ -935,19 +935,56 @@ uint8_t GroupACK::GetGACK2ChannelID() const {
     return m_sspecGACK2ChannelID;
 }
 
-uint32_t GroupACK::GetGetSerializedSize() const {
+uint32_t GroupACK::GetSerializedSize() const {
     // DSME-TODO
-    return 7;  // 2 Octets
+    return 8;  // 7 Octets, padding to 8
+}
+
+void GroupACK::SetGroupAck(uint64_t groupAck)
+{
+    m_sspecGACK1SuperfrmID = (groupAck) & (0xFFFF);       // Bit 0-15
+    m_sspecGACK1SlotID = (groupAck >> 16) & (0x0F);       // Bit 16-19
+    m_sspecGACK1ChannelID = (groupAck >> 20) & (0xFF);    // Bit 20-27
+    m_sspecGACK2SuperfrmID = (groupAck >> 28) & (0xFFFF); // Bit 28-43
+    m_sspecGACK2SlotID = (groupAck >> 44) & (0x0F);       // Bit 44-47
+    m_sspecGACK2ChannelID = (groupAck >> 48) & (0xFF);    // Bit 48-55
+}
+
+uint64_t GroupACK::GetGroupAck() const
+{
+    uint64_t groupAck;
+    groupAck = m_sspecGACK1SuperfrmID & (0xFFFF);                 // Bit 0-15
+    groupAck |= (m_sspecGACK1SlotID << 16) & (0x0F << 16);        // Bit 16-19
+    groupAck |= (m_sspecGACK1ChannelID << 20) & (0xFF << 20);     // Bit 20-27
+    groupAck |= ((uint64_t)m_sspecGACK2SuperfrmID << 28) & ((uint64_t)0xFFFF << 28);  // Bit 28-43
+    groupAck |= ((uint64_t)m_sspecGACK2SlotID << 44) & ((uint64_t)0x0F << 44);        // Bit 44-47
+    groupAck |= ((uint64_t)m_sspecGACK2ChannelID << 48) & ((uint64_t)0xFF << 48);     // Bit 48-55
+    return groupAck;
 }
 
 Buffer::Iterator GroupACK::Serialize(Buffer::Iterator i) const {
     // DSME-TODO
+    i.WriteHtolsbU64(GetGroupAck());
     return i;
 }
 
 Buffer::Iterator GroupACK::Deserialize(Buffer::Iterator i) {
     // DSME-TODO
+    uint64_t groupAck = i.ReadLsbtohU64();
+    SetGroupAck(groupAck);
     return i;
+}
+
+std::ostream &operator << (std::ostream &os, const GroupACK& GroupACK) 
+{
+    os << " [Legacy Group Ack infos] " 
+        << ", GACK1ChannelID = "        << uint64_t(GroupACK.GetGACK1ChannelID())
+        << ", GACK1SuperframeID = "          << uint64_t(GroupACK.GetGACK1SuperframeID())
+        << ", GACK1SlotID = "          << uint32_t(GroupACK.GetGACK1SlotID())
+        << ", GACK2ChannelID = "        << uint64_t(GroupACK.GetGACK2ChannelID())
+        << ", GACK2SuperframeID = "          << uint32_t(GroupACK.GetGACK2SuperframeID())
+        << ", GACK2SlotID = "          << uint32_t(GroupACK.GetGACK2SlotID());
+    return os;
 }
 
 
@@ -1176,6 +1213,9 @@ std::ostream &operator << (std::ostream &os, const EnhancedGroupACK& enhancedGro
        << " , bitmap size = " << uint16_t(enhancedGroupACK.GetHashTableBitmapSize());
     return os;
 }
+
+
+
 
 
 
