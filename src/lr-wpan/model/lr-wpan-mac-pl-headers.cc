@@ -2167,5 +2167,74 @@ uint64_t EnhancedGroupAckDescriptorIE::GetGroupAckBitmap() const
 }
 
 
+/***********************************************************
+ *              Group Ack IE - Ack control
+ ***********************************************************/
+
+AckControl::AckControl()
+{
+    m_payloadSize = 0;
+    m_bitmapSize = 0;
+    m_reserved = 0;
+}
+
+AckControl::~AckControl()
+{
+    
+}
+
+void AckControl::SetAckCtrl(uint8_t ackCtrl)
+{
+    m_payloadSize = (ackCtrl) & (0x07);         //<! Bit 0-2
+    m_bitmapSize = (ackCtrl >> 3) & (0x03);     //<! Bit 3-4
+    m_reserved = (ackCtrl >> 5) & (0x03);       //<! Bit 5-7
+}
+
+uint8_t AckControl::GetAckCtrl() const
+{
+    uint8_t ackCtrl = 0;
+    ackCtrl = (m_payloadSize) & (0x07);         //<! Bit 0-2
+    ackCtrl |= (m_bitmapSize << 3) & (0x03);    //<! Bit 3-4
+    ackCtrl |= (m_reserved << 5) & (0x03);      //<! Bit 5-7
+}
+
+void AckControl::SetPayloadSize(uint8_t payloadSize)
+{
+    m_payloadSize = payloadSize;
+}
+
+uint8_t AckControl::GetPayloadSize() const
+{
+    return m_payloadSize;
+}
+
+void AckControl::SetBitmapSize(uint8_t bitmapSize)
+{
+    m_bitmapSize = bitmapSize;
+}
+
+uint8_t AckControl::GetBitmapSize() const
+{
+    return m_bitmapSize;
+}
+
+Buffer::Iterator AckControl::Serialize(Buffer::Iterator i) const {
+
+    i.WriteU8(GetAckCtrl());   
+    return i;
+}
+
+Buffer::Iterator AckControl::Deserialize(Buffer::Iterator i) {
+    
+    uint8_t ackCtrl = i.ReadU8();
+    SetAckCtrl(ackCtrl);
+    return i;
+}
+
+uint32_t AckControl::GetSerializedSize() const {
+    
+    uint32_t size = 1; // Ack control field = 1 byte
+    return size;
+}
 
 } // namespace ns3

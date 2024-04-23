@@ -279,7 +279,7 @@ int main(int argc, char** argv) {
         // Set interval to a large number in order to let traffic only send one packet.
         lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100.0, 100000.0);    // Slot 0
         lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.1240, 100.0, 100000.0);     // Slot 1 
-        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.1310, 100.0, 100000.0);     // Slot 2
+        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.1312, 100.0, 100000.0);     // Slot 2
 
 
         /*
@@ -314,7 +314,7 @@ int main(int argc, char** argv) {
     lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Gack.tr"));
     lrWpanHelper.EnablePcapAll(std::string("Gack"), true);
 
-    Simulator::Stop(Seconds(2.5));
+    Simulator::Stop(Seconds(1.96607));
     // Simulator::Stop(Seconds(50));
 
     Simulator::Run();

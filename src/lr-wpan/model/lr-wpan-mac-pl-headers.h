@@ -250,6 +250,63 @@ private:
     GroupACK m_gack;
 };
 
+class AckControl 
+{
+    public:
+        AckControl();
+        ~AckControl();
+
+        void SetAckCtrl(uint8_t ackCtrl);
+        uint8_t GetAckCtrl() const;
+
+        void SetPayloadSize(uint8_t payloadSize);
+        void SetBitmapSize(uint8_t bitmapSize);
+        uint8_t GetPayloadSize() const;
+        uint8_t GetBitmapSize() const;
+
+        Buffer::Iterator Serialize(Buffer::Iterator i) const;
+        uint32_t GetSerializedSize() const;
+        Buffer::Iterator Deserialize(Buffer::Iterator i);
+        // void Print(std::ostream& os) const;
+
+    private:
+        uint8_t m_payloadSize;      // Specify the length of the payload of a GACK frame. It is measured in number of octets.  
+        
+        uint8_t m_bitmapSize;       // Specify the size of bitmap in terms of octets.
+        
+        uint8_t m_reserved; 
+};
+
+/**
+ * \ingroup lr-wpan
+ * Represent the Group Ack IE of IEEE 802.15.4e.
+ * See IEEE 802.15.4e-2012   Section 5.2.4.12 Figure 48cc
+ */
+class LegacyGroupAckIE : public Header 
+{
+    public:
+        LegacyGroupAckIE();
+        ~LegacyGroupAckIE();
+
+
+        static TypeId GetTypeId();
+        TypeId GetInstanceTypeId() const;
+
+        uint32_t GetSerializedSize() const override;
+        void Serialize(Buffer::Iterator start) const override;
+        uint32_t Deserialize(Buffer::Iterator start) override;
+
+        void Print(std::ostream &os) const override;
+
+    private:
+
+        AckControl m_ackCtrl;
+        uint8_t m_gackBitmap;
+        uint8_t m_gackDevList;
+        uint8_t m_gackIdx;
+        uint8_t m_gtsDirections;
+};
+
 /**
  * \ingroup lr-wpan
  * Self Designed Enhanced Group Header IE

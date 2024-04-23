@@ -5629,7 +5629,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
 
                         if(m_groupAckPolicy == GROUP_ACK_LEGACY)
                         {
-                            //! 這裡parse packet 怪怪的
+                            // Group ack field in PAN descriptor IE
                             NS_LOG_DEBUG("Received Pan descriptor IE - Group Ack " << receivedGroupAckField);
                         }
 
