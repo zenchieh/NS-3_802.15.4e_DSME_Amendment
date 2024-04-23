@@ -2251,6 +2251,68 @@ LegacyGroupAckIE::~LegacyGroupAckIE()
 
 }
 
+void LegacyGroupAckIE::SetBitmap(uint8_t bitmap, uint8_t bitLocation)
+{
+    bitmap |= (1 << bitLocation);
+}
+
+void LegacyGroupAckIE::ResetBitmap(uint8_t bitmap)
+{
+    bitmap = 0;
+}
+
+uint8_t LegacyGroupAckIE::GetGackBitmapField() const
+{
+    return m_gackBitmap;
+}
+
+void LegacyGroupAckIE::SetGackBitmapField(uint8_t gackBitmap) 
+{
+    m_gackBitmap = gackBitmap;
+}
+
+uint8_t LegacyGroupAckIE::GetGtsDirectionBitmapField() const
+{
+    return m_gtsDirections;
+}
+
+void LegacyGroupAckIE::SetGtsDirectionBitmapField(uint8_t gtsDirectionBitmap) 
+{
+    m_gtsDirections = gtsDirectionBitmap;
+}
+
+void LegacyGroupAckIE::SetGackIdxBitmap(uint16_t gackIdxBitmap)
+{
+    m_gackIdx = gackIdxBitmap;
+}
+
+void LegacyGroupAckIE::SetGackIdx(uint16_t gackIdxBitmap, uint16_t startLocation, uint16_t value)
+{
+    // startLocation = 0  , bit 0-3
+    // startLocation = 4  , bit 4-7
+    // startLocation = 8  , bit 8-11
+    // startLocation = 12 , bit 12-15
+    
+    gackIdxBitmap |= ((value & (0x0F)) << startLocation);
+
+}
+
+uint16_t LegacyGroupAckIE::GetGackIdx(uint16_t gackIdxBitmap, uint16_t startLocation)
+{
+    // startLocation = 0  , bit 0-3
+    // startLocation = 4  , bit 4-7
+    // startLocation = 8  , bit 8-11
+    // startLocation = 12 , bit 12-15
+    uint16_t value = 0;
+    value |= ((gackIdxBitmap >> startLocation) & (0x0F));
+    return value;
+}
+
+uint16_t LegacyGroupAckIE::GetGackIdxBitmap() const
+{
+    return m_gackIdx;
+}
+
 TypeId
 LegacyGroupAckIE::GetTypeId()
 {
@@ -2265,6 +2327,39 @@ TypeId
 LegacyGroupAckIE::GetInstanceTypeId() const
 {
     return GetTypeId();
+}
+
+uint32_t LegacyGroupAckIE::GetSerializedSize() const
+{
+    uint32_t size = 0;
+    size += 1; // Ack. Control
+    size += 2; // GACK Bitmap
+    size += 1; // GACK Device List
+    size += 2; // GACK Index
+    size += 1; // GTS Directions
+    return size;
+}
+
+void LegacyGroupAckIE::Serialize(Buffer::Iterator start) const
+{
+    Buffer::Iterator i = start;
+
+    i = m_ackCtrl.Serialize(i);
+    i.WriteU16(m_gackBitmap);
+    i.WriteU8(m_gackDevList);
+    i.WriteU16(m_gackIdx); 
+    i.WriteU8(m_gtsDirections);
+}
+
+uint32_t LegacyGroupAckIE::Deserialize(Buffer::Iterator start)
+{
+    Buffer::Iterator i = start;
+    i = m_ackCtrl.Deserialize(i); 
+    m_gackBitmap = i.ReadU16();
+    m_gackDevList = i.ReadU8();
+    m_gackIdx = i.ReadU16();
+    m_gtsDirections = i.ReadU8();
+    return i.GetDistanceFrom(start); 
 }
 
 } // namespace ns3

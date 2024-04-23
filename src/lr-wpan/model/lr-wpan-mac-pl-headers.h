@@ -288,6 +288,19 @@ class LegacyGroupAckIE : public Header
         LegacyGroupAckIE();
         ~LegacyGroupAckIE();
 
+        void SetBitmap(uint8_t bitmap, uint8_t bitLocation);
+        void ResetBitmap(uint8_t bitmap);
+        
+        void SetGackBitmapField(uint8_t gackBitmap);
+        uint8_t GetGackBitmapField() const;
+
+        void SetGackIdxBitmap(uint16_t gackIdxBitmap);
+        void SetGackIdx(uint16_t gackIdxBitmap, uint16_t startLocation, uint16_t value);
+        uint16_t GetGackIdx(uint16_t gackIdxBitmap, uint16_t startLocation);
+        uint16_t GetGackIdxBitmap() const;
+        
+        void SetGtsDirectionBitmapField(uint8_t gtsDirectionBitmap);
+        uint8_t GetGtsDirectionBitmapField() const;
 
         static TypeId GetTypeId();
         TypeId GetInstanceTypeId() const;
@@ -305,7 +318,7 @@ class LegacyGroupAckIE : public Header
         uint16_t m_gackBitmap;
 
         uint8_t m_gackDevList;
-        uint8_t m_gackIdx;
+        uint16_t m_gackIdx;
         uint8_t m_gtsDirections;
 };
 
