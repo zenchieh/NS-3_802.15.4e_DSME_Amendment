@@ -2237,4 +2237,34 @@ uint32_t AckControl::GetSerializedSize() const {
     return size;
 }
 
+/***********************************************************
+ *              Group Ack IE - Ack control
+ ***********************************************************/
+
+LegacyGroupAckIE::LegacyGroupAckIE()
+{
+
+}
+
+LegacyGroupAckIE::~LegacyGroupAckIE()
+{
+
+}
+
+TypeId
+LegacyGroupAckIE::GetTypeId()
+{
+    static TypeId tid = TypeId("ns3::LegacyGroupAckIE")
+                            .SetParent<Header>()
+                            .SetGroupName("LrWpan")
+                            .AddConstructor<LegacyGroupAckIE>();
+    return tid;
+}
+
+TypeId
+LegacyGroupAckIE::GetInstanceTypeId() const
+{
+    return GetTypeId();
+}
+
 } // namespace ns3

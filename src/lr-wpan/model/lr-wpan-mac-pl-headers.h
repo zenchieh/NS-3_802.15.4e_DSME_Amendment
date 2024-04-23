@@ -301,7 +301,9 @@ class LegacyGroupAckIE : public Header
     private:
 
         AckControl m_ackCtrl;
-        uint8_t m_gackBitmap;
+
+        uint16_t m_gackBitmap;
+
         uint8_t m_gackDevList;
         uint8_t m_gackIdx;
         uint8_t m_gtsDirections;
