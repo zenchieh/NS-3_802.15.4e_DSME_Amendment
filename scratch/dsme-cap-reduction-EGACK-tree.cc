@@ -284,7 +284,7 @@ int main(int argc, char** argv) {
         // Setting parameters of sending the data packets.
         // This will continuously TX packet in the setting interval with non-stop transmission , in order to test max throuhgput.
 
-        double slot_0_StartTime = 1.11553;
+        double slot_0_StartTime = 1.11578;
         // double slot_7_StartTime = 1.16928;
         /**
          * slotTimeInterval (aka. slot time or aBaseSlotDuration) calculated by 

@@ -47,8 +47,8 @@
 /**
  * Self-Designed enhanced group ack flags
 */ 
-#define GROUP_ACK_FIRST_SLOT 6
-#define GROUP_ACK_SECOND_SLOT 14
+#define ENHANCED_GROUP_ACK_FIRST_SLOT 6
+#define ENHANCED_GROUP_ACK_SECOND_SLOT 14
 namespace ns3
 {
 
@@ -3117,9 +3117,29 @@ class LrWpanMac : public Object
     */
     Mac16Address ConvertExtAddrToShortAddr(Mac64Address ExtAddr);
 
+    /**
+     * Enhanced Group Ack 
+    */
     void PrintGroupAckBitmap();
-    void ResetGroupAckBitmap();
+    void ResetEnhancedGroupAckBitmap();
     void SendEnhancedGroupAck();
+
+    /**
+     * Legacy Group Ack 
+    */
+    uint16_t m_legacyGackBitmap;
+    uint8_t  m_legacyGackDevList;
+    uint16_t m_legacyGackIdx;
+    uint8_t  m_legacyGackDirections;
+    uint32_t m_legacyGackIndexCounter;
+
+    /**
+     * Recording the GTS IDx which transmit before receive a legacy Group Ack bitmap.
+    */
+    uint32_t m_legacyGackGTSIdxBuffer;
+
+    void SendLegacyGroupAck();
+    void ResetLegacyGroupAckBitmap();
 
   protected:
     // Inherited from Object.

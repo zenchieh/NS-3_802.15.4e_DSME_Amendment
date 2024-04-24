@@ -302,6 +302,12 @@ LrWpanMac::LrWpanMac() {
     m_allocationSequence = 0;
     m_bcnSchedulingCtrlPktCount = 0;
     m_groupAckPolicy = GROUP_ACK_DISABLED;
+    m_legacyGackBitmap = 0;
+    m_legacyGackDevList = 0;
+    m_legacyGackIdx = 0;
+    m_legacyGackDirections = 0;
+    m_legacyGackIndexCounter = 0;
+
 }
 
 LrWpanMac::~LrWpanMac() {
@@ -1780,8 +1786,11 @@ void LrWpanMac::SendOneEnhancedBeacon() {
         channelHoppingField.SetChannelOffset(m_macChannelOfs);
         channelHoppingField.SetChannelOffsetBitmapLength(m_macChannelOfsBitmapLen);
         channelHoppingField.SetChannelOffsetBitmap(m_macChannelOfsBitmap);
-        m_dsmePanDescriptorIE.SetChannelHopping(channelHoppingField); 
-        NS_LOG_DEBUG("test : " << m_legacyGroupAck); //! 這裡沒寫進去
+        m_dsmePanDescriptorIE.SetChannelHopping(channelHoppingField);
+        if(m_groupAckPolicy == GROUP_ACK_LEGACY)
+        {
+            NS_LOG_DEBUG(m_legacyGroupAck);
+        }
         m_dsmePanDescriptorIE.SetGroupACK(m_legacyGroupAck);
 
         PendingAddrFields pndAddrFields = GetPendingAddrFields();
@@ -4182,12 +4191,14 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
 
     NS_LOG_DEBUG("Current superframeID : " << m_curGTSSuperframeID << " GTSIDx : " << (int)m_macDsmeACT[superframeID][idx].m_slotID);
 
-    if (m_macDsmeACT[superframeID][idx].m_direction) {  // TODO : 這裡怪怪的，應該要是判斷經過m_macDSMEGTSExpirationTime次數的MSF沒收到封包，才要執行expiration，而不是算次數
+    if (m_macDsmeACT[superframeID][idx].m_direction) 
+    {   // TODO : 這裡怪怪的，應該要是判斷經過m_macDSMEGTSExpirationTime次數的MSF沒收到封包，才要執行expiration，而不是算次數
         // m_macDsmeACT[superframeID][idx].m_cnt++;
     }
 
     // GTS expiration
-    if (m_macDsmeACT[superframeID][idx].m_cnt > m_macDSMEGTSExpirationTime) {
+    if (m_macDsmeACT[superframeID][idx].m_cnt > m_macDSMEGTSExpirationTime) 
+    {
         NS_LOG_DEBUG("GTS expiration");
         m_macDsmeACT[superframeID][idx].m_expired = true;
 
@@ -4227,7 +4238,8 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         return;
     }
 
-    if (m_macDsmeACT[superframeID][idx].m_allocated) {
+    if (m_macDsmeACT[superframeID][idx].m_allocated) 
+    {
 
         Time startGtsTime;        
         uint64_t symbolRate = (uint64_t)m_phy->GetDataOrSymbolRate(false);  // symbols per second
@@ -4301,8 +4313,7 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         NS_LOG_DEBUG("Outgoing Gts Tx duration " << gtsDuration << " symbols ("
                                                  << endGtsTime.As(Time::S) << ")");
     
-        // turn on TX
-
+        // Scheduling EndGTS time
         m_gtsEvent = Simulator::Schedule(endGtsTime
                                         , &LrWpanMac::EndGTS
                                         , this
@@ -4310,11 +4321,11 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
 
         NS_LOG_DEBUG("Channel Offset: " << m_macDsmeACT[superframeID][idx].m_channelID); // debug
         
-        // channel hopping part
+        // Channel Hopping setting
         uint16_t ch;
         uint8_t cfpSlotNum;
-        // For dsme-net-device setting
-        if (m_forDsmeNetDeviceIntegrateWithHigerLayer) 
+
+        if (m_forDsmeNetDeviceIntegrateWithHigerLayer)   // For dsme-net-device setting
         {
             ch = (m_macDsmeACT[superframeID][idx].m_channelID + m_macDsmeACT[superframeID][idx].m_slotID) 
                             % m_numOfChannels;
@@ -4325,6 +4336,7 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
             {
                 cfpSlotNum = 15; // parameters " l " in the formula.
                 NS_LOG_DEBUG("m_macPANCoordinatorBSN = " << (uint16_t)m_macPANCoordinatorBSN.GetValue());
+                // Calculate the channel ID for channel hopping by spec.
                 ch = (m_curGTSSuperframeID * cfpSlotNum + m_macDsmeACT[superframeID][idx].m_slotID + m_macDsmeACT[superframeID][idx].m_channelID + (uint16_t)m_macPANCoordinatorBSN.GetValue()) % m_numOfChannels;
             }
             else
@@ -4343,7 +4355,8 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         m_phy->PlmeSetAttributeRequest(LrWpanPibAttributeIdentifier::phyCurrentChannel, &pibAttr);                                
         
     } 
-    else {
+    else 
+    {
         NS_LOG_DEBUG("Incoming Gts Rx duration " << gtsDuration << " symbols ("
                                                  << endGtsTime.As(Time::S) << ")");
         
@@ -4394,7 +4407,8 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         m_txPkt = txQElement->txQPkt;
     }
 
-    if (m_txPkt && m_gtsContinuePktSendingFromCap) {
+    if (m_txPkt && m_gtsContinuePktSendingFromCap) 
+    {
         LrWpanMacHeader peekedMacHdr;
         m_txPkt->PeekHeader(peekedMacHdr);
 
@@ -4446,18 +4460,49 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
     }
 
-    if((int)m_macDsmeACT[superframeID][idx].m_slotID == GROUP_ACK_FIRST_SLOT ||
-       (int)m_macDsmeACT[superframeID][idx].m_slotID == GROUP_ACK_SECOND_SLOT)
+    if(m_groupAckPolicy)
     {
-        // NS_LOG_DEBUG("My Group Ack policy =  " << m_groupAckPolicy); for debug , Enhanced group ack = 2
-        // TODO : Send a group ack here
-        if(m_macDsmeACT[superframeID][idx].m_direction == 0) // TX
+        switch (m_groupAckPolicy)
         {
-            // Delay 3ms for the GTS TX-RX time diff
-            // This will avoid for sending GACK packet before the receiver turn on RX.
-            Simulator::Schedule(Time("3ms"), 
-                                &LrWpanMac::SendEnhancedGroupAck,
-                                this);
+            case GROUP_ACK_LEGACY:
+
+
+                if((int)m_macDsmeACT[superframeID][idx].m_slotID == m_legacyGroupAck.GetGACK1SlotID() ||
+                (int)m_macDsmeACT[superframeID][idx].m_slotID == m_legacyGroupAck.GetGACK2SlotID())
+                {
+                    if(m_macDsmeACT[superframeID][idx].m_direction == 0 && m_coord) // TX
+                    {
+                        // Delay 3ms for the GTS TX-RX time diff
+                        // This will avoid for sending GACK packet before the receiver turn on RX.
+                        Simulator::Schedule(Time("3ms"), 
+                                            &LrWpanMac::SendLegacyGroupAck,
+                                            this);
+                        m_legacyGackIndexCounter = 0;
+                    }
+                }
+
+                break;
+            case GROUP_ACK_ENHANCED:
+
+                if((int)m_macDsmeACT[superframeID][idx].m_slotID == ENHANCED_GROUP_ACK_FIRST_SLOT ||
+                (int)m_macDsmeACT[superframeID][idx].m_slotID == ENHANCED_GROUP_ACK_SECOND_SLOT)
+                {
+                    // NS_LOG_DEBUG("My Group Ack policy =  " << m_groupAckPolicy); for debug , Enhanced group ack = 2
+                    // TODO : Send a group ack here
+                    if(m_macDsmeACT[superframeID][idx].m_direction == 0) // TX
+                    {
+                        // Delay 3ms for the GTS TX-RX time diff
+                        // This will avoid for sending GACK packet before the receiver turn on RX.
+                        Simulator::Schedule(Time("3ms"), 
+                                            &LrWpanMac::SendEnhancedGroupAck,
+                                            this);
+                    }
+                }
+
+                break;   
+
+            default:
+                break;
         }
     }
 
@@ -5494,6 +5539,28 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             NS_LOG_DEBUG("bitLocation = " << bitLocation);
                             PrintGroupAckBitmap();
                 
+                            if (m_incGtsEvent.IsRunning() || m_gtsEvent.IsRunning()) 
+                            { 
+                                ChangeMacState(MAC_GTS);
+                            }
+
+                        }
+                        else if(m_groupAckPolicy == GROUP_ACK_LEGACY)
+                        {
+                            NS_LOG_DEBUG("Legacy Group Ack enabled, aggregate acks into Group Acks");
+                            // 0. Parse slot location and Set the location GACK bitmap to 1
+                            m_legacyGackBitmap |= (1 << m_curGTSIdx);
+                            std::bitset<16> printBitmap = m_legacyGackBitmap;
+                            NS_LOG_DEBUG("m_legacyGackBitmap update as = " << printBitmap);
+                            // 1. Parse TX addr to bitmap location - GACK Device List
+                            uint8_t buffer16MacAddr[2];
+                            receivedMacHdr.GetShortSrcAddr().CopyTo(buffer16MacAddr);
+                            m_legacyGackDevList |= (1 << ((int)(buffer16MacAddr[0] << 8) | buffer16MacAddr[1]));
+                            // 2. Record Gack Index
+                            m_legacyGackIdx |= ((m_curGTSIdx & (0x0F)) << (m_legacyGackIndexCounter * 4));
+                            m_legacyGackIndexCounter++;
+                            // 3. Parse slot location and Set GTS directions to 1 
+                            m_legacyGackDirections = 0; // TX for uplink always is 0 , no need to update bitmap.
                             if (m_incGtsEvent.IsRunning() || m_gtsEvent.IsRunning()) 
                             { 
                                 ChangeMacState(MAC_GTS);
@@ -6706,8 +6773,57 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         }
                     }                    
 
-                    ResetGroupAckBitmap();   
+                    ResetEnhancedGroupAckBitmap();   
                     ResetGroupAckBuffer();   
+
+                    Time ifsWaitTime = Seconds((double)m_macLIFSPeriod / symbolRate);                            
+                    if (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()) 
+                    {
+                        m_txPkt = nullptr;
+                        m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_GTS);
+                        m_ifsEvent = Simulator::Schedule(ifsWaitTime,
+                                                        &LrWpanMac::IfsWaitTimeout,
+                                                        this,
+                                                        ifsWaitTime);
+                    }     
+                }
+
+                if(receivedMacHdr.IsAcknowledgment() && receivedMacHdr.IsIEListPresent() && m_groupAckPolicy == GROUP_ACK_LEGACY) // Legacy GACK
+                {
+                    LrWpanMacHeader peekedMacHdr;
+                    LegacyGroupAckIE receivedLegacyGackIE;
+                    p->RemoveHeader(receivedLegacyGackIE);
+                    std::bitset<16> gackBitmap = receivedLegacyGackIE.GetGackBitmapField();
+                    NS_LOG_DEBUG("Received Legacy Group Ack Bitmap = " << gackBitmap);
+
+                    if(receivedLegacyGackIE.GetGackBitmapField() == 0)
+                    {
+                        NS_LOG_DEBUG("There is no packet need to Group Ack");
+                        return;
+                    }
+
+                    NS_LOG_DEBUG("Starting Check received Group Ack bitmap");
+
+                    if(receivedLegacyGackIE.GetGackBitmapField() & ((uint16_t)1 << m_legacyGackGTSIdxBuffer))
+                    {
+                        NS_LOG_DEBUG("Packet at slot " << m_legacyGackGTSIdxBuffer << " , Ack successfully");
+                    }
+                    else
+                    {
+                        NS_LOG_DEBUG("Packet at slot : " << m_legacyGackGTSIdxBuffer << " transmit fail, ready to retransmit");
+                    }
+
+                    if (!m_mcpsDataConfirmCallback.IsNull()) 
+                    {
+                        if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) 
+                        {
+                            // Received Ack packet, send McpsDataConfirmParams to the higher layer to trigger McpsDataConfirm.
+                            McpsDataConfirmParams confirmParams;
+                            confirmParams.m_msduHandle = m_mcpsDataRequestParams.m_msduHandle;
+                            confirmParams.m_status = IEEE_802_15_4_SUCCESS;
+                            m_mcpsDataConfirmCallback(confirmParams);
+                        }                                
+                    }
 
                     Time ifsWaitTime = Seconds((double)m_macLIFSPeriod / symbolRate);                            
                     if (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()) 
@@ -7603,6 +7719,14 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                         m_groupAckPktBuffer.push_back((uint32_t)macHdr.GetSeqNum());
                     }
 
+                    /**
+                     * Recording the packet sequence number before received a enhanced group ack bitmap.
+                    */
+                    if(m_groupAckPolicy == GROUP_ACK_LEGACY && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()))
+                    {
+                        m_legacyGackGTSIdxBuffer = (uint32_t)m_curGTSIdx;
+                    }  
+
                     // (*m_record)[GetShortAddress()] = {macHdr.GetShortDstAddr(), {Simulator::Now().GetNanoSeconds()}};
                     if (m_record != nullptr) {
                         (*m_record)[GetShortAddress()] = {macHdr.GetShortDstAddr(), {}};
@@ -7624,7 +7748,7 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                 m_setMacState.Cancel();
 
                 // TODO : If enabled E-GACK, no need to ACK_PENDING, maybe wait a ifs time is enough.
-                if(m_groupAckPolicy == GROUP_ACK_ENHANCED)
+                if(m_groupAckPolicy == GROUP_ACK_ENHANCED || m_groupAckPolicy == GROUP_ACK_LEGACY)
                 {
                     m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_ACK_PENDING);
                     ifsWaitTime = Seconds(static_cast<double>(m_macSIFSPeriod) / symbolRate);
@@ -7703,10 +7827,17 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
             }
 
         }
-        else if(macHdr.IsAcknowledgment() && macHdr.IsIEListPresent())
+        else if(macHdr.IsAcknowledgment() && macHdr.IsIEListPresent() && m_groupAckPolicy == GROUP_ACK_ENHANCED)
         {
-            NS_LOG_DEBUG("Successfully sent a Group Ack packet.");
-            ResetGroupAckBitmap();
+            NS_LOG_DEBUG("Successfully sent a Enhanced Group Ack packet.");
+            ResetEnhancedGroupAckBitmap();
+            m_txPkt = nullptr;;
+        }
+        else if(macHdr.IsAcknowledgment() && macHdr.IsIEListPresent() && m_groupAckPolicy == GROUP_ACK_LEGACY)
+        {
+            // TODO 
+            NS_LOG_DEBUG("Successfully sent a Legacy Group Ack packet.");
+            ResetLegacyGroupAckBitmap();
             m_txPkt = nullptr;;
         }
         else 
@@ -8809,9 +8940,12 @@ void LrWpanMac::SetLrWpanMacStateToGTS(uint16_t superframeID, int idx) {
     //     return;
     // }
 
-    if (m_macDsmeACT[superframeID][idx].m_direction) {
+    if (m_macDsmeACT[superframeID][idx].m_direction) 
+    {
         m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_RX_ON);
-    } else {
+    } 
+    else 
+    {
         m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
     }
 
@@ -9750,9 +9884,14 @@ void LrWpanMac::PrintGroupAckBitmap()
     NS_LOG_DEBUG("Group Ack Bitmap : " << bitmapStr);
 }
 
-void LrWpanMac::ResetGroupAckBitmap()
+void LrWpanMac::ResetEnhancedGroupAckBitmap()
 {
     m_enhancedGACKBitmap = 0;
+}
+
+void LrWpanMac::ResetLegacyGroupAckBitmap()
+{
+    m_legacyGackBitmap = 0;
 }
 
 void LrWpanMac::SendEnhancedGroupAck()
@@ -9831,7 +9970,7 @@ void LrWpanMac::SendEnhancedGroupAck()
 
     EnhancedGroupAckDescriptorIE enhancedGackDescriptorIE;
 
-    enhancedGackDescriptorIE.SetIELength(64); // bitmap size : 64 bits 
+    enhancedGackDescriptorIE.SetIELength(8); // bitmap size : 8 bytes = 64 bits 
     enhancedGackDescriptorIE.SetHeaderIEDescriptor();
 
     // For testing purpose
@@ -9858,7 +9997,7 @@ void LrWpanMac::SendEnhancedGroupAck()
     // Set the Beacon packet to be transmitted
     m_txPkt = enhancedGroupAckPacket;
 
-    NS_LOG_DEBUG("Send a Group Ack Packet");
+    NS_LOG_DEBUG("Send a Enhanced Group Ack Packet");
 
     ChangeMacState(MAC_GTS_SENDING);
     m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
@@ -9867,6 +10006,115 @@ void LrWpanMac::SendEnhancedGroupAck()
 void LrWpanMac::ResetGroupAckBuffer()
 {
     m_groupAckPktBuffer.clear();
+}
+
+
+void LrWpanMac::SendLegacyGroupAck()
+{
+    NS_LOG_FUNCTION(this);
+    NS_LOG_DEBUG("m_lrWpanMacState - " << m_lrWpanMacState);
+    NS_ASSERT(m_lrWpanMacState == MAC_GTS); // If error check here
+    NS_ASSERT(m_groupAckPolicy == GROUP_ACK_LEGACY);
+
+    if(m_macPanId == 0xffff) // TODO : This is a workaround !! Root cause do not found yet ..
+    {                        // After a device leave the PAN (disassociation), the PAN id is set to 0xffff.
+        return;
+    }
+
+    Ptr<Packet> legacyGroupAckPacket = Create<Packet>();
+
+    LrWpanMacHeader macHdr;                         // Legacy Group Ack MDR
+                                                    // Legacy Group Ack has no payload
+
+    /**
+     *  Set MHD Frame control field
+     */
+
+    macHdr.SetType(LrWpanMacHeader::LRWPAN_MAC_ACKNOWLEDGMENT); // Frame Type
+    macHdr.SetSecDisable(); // Security Enabled
+    // Frame pending
+    if (m_indTxQueue.size()) 
+    {
+        macHdr.SetFrmPend();  // DSME-TODO : Set the Pending Address Fields
+    }
+    macHdr.SetNoAckReq(); // AR
+    macHdr.SetNoPanIdComp(); // PAN ID compression
+    macHdr.SetNoSeqNumSup() ;
+    macHdr.SetIEListPresent(); // If there is a IE , set to one
+    macHdr.SetDstAddrMode(LrWpanMacHeader::SHORTADDR);
+    macHdr.SetFrameVer(LrWpanMacHeader::IEEE_802_15_4);
+    macHdr.SetSrcAddrMode(LrWpanMacHeader::SHORTADDR);
+
+    /**
+     *  Set Sequence Number field
+     */
+    macHdr.SetSeqNum(m_macDsn.GetValue());
+    m_macDsn++;
+
+    /**
+     *  Set Destination addr
+     */
+    macHdr.SetDstAddrFields(GetPanId(), Mac16Address("ff:ff")); // broadcast packet
+
+    /**
+     *  Set Source addr
+     */
+    if (GetShortAddress() == Mac16Address("ff:fe")) 
+    {
+        macHdr.SetSrcAddrMode(LrWpanMacHeader::EXTADDR);
+        macHdr.SetSrcAddrFields(GetPanId(), GetExtendedAddress());
+    } 
+    else 
+    {
+        macHdr.SetSrcAddrFields(GetPanId(), GetShortAddress());
+    }
+
+
+    /**
+     * Set legacy Group Payload IE 
+    */
+    PayloadIETermination plIETermination;
+    legacyGroupAckPacket->AddHeader(plIETermination);     
+
+    /**
+     * Set legacy Group Header IE 
+    */
+
+    HeaderIETermination hdrIETermination;
+    legacyGroupAckPacket->AddHeader(hdrIETermination);
+
+    // TODO 
+    LegacyGroupAckIE legacyGackIE;
+
+    legacyGackIE.SetIELength(7); // bitmap size : 7bytes
+
+    legacyGackIE.SetGackBitmapField(m_legacyGackBitmap);
+    legacyGackIE.SetGackDevListField(m_legacyGackDevList);
+    legacyGackIE.SetGackIdxBitmapField(m_legacyGackIdx);
+    legacyGackIE.SetGtsDirectionBitmapField(m_legacyGackDirections);
+    
+    // Add Header IE
+    legacyGroupAckPacket->AddHeader(legacyGackIE);
+
+    // Add Header
+    legacyGroupAckPacket->AddHeader(macHdr); 
+
+    LrWpanMacTrailer macTrailer;
+    // Calculate FCS if the global attribute ChecksumEnable is set.
+    if (Node::ChecksumEnabled()) {
+        macTrailer.EnableFcs(true);
+        macTrailer.SetFcs(legacyGroupAckPacket);
+    }
+
+    legacyGroupAckPacket->AddTrailer(macTrailer);
+
+    // Set the Beacon packet to be transmitted
+    m_txPkt = legacyGroupAckPacket;
+
+    NS_LOG_DEBUG("Send a Legacy Group Ack Packet");
+
+    ChangeMacState(MAC_GTS_SENDING);
+    m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
 }
 
 

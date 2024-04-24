@@ -34,7 +34,9 @@ using namespace ns3;
 #define MO 5
 
 #define NUM_COORD 2 // The number of coord, PAN-C need to be included.
-#define NUM_RFD 1 // The number of RFD.
+#define TREE_DEGREE 1 // The maximum degree of a node in the tree.
+#define NUM_RFD (NUM_COORD - 1) * TREE_DEGREE // The number of RFD.
+#define ROUND_ROBIN_FACTOR TREE_DEGREE
 
 #define GACK_1_CHANNEL_IDX 3
 #define GACK_2_CHANNEL_IDX 3
@@ -53,6 +55,21 @@ typedef enum
     CHANNEL_ADAPTATION = 0,
     CHANNEL_HOPPING = 1
 } LrWpanDsmeChannelDiversity;
+
+void GenerateRoundRobinQueue(std::queue<int> *queue, int coorIDx)
+{
+    for(int deviceIdx = 0; deviceIdx < ROUND_ROBIN_FACTOR; deviceIdx++)
+    {
+        int childLrWpanDevIdx = deviceIdx + NUM_COORD + (coorIDx * TREE_DEGREE);
+        queue->push(childLrWpanDevIdx);
+    }
+}
+
+void ClearRoundRobinQueue(std::queue<int>* queue) 
+{
+
+    while (!queue->empty()) queue->pop();
+}
 
 static void
 dataSentMacConfirm(McpsDataConfirmParams params) // McpsDataConfirmCallBack
@@ -259,51 +276,72 @@ int main(int argc, char** argv) {
     }
 
     int pktSize = 10;
+
+    /**
+     * This is a Queue for round robin purpose. (Stores the RFD lrWpanDeviceIdx)
+     * Beacuse the device need to allocate GTS fairly, so here choose round robin algorithm to implement.
+    */
+    std::queue<int> childLrWpanDevIdxQueue;
+
+    double slot_0_StartTime = 1.11578;
+    // double slot_7_StartTime = 1.16928;
+    /**
+     * slotTimeInterval (aka. slot time or aBaseSlotDuration) calculated by 
+     * aBaseSuperframeDuration * 2^superframeOrder / aNumSuperframeSlots / symbol Rate
+     * which can be written as ---> (960*2^SO/16) / 62500
+     * In this case , SO = 3,  slotTimeInterval = (960*2^3/16) / 62500 = 0.00768
+    */
+    double setTime = slot_0_StartTime;
+    double slotTimeInterval = 0.00768; // slot time
+
+
     uint16_t superframeID = 1;
-    for (int i = 0; i < 1; ++i) {
+    for (int i = 0; i < 1; ++i) 
+    {
         int childIdx = i + NUM_COORD;
         // Channel Offset setting
         lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>()->SetChannelOffset(channelOffsets[0]);
 
         // Setting the GTS of Coord and devices with channel offset & TX/RX direction & SPFIdx & slotIDx etc.
-        for(int slotIdx = 0; slotIdx < 3; slotIdx++)
+        for(int slotIdx = 0; slotIdx < 4; slotIdx++)
         {
-            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0]
+            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[1]
                                 , superframeID, slotIdx);
 
-            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0]
+            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[1]
                                 , superframeID, slotIdx);       
         }        
 
         // Setting parameters of sending the data packets.
         // Set interval to a large number in order to let traffic only send one packet.
-        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.11553, 100.0, 100000.0);    // Slot 0
-        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.1240, 100.0, 100000.0);     // Slot 1 
-        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, 1.1312, 100.0, 100000.0);     // Slot 2
-
+        for(int slotIdx = 0; slotIdx < 4; slotIdx++)
+        {
+            lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childIdx), lrwpanDevices.Get(1)->GetAddress(), pktSize, setTime, 100.0, 100000.0);    // Slot 0 ~ Slot 3  
+            setTime += slotTimeInterval;
+        }          
 
         /*
          * Group Ack slot
         */
         // Setting the GTS-GACK1 for Group Ack slot 
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[1] // Coord for TX
                             , superframeID, GACK_1_SLOT_IDX);
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[1] // Devices for RX
                             , superframeID, GACK_1_SLOT_IDX);  
 
 
         superframeID = 2;
         // Setting the GTS-GTSR for Group Ack slot 
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[1] // Coord for TX
                             , superframeID, 7);
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[1] // Devices for RX
                             , superframeID, 7);
         
         superframeID = 3;
         // Setting the GTS-GACK2 for Group Ack slot 
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[0] // Coord for TX
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(1)->GetObject<LrWpanNetDevice>(), false, 1, channelOffsets[1] // Coord for TX
                             , superframeID, GACK_2_SLOT_IDX);
-        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[0] // Devices for RX
+        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childIdx)->GetObject<LrWpanNetDevice>(), true, 1, channelOffsets[1] // Devices for RX
                             , superframeID, GACK_2_SLOT_IDX);  
  
     }
@@ -322,6 +360,11 @@ int main(int argc, char** argv) {
     std::cout << "pktSent: " << pktSent << std::endl;
     std::cout << "pktRecv: " << pktRecv << std::endl;
     std::cout << "Delivery ratio: " << pktRecv / pktSent << std::endl;
+
+    double totalSendSize = (double)(pktRecv * (double)pktSize * 8);
+    double superframeDuration = (double)(960 * 8 / (double)62500);
+
+    std::cout << "Throughput: " << (double)(totalSendSize / (double)(superframeDuration * 4) / (double)1000) << " (kbits/sec)" << std::endl;
 
     Simulator::Destroy();
 }

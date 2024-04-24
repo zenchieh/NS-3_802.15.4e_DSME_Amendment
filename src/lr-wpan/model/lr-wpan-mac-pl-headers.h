@@ -288,17 +288,24 @@ class LegacyGroupAckIE : public Header
         LegacyGroupAckIE();
         ~LegacyGroupAckIE();
 
+        void SetHeaderIEDescriptor(); // TODO
+        void SetIELength(uint32_t length); // TODO
+
         void SetBitmap(uint8_t bitmap, uint8_t bitLocation);
         void ResetBitmap(uint8_t bitmap);
         
-        void SetGackBitmapField(uint8_t gackBitmap);
-        uint8_t GetGackBitmapField() const;
+        void SetGackBitmapField(uint16_t gackBitmap);
+        uint16_t GetGackBitmapField() const;
 
-        void SetGackIdxBitmap(uint16_t gackIdxBitmap);
+        void SetGackDevListField(uint8_t gackDevList);
+        uint8_t GetGackDevListField() const;
+
+        void SetGackIdxBitmapField(uint16_t gackIdxBitmap);
+        uint16_t GetGackIdxBitmapField() const;
+
         void SetGackIdx(uint16_t gackIdxBitmap, uint16_t startLocation, uint16_t value);
         uint16_t GetGackIdx(uint16_t gackIdxBitmap, uint16_t startLocation);
-        uint16_t GetGackIdxBitmap() const;
-        
+
         void SetGtsDirectionBitmapField(uint8_t gtsDirectionBitmap);
         uint8_t GetGtsDirectionBitmapField() const;
 
@@ -313,10 +320,11 @@ class LegacyGroupAckIE : public Header
 
     private:
 
+        HeaderIEDescriptor m_descriptor;
+        uint32_t ieLength;  
+
         AckControl m_ackCtrl;
-
         uint16_t m_gackBitmap;
-
         uint8_t m_gackDevList;
         uint16_t m_gackIdx;
         uint8_t m_gtsDirections;

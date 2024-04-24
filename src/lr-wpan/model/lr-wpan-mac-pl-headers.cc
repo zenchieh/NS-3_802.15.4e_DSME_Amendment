@@ -2196,6 +2196,7 @@ uint8_t AckControl::GetAckCtrl() const
     ackCtrl = (m_payloadSize) & (0x07);         //<! Bit 0-2
     ackCtrl |= (m_bitmapSize << 3) & (0x03);    //<! Bit 3-4
     ackCtrl |= (m_reserved << 5) & (0x03);      //<! Bit 5-7
+    return ackCtrl;
 }
 
 void AckControl::SetPayloadSize(uint8_t payloadSize)
@@ -2261,12 +2262,12 @@ void LegacyGroupAckIE::ResetBitmap(uint8_t bitmap)
     bitmap = 0;
 }
 
-uint8_t LegacyGroupAckIE::GetGackBitmapField() const
+uint16_t LegacyGroupAckIE::GetGackBitmapField() const
 {
     return m_gackBitmap;
 }
 
-void LegacyGroupAckIE::SetGackBitmapField(uint8_t gackBitmap) 
+void LegacyGroupAckIE::SetGackBitmapField(uint16_t gackBitmap) 
 {
     m_gackBitmap = gackBitmap;
 }
@@ -2281,7 +2282,7 @@ void LegacyGroupAckIE::SetGtsDirectionBitmapField(uint8_t gtsDirectionBitmap)
     m_gtsDirections = gtsDirectionBitmap;
 }
 
-void LegacyGroupAckIE::SetGackIdxBitmap(uint16_t gackIdxBitmap)
+void LegacyGroupAckIE::SetGackIdxBitmapField(uint16_t gackIdxBitmap)
 {
     m_gackIdx = gackIdxBitmap;
 }
@@ -2308,7 +2309,7 @@ uint16_t LegacyGroupAckIE::GetGackIdx(uint16_t gackIdxBitmap, uint16_t startLoca
     return value;
 }
 
-uint16_t LegacyGroupAckIE::GetGackIdxBitmap() const
+uint16_t LegacyGroupAckIE::GetGackIdxBitmapField() const
 {
     return m_gackIdx;
 }
@@ -2360,6 +2361,38 @@ uint32_t LegacyGroupAckIE::Deserialize(Buffer::Iterator start)
     m_gackIdx = i.ReadU16();
     m_gtsDirections = i.ReadU8();
     return i.GetDistanceFrom(start); 
+}
+
+void LegacyGroupAckIE::Print(std::ostream &os) const 
+{
+    os << "test = " << std::endl;
+}
+
+std::ostream& operator << (std::ostream &os, const LegacyGroupAckIE& legacyGroupAckDescriptorIE) {
+
+    os << std::bitset<16>(legacyGroupAckDescriptorIE.GetGackBitmapField()); 
+    return os;
+}
+
+void LegacyGroupAckIE::SetHeaderIEDescriptor()
+{
+    m_descriptor.SetLength(ieLength); // According to the length set before, The length field specifies the number of octets in the IE Content
+    m_descriptor.SetHeaderElementID(HEADERIE_GACK);
+}
+
+void LegacyGroupAckIE::SetIELength(uint32_t length)
+{
+    ieLength = length;
+}
+
+uint8_t LegacyGroupAckIE::GetGackDevListField() const
+{
+    return m_gackDevList;
+}
+
+void LegacyGroupAckIE::SetGackDevListField(uint8_t gackDevList) 
+{
+    m_gackDevList = gackDevList;
 }
 
 } // namespace ns3
