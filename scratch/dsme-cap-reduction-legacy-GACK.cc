@@ -281,18 +281,7 @@ int main(int argc, char** argv) {
      * This is a Queue for round robin purpose. (Stores the RFD lrWpanDeviceIdx)
      * Beacuse the device need to allocate GTS fairly, so here choose round robin algorithm to implement.
     */
-    std::queue<int> childLrWpanDevIdxQueue;
-
-    double slot_0_StartTime = 1.11578;
-    // double slot_7_StartTime = 1.16928;
-    /**
-     * slotTimeInterval (aka. slot time or aBaseSlotDuration) calculated by 
-     * aBaseSuperframeDuration * 2^superframeOrder / aNumSuperframeSlots / symbol Rate
-     * which can be written as ---> (960*2^SO/16) / 62500
-     * In this case , SO = 3,  slotTimeInterval = (960*2^3/16) / 62500 = 0.00768
-    */
-    double setTime = slot_0_StartTime;
-    double slotTimeInterval = 0.00768; // slot time
+    std::queue<int> childLrWpanDevIdxQueue;  
 
     for(int coorIDx = 0; coorIDx < NUM_COORD - 1; coorIDx++) // minus one beacause of PAN-C 
     {
@@ -349,7 +338,6 @@ int main(int argc, char** argv) {
                         // Setting the devices GTS 
                         for(int i = 0; i < queueSize; i++)
                         {
-                            std::cout << "test " << childLrWpanDevIdxQueue.front() << std::endl;
                             childLrWpanDevIdx = childLrWpanDevIdxQueue.front();     
                             lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
                                                     channelOffsets[coordLrWpanDevIdx], GACK_1_SPF_IDX, GACK_1_SLOT_IDX); 
