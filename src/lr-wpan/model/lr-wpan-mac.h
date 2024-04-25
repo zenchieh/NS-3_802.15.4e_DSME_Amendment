@@ -2838,7 +2838,7 @@ class LrWpanMac : public Object
      * Recording the packet sequence which transmit before receive a Enhanced Group Ack bitmap.
     */
     std::vector<uint32_t> m_groupAckPktBuffer;
-    void ResetGroupAckBuffer();
+    void ResetEnhancedGroupAckBuffer();
     
     /**
      * The scheduled event to add superframeIDx.
@@ -3132,7 +3132,8 @@ class LrWpanMac : public Object
     uint16_t m_legacyGackIdx;
     uint8_t  m_legacyGackDirections;
     uint32_t m_legacyGackIndexCounter;
-
+    
+    uint32_t m_currentGTSIdx;
     /**
      * Recording the GTS IDx which transmit before receive a legacy Group Ack bitmap.
     */
@@ -3140,6 +3141,7 @@ class LrWpanMac : public Object
 
     void SendLegacyGroupAck();
     void ResetLegacyGroupAckBitmap();
+    void ResetLegacyGroupAckBuffer();
 
   protected:
     // Inherited from Object.

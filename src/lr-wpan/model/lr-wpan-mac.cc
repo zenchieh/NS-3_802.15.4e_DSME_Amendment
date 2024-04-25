@@ -4188,6 +4188,7 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
 
     m_curGTSSuperframeID = superframeID;
     m_curGTSIdx = idx;
+    m_currentGTSIdx = (int)m_macDsmeACT[superframeID][idx].m_slotID;
 
     NS_LOG_DEBUG("Current superframeID : " << m_curGTSSuperframeID << " GTSIDx : " << (int)m_macDsmeACT[superframeID][idx].m_slotID);
 
@@ -6774,7 +6775,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     }                    
 
                     ResetEnhancedGroupAckBitmap();   
-                    ResetGroupAckBuffer();   
+                    ResetEnhancedGroupAckBuffer();   
 
                     Time ifsWaitTime = Seconds((double)m_macLIFSPeriod / symbolRate);                            
                     if (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()) 
@@ -6825,6 +6826,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             NS_LOG_DEBUG("Packet at slot : " << m_legacyGackGTSIdxBuffer[i] << " transmit fail, ready to retransmit");
                         }
                     }
+
+                    ResetLegacyGroupAckBuffer();
 
                     Time ifsWaitTime = Seconds((double)m_macLIFSPeriod / symbolRate);                            
                     if (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()) 
@@ -7725,7 +7728,7 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     */
                     if(m_groupAckPolicy == GROUP_ACK_LEGACY && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()))
                     {
-                        m_legacyGackGTSIdxBuffer.push_back((uint32_t)m_curGTSIdx);
+                        m_legacyGackGTSIdxBuffer.push_back((uint32_t)m_currentGTSIdx);
                     }  
 
                     // (*m_record)[GetShortAddress()] = {macHdr.GetShortDstAddr(), {Simulator::Now().GetNanoSeconds()}};
@@ -10004,7 +10007,7 @@ void LrWpanMac::SendEnhancedGroupAck()
     m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
 }
 
-void LrWpanMac::ResetGroupAckBuffer()
+void LrWpanMac::ResetEnhancedGroupAckBuffer()
 {
     m_groupAckPktBuffer.clear();
 }
@@ -10116,6 +10119,11 @@ void LrWpanMac::SendLegacyGroupAck()
 
     ChangeMacState(MAC_GTS_SENDING);
     m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
+}
+
+void LrWpanMac::ResetLegacyGroupAckBuffer()
+{
+    m_legacyGackGTSIdxBuffer.clear();
 }
 
 
