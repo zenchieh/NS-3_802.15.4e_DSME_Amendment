@@ -6803,26 +6803,27 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     }
 
                     NS_LOG_DEBUG("Starting Check received Group Ack bitmap");
-
-                    if(receivedLegacyGackIE.GetGackBitmapField() & ((uint16_t)1 << m_legacyGackGTSIdxBuffer))
+                    for (size_t i = 0; i < m_legacyGackGTSIdxBuffer.size(); i++) 
                     {
-                        NS_LOG_DEBUG("Packet at slot " << m_legacyGackGTSIdxBuffer << " , Ack successfully");
-                    }
-                    else
-                    {
-                        NS_LOG_DEBUG("Packet at slot : " << m_legacyGackGTSIdxBuffer << " transmit fail, ready to retransmit");
-                    }
-
-                    if (!m_mcpsDataConfirmCallback.IsNull()) 
-                    {
-                        if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) 
+                        if(receivedLegacyGackIE.GetGackBitmapField() & ((uint16_t)1 << m_legacyGackGTSIdxBuffer[i]))
                         {
-                            // Received Ack packet, send McpsDataConfirmParams to the higher layer to trigger McpsDataConfirm.
-                            McpsDataConfirmParams confirmParams;
-                            confirmParams.m_msduHandle = m_mcpsDataRequestParams.m_msduHandle;
-                            confirmParams.m_status = IEEE_802_15_4_SUCCESS;
-                            m_mcpsDataConfirmCallback(confirmParams);
-                        }                                
+                            NS_LOG_DEBUG("Packet at slot " << m_legacyGackGTSIdxBuffer[i] << " , Ack successfully");
+                            if (!m_mcpsDataConfirmCallback.IsNull()) 
+                            {
+                                if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) 
+                                {
+                                    // Received Ack packet, send McpsDataConfirmParams to the higher layer to trigger McpsDataConfirm.
+                                    McpsDataConfirmParams confirmParams;
+                                    confirmParams.m_msduHandle = m_mcpsDataRequestParams.m_msduHandle;
+                                    confirmParams.m_status = IEEE_802_15_4_SUCCESS;
+                                    m_mcpsDataConfirmCallback(confirmParams);
+                                }                                
+                            }
+                        }
+                        else
+                        {
+                            NS_LOG_DEBUG("Packet at slot : " << m_legacyGackGTSIdxBuffer[i] << " transmit fail, ready to retransmit");
+                        }
                     }
 
                     Time ifsWaitTime = Seconds((double)m_macLIFSPeriod / symbolRate);                            
@@ -7724,7 +7725,7 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     */
                     if(m_groupAckPolicy == GROUP_ACK_LEGACY && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()))
                     {
-                        m_legacyGackGTSIdxBuffer = (uint32_t)m_curGTSIdx;
+                        m_legacyGackGTSIdxBuffer.push_back((uint32_t)m_curGTSIdx);
                     }  
 
                     // (*m_record)[GetShortAddress()] = {macHdr.GetShortDstAddr(), {Simulator::Now().GetNanoSeconds()}};

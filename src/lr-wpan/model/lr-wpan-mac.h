@@ -3136,7 +3136,7 @@ class LrWpanMac : public Object
     /**
      * Recording the GTS IDx which transmit before receive a legacy Group Ack bitmap.
     */
-    uint32_t m_legacyGackGTSIdxBuffer;
+    std::vector<uint32_t> m_legacyGackGTSIdxBuffer;
 
     void SendLegacyGroupAck();
     void ResetLegacyGroupAckBitmap();
