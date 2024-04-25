@@ -4591,8 +4591,9 @@ void LrWpanMac::StartMultisuperframe(SuperframeType superframeType) {
 
         NS_LOG_DEBUG("Start Outgoing multisuperframe Active Portion (Beacon + CAP + CFP) + (Beacon + CAP + CFP)...: "
                     << m_multiSuperframeDuration << " symbols"
-                    << "(" << endMultisuperframeTime.As(Time::S) << ")"
-                    << " Next Multi-Superframe will at : " << (Simulator::Now() + endMultisuperframeTime).As(Time::S));
+                    << "(" << endMultisuperframeTime.As(Time::S) << ")");
+        NS_LOG_DEBUG("Next Multi-Superframe will at : " << (Simulator::Now() + endMultisuperframeTime).As(Time::S));
+                    
         
         // Schedule next multisuperframe start timing, and keep calculating next time , run forever
         m_multisuperframeEndEvent = Simulator::Schedule(endMultisuperframeTime, 
