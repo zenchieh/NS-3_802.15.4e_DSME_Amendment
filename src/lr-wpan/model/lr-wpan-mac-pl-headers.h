@@ -141,8 +141,9 @@ enum HeaderElementIDs {
     HEADERIE_LOW_LANTENCY_NET_INFO = 0x20,       //!< Low Latency Network Info
     HEADERIE_LIST_TERMINATION_1    = 0x7e,       //!< List Termination 1
     HEADERIE_LIST_TERMINATION_2    = 0x7f,       //!< List Termination 2
-    HEADERIE_ENHANCED_GACK         = 0x21,       //!< Reserved
-    HEADERIE_RESERVED              = 0x22        //!< Reserved
+    HEADERIE_ENHANCED_GACK         = 0x21,       //!< Reserved bit , extended for E-GACK
+    HEADERIE_DSME_GTS_GACK         = 0x22,       //!< Reserved bit , extended for DSME-GTS GACK
+    HEADERIE_RESERVED              = 0x23        //!< Reserved
 };
 
 /** 
@@ -334,39 +335,89 @@ class LegacyGroupAckIE : public Header
  * \ingroup lr-wpan
  * Self Designed Enhanced Group Header IE
  */
-class EnhancedGroupAckDescriptorIE : public Header {
-public:
-    EnhancedGroupAckDescriptorIE();
-    ~EnhancedGroupAckDescriptorIE();
+class EnhancedGroupAckDescriptorIE : public Header 
+{
+    public:
+        EnhancedGroupAckDescriptorIE();
+        ~EnhancedGroupAckDescriptorIE();
 
-    void SetHeaderIEDescriptor();
-    void SetIELength(uint32_t length);
-    void SetGroupAckBitmap(uint64_t bitmap);
-    uint64_t GetGroupAckBitmap() const; 
-    uint32_t GetIELength() const;
-    static TypeId GetTypeId();
-    TypeId GetInstanceTypeId() const;
+        void SetHeaderIEDescriptor();
+        void SetIELength(uint32_t length);
+        void SetGroupAckBitmap(uint64_t bitmap);
+        uint64_t GetGroupAckBitmap() const; 
+        uint32_t GetIELength() const;
+        static TypeId GetTypeId();
+        TypeId GetInstanceTypeId() const;
 
-    uint32_t GetSerializedSize() const override;
-    void Serialize(Buffer::Iterator start) const override;
-    uint32_t Deserialize(Buffer::Iterator start) override;
+        uint32_t GetSerializedSize() const override;
+        void Serialize(Buffer::Iterator start) const override;
+        uint32_t Deserialize(Buffer::Iterator start) override;
 
-    void Print(std::ostream &os) const override;
+        void Print(std::ostream &os) const override;
 
-    void PrintBitmap();
+        void PrintBitmap();
 
-private:
-    HeaderIEDescriptor m_descriptor;
+    private:
+        HeaderIEDescriptor m_descriptor;
 
-    uint32_t ieLength;  // TODO: if we decide to use dynamic adjust bitmap size, this variable needs to add into IE content
+        uint32_t ieLength;  // TODO: if we decide to use dynamic adjust bitmap size, this variable needs to add into IE content
 
-    // IE content
-    uint64_t m_u8GroupAckBitmap;
-    // uint128_t m_u16GroupAckBitmap;
+        // IE content
+        uint64_t m_u8GroupAckBitmap;
+        // uint128_t m_u16GroupAckBitmap;
 };
 
 std::ostream& operator << (std::ostream &os, const EnhancedGroupAckDescriptorIE& enhancedGroupAckDescriptorIE);
 
+
+
+typedef struct 
+{
+    Mac16Address nodeAddr;
+    uint8_t bitmapLength = 8; // Default 8 bytes = 64 bits
+    uint8_t sequenceNumber;
+    std::vector<uint8_t> bitmap;
+    
+} DsmeGtsGackPayload;
+
+class DsmeGtsGroupAckDescriptorIE : public Header 
+{
+    public:
+        DsmeGtsGroupAckDescriptorIE();
+        ~DsmeGtsGroupAckDescriptorIE();
+
+        void SetPayloadsNumber(uint8_t payloadNumber);
+        uint8_t GetPayloadsNumber() const;
+
+        void SetDsmeGtsGackPayload(DsmeGtsGackPayload &gtsGackPayload, Mac16Address addr, uint8_t bitmapLen, uint8_t seqNum, std::vector<uint8_t> bmp);
+        
+        void AdjustBitmapSize(DsmeGtsGackPayload &gtsGackPayload);  // Adjust m_bitmap in DsmeGtsGackPayload according to the m_bitmapLength
+        void AdjustPayloadSize(); // Adjust m_payload size according to the m_payloadsNumber;
+        
+        uint32_t GetPayloadTotalSize() const; // return the total size of the m_payload vector
+
+        void SetHeaderIEDescriptor();
+        void SetIELength(uint32_t length);
+        uint32_t GetIELength() const;
+        static TypeId GetTypeId();
+        TypeId GetInstanceTypeId() const;
+        uint32_t GetSerializedSize() const override;
+        void Serialize(Buffer::Iterator start) const override;
+        uint32_t Deserialize(Buffer::Iterator start) override;
+
+        void Print(std::ostream &os) const override;
+
+    private:
+        HeaderIEDescriptor m_descriptor;
+        uint32_t ieLength;  
+
+        // IE content
+        uint8_t m_payloadsNumber;                       //!<  The number of the payloads.
+
+        std::vector<DsmeGtsGackPayload> m_payloads;     //!<  The Payloads in the DSME-GTS bitmap structure.
+};
+
+std::ostream& operator << (std::ostream &os, const DsmeGtsGroupAckDescriptorIE& dsmeGtsGroupAckDescriptorIE);
 
 
 /**

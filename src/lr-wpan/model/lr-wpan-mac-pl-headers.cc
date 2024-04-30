@@ -2239,7 +2239,7 @@ uint32_t AckControl::GetSerializedSize() const {
 }
 
 /***********************************************************
- *              Group Ack IE - Ack control
+ *                  Legacy Group Ack IE
  ***********************************************************/
 
 LegacyGroupAckIE::LegacyGroupAckIE()
@@ -2393,6 +2393,146 @@ uint8_t LegacyGroupAckIE::GetGackDevListField() const
 void LegacyGroupAckIE::SetGackDevListField(uint8_t gackDevList) 
 {
     m_gackDevList = gackDevList;
+}
+
+/***********************************************************
+ *                 DSME-GTS Group Ack IE
+ ***********************************************************/
+
+DsmeGtsGroupAckDescriptorIE::DsmeGtsGroupAckDescriptorIE()
+{
+
+}
+
+DsmeGtsGroupAckDescriptorIE::~DsmeGtsGroupAckDescriptorIE()
+{
+
+}
+
+void DsmeGtsGroupAckDescriptorIE::SetHeaderIEDescriptor()
+{
+    m_descriptor.SetLength(ieLength); // According to the length set before, The length field specifies the number of octets in the IE Content
+    m_descriptor.SetHeaderElementID(HEADERIE_DSME_GTS_GACK);
+}
+
+void DsmeGtsGroupAckDescriptorIE::SetIELength(uint32_t length)
+{
+    ieLength = length;
+}
+
+uint32_t DsmeGtsGroupAckDescriptorIE::GetIELength() const
+{
+    return ieLength;
+}
+
+void DsmeGtsGroupAckDescriptorIE::Print(std::ostream &os) const 
+{
+    os << "test = " << std::endl;
+}
+
+std::ostream& operator << (std::ostream &os, const DsmeGtsGroupAckDescriptorIE& dsmeGtsGroupAckDescriptorIE) 
+{
+    return os;
+}
+
+TypeId
+DsmeGtsGroupAckDescriptorIE::GetTypeId()
+{
+    static TypeId tid = TypeId("ns3::DsmeGtsGroupAckDescriptorIE")
+                            .SetParent<Header>()
+                            .SetGroupName("LrWpan")
+                            .AddConstructor<DsmeGtsGroupAckDescriptorIE>();
+    return tid;
+}
+
+TypeId
+DsmeGtsGroupAckDescriptorIE::GetInstanceTypeId() const
+{
+    return GetTypeId();
+}
+
+void DsmeGtsGroupAckDescriptorIE::SetPayloadsNumber(uint8_t payloadNumber)
+{
+    m_payloadsNumber = payloadNumber;
+}
+
+uint8_t DsmeGtsGroupAckDescriptorIE::GetPayloadsNumber() const
+{
+    return m_payloadsNumber;
+}
+
+void DsmeGtsGroupAckDescriptorIE::AdjustPayloadSize()
+{
+    m_payloads.resize(GetPayloadsNumber());
+}
+
+void DsmeGtsGroupAckDescriptorIE::AdjustBitmapSize(DsmeGtsGackPayload &gtsGackPayload)
+{
+    gtsGackPayload.bitmap.resize(gtsGackPayload.bitmapLength);
+}
+
+void DsmeGtsGroupAckDescriptorIE::SetDsmeGtsGackPayload(DsmeGtsGackPayload &gtsGackPayload, Mac16Address addr, uint8_t bitmapLen, uint8_t seqNum, std::vector<uint8_t> bmp)
+{
+    gtsGackPayload.nodeAddr = addr;
+    gtsGackPayload.bitmapLength = bitmapLen;
+    gtsGackPayload.sequenceNumber = seqNum;
+    gtsGackPayload.bitmap = bmp;
+}
+
+uint32_t DsmeGtsGroupAckDescriptorIE::GetPayloadTotalSize() const
+{
+    uint32_t totalSize = 0;
+    // Calculate the total payload size
+    for(int index = 0; index < m_payloads.size(); index++)
+    {
+        // node addr (2) + bitmap len (1) + seqNum (1) + bitmap (dynamic)
+        totalSize = 2 + 1 + 1 + m_payloads[index].bitmap.size(); 
+    }
+}
+
+uint32_t DsmeGtsGroupAckDescriptorIE::GetSerializedSize() const
+{
+    uint32_t size = 0;
+    size += 1; // payloads number = 1 byte
+    size += GetPayloadTotalSize(); 
+
+    return size;
+}
+
+void DsmeGtsGroupAckDescriptorIE::Serialize(Buffer::Iterator start) const
+{
+    Buffer::Iterator i = start;
+    i.WriteU8(m_payloadsNumber);
+
+    for(int index = 0; index < m_payloadsNumber; index++)
+    {
+        WriteTo(i, m_payloads[index].nodeAddr);
+        i.WriteU8(m_payloads[index].bitmapLength);
+        i.WriteU8(m_payloads[index].sequenceNumber);
+
+        for(int bmpidx = 0; bmpidx < m_payloads[index].bitmapLength; bmpidx++)
+        {
+            i.WriteU8(m_payloads[index].bitmap[bmpidx]);
+        }
+    }
+}
+
+uint32_t DsmeGtsGroupAckDescriptorIE::Deserialize(Buffer::Iterator start)
+{
+    Buffer::Iterator i = start;
+    m_payloadsNumber = i.ReadU8();
+
+    for(int index = 0; index < m_payloadsNumber; index++)
+    {
+        ReadFrom(i, m_payloads[index].nodeAddr);
+        m_payloads[index].bitmapLength = i.ReadU8();
+        m_payloads[index].sequenceNumber = i.ReadU8();
+
+        for(int bmpidx = 0; bmpidx < m_payloads[index].bitmapLength; bmpidx++)
+        {
+            m_payloads[index].bitmap[bmpidx] = i.ReadU8();
+        }
+    }
 }
 
 } // namespace ns3
