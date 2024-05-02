@@ -389,7 +389,9 @@ class DsmeGtsGroupAckDescriptorIE : public Header
         void SetPayloadsNumber(uint8_t payloadNumber);
         uint8_t GetPayloadsNumber() const;
 
-        void SetDsmeGtsGackPayload(DsmeGtsGackPayload &gtsGackPayload, Mac16Address addr, uint8_t bitmapLen, uint8_t seqNum, std::vector<uint8_t> bmp);
+        void SetDsmeGtsGackPayload(std::vector<DsmeGtsGackPayload> payloads);
+
+        void GetDsmeGtsGackPayload(std::vector<DsmeGtsGackPayload> &payloads);
         
         void AdjustBitmapSize(DsmeGtsGackPayload &gtsGackPayload);  // Adjust m_bitmap in DsmeGtsGackPayload according to the m_bitmapLength
         void AdjustPayloadSize(); // Adjust m_payload size according to the m_payloadsNumber;

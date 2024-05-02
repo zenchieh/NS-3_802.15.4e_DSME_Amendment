@@ -5569,6 +5569,47 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                             }
 
                         }
+                        else if(m_groupAckPolicy == GROUP_ACK_DSME_GTS)
+                        {
+                            NS_LOG_DEBUG("DSME-GTS Group Ack enabled, aggregate acks into Group Acks");
+                            // TODO
+
+                            // 0. Check payload addr is exist or not
+                            bool isFindEntity = false;
+                            for(int index = 0; index < m_dsmeGtsGackPayloads.size(); index++)
+                            {
+                                if(m_dsmeGtsGackPayloads[index].nodeAddr == receivedMacHdr.GetShortSrcAddr()) // addr exist
+                                {
+                                    isFindEntity = true;
+                                    int bitmapLen = m_dsmeGtsGackPayloads[index].bitmapLength;
+                                    if(m_dsmeGtsGackPayloads[index].bitmap[bitmapLen - 1] != 0xFF) // if bitmap is not 11111111 (avoid overflow)
+                                    {
+                                        m_dsmeGtsGackPayloads[index].bitmap[bitmapLen - 1] = (m_dsmeGtsGackPayloads[index].bitmap[bitmapLen - 1] << 1) + 1;
+                                    }
+                                    else
+                                    {
+                                        m_dsmeGtsGackPayloads[index].bitmapLength++;               
+                                        bitmapLen = m_dsmeGtsGackPayloads[index].bitmapLength;
+                                        m_dsmeGtsGackPayloads[index].bitmap[bitmapLen - 1] = 1;    // Set new bitmap element = 00000001
+                                    }
+                                }
+                            }
+
+                            if(!isFindEntity)
+                            {
+                                DsmeGtsGackPayload payloadEntity;
+                                payloadEntity.nodeAddr = receivedMacHdr.GetShortSrcAddr();
+                                payloadEntity.bitmapLength = 1; // Default 1 bytes;
+                                payloadEntity.sequenceNumber = receivedMacHdr.GetSeqNum();
+                                payloadEntity.bitmap[0] = 1;
+                            }
+
+                            if (m_incGtsEvent.IsRunning() || m_gtsEvent.IsRunning()) 
+                            { 
+                                ChangeMacState(MAC_GTS);
+                            }
+
+                        }
                         else // Normal flow
                         {
                             m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SendAck,
@@ -6841,6 +6882,77 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                                         ifsWaitTime);
                     }     
                 }
+                if(receivedMacHdr.IsAcknowledgment() && receivedMacHdr.IsIEListPresent() && m_groupAckPolicy == GROUP_ACK_DSME_GTS) // DSME-GTS GACK
+                {
+                    LrWpanMacHeader peekedMacHdr;
+                    DsmeGtsGroupAckDescriptorIE receivedDsmeGtsGroupAckIE;
+
+                    p->RemoveHeader(receivedDsmeGtsGroupAckIE);
+                    std::vector<DsmeGtsGackPayload> receivedPayloads;
+                    receivedDsmeGtsGroupAckIE.GetDsmeGtsGackPayload(receivedPayloads);
+                    for(int i = 0; i < receivedPayloads.size(); i++)
+                    {
+                        NS_LOG_DEBUG("Node addr : " << receivedPayloads[i].nodeAddr << "\n"
+                                  << "Bitmap Length = " << receivedPayloads[i].bitmapLength << "\n"
+                                  << "SeqNum = " << receivedPayloads[i].sequenceNumber << "\n");
+                        for(int j = 0; j < receivedPayloads[i].bitmapLength; j++)
+                        {
+                            NS_LOG_DEBUG("Bitmap[" << j << "] = " << receivedPayloads[i].bitmap[j] << "\n");   
+                        }
+                    }
+
+                    NS_LOG_DEBUG("Starting Check received Group Ack bitmap");
+                    for (int index = 0; index < receivedPayloads.size(); index++) 
+                    {
+                        if(receivedPayloads[index].nodeAddr == m_shortAddress)
+                        {
+                            for(size_t i = 0; i < m_dsmeGtsGroupAckPktBuffer.size(); i++)
+                            {
+                                if(receivedPayloads[index].bitmap[receivedPayloads[index].bitmapLength] & 0x01) //! may have error here need check
+                                {
+                                    NS_LOG_DEBUG("Packet seq " << m_dsmeGtsGroupAckPktBuffer[i] << " , Ack successfully");
+                                    if (!m_mcpsDataConfirmCallback.IsNull()) 
+                                    {
+                                        if (!m_forDsmeNetDeviceIntegrateWithHigerLayer) 
+                                        {
+                                            // Received Ack packet, send McpsDataConfirmParams to the higher layer to trigger McpsDataConfirm.
+                                            McpsDataConfirmParams confirmParams;
+                                            confirmParams.m_msduHandle = m_mcpsDataRequestParams.m_msduHandle;
+                                            confirmParams.m_status = IEEE_802_15_4_SUCCESS;
+                                            m_mcpsDataConfirmCallback(confirmParams);
+                                        }                                
+                                    }
+                                }
+                                else
+                                {
+                                    NS_LOG_DEBUG("Packet at slot : " << m_legacyGackGTSIdxBuffer[i] << " transmit fail, ready to retransmit");
+                                }
+
+                                if(receivedPayloads[index].bitmap[receivedPayloads[index].bitmapLength] == 0)
+                                {
+                                    receivedPayloads[index].bitmap[receivedPayloads[index].bitmapLength]--;
+                                }
+                                else
+                                {
+                                    receivedPayloads[index].bitmap[receivedPayloads[index].bitmapLength] >>= 1;
+                                }
+                            }
+                        }
+                    }
+
+                    ResetDsmeGtsGackPayloadLength();
+
+                    Time ifsWaitTime = Seconds((double)m_macLIFSPeriod / symbolRate);                            
+                    if (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()) 
+                    {
+                        m_txPkt = nullptr;
+                        m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_GTS);
+                        m_ifsEvent = Simulator::Schedule(ifsWaitTime,
+                                                        &LrWpanMac::IfsWaitTimeout,
+                                                        this,
+                                                        ifsWaitTime);
+                    }     
+                }
             }
             else
             {
@@ -7718,6 +7830,14 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     /**
                      * Recording the packet sequence number before received a enhanced group ack bitmap.
                     */
+                    if(m_groupAckPolicy == GROUP_ACK_LEGACY && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()))
+                    {
+                        m_legacyGackGTSIdxBuffer.push_back((uint32_t)m_currentGTSIdx);
+                    }  
+
+                    /**
+                     * Recording the packet sequence number before received a enhanced group ack bitmap.
+                    */
                     if(m_groupAckPolicy == GROUP_ACK_ENHANCED && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()))
                     {
                         // NS_LOG_DEBUG("Push back into pktbuf , seq = " << (uint32_t)macHdr.GetSeqNum());
@@ -7727,10 +7847,11 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                     /**
                      * Recording the packet sequence number before received a enhanced group ack bitmap.
                     */
-                    if(m_groupAckPolicy == GROUP_ACK_LEGACY && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()))
+                    if(m_groupAckPolicy == GROUP_ACK_DSME_GTS && (m_gtsEvent.IsRunning() || m_incGtsEvent.IsRunning()))
                     {
-                        m_legacyGackGTSIdxBuffer.push_back((uint32_t)m_currentGTSIdx);
-                    }  
+                        // NS_LOG_DEBUG("Push back into pktbuf , seq = " << (uint32_t)macHdr.GetSeqNum());
+                        m_dsmeGtsGroupAckPktBuffer.push_back((uint32_t)macHdr.GetSeqNum());
+                    }
 
                     // (*m_record)[GetShortAddress()] = {macHdr.GetShortDstAddr(), {Simulator::Now().GetNanoSeconds()}};
                     if (m_record != nullptr) {
@@ -7752,8 +7873,8 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
                 
                 m_setMacState.Cancel();
 
-                // TODO : If enabled E-GACK, no need to ACK_PENDING, maybe wait a ifs time is enough.
-                if(m_groupAckPolicy == GROUP_ACK_ENHANCED || m_groupAckPolicy == GROUP_ACK_LEGACY)
+                // TODO : If enabled GACK, no need to ACK_PENDING, maybe wait a ifs time is enough.
+                if(m_groupAckPolicy == GROUP_ACK_LEGACY || m_groupAckPolicy == GROUP_ACK_ENHANCED || m_groupAckPolicy == GROUP_ACK_DSME_GTS)
                 {
                     m_setMacState = Simulator::ScheduleNow(&LrWpanMac::SetLrWpanMacState, this, MAC_ACK_PENDING);
                     ifsWaitTime = Seconds(static_cast<double>(m_macSIFSPeriod) / symbolRate);
@@ -7832,17 +7953,23 @@ LrWpanMac::PdDataConfirm(LrWpanPhyEnumeration status)
             }
 
         }
+        else if(macHdr.IsAcknowledgment() && macHdr.IsIEListPresent() && m_groupAckPolicy == GROUP_ACK_LEGACY)
+        {
+            NS_LOG_DEBUG("Successfully sent a Legacy Group Ack packet.");
+            ResetLegacyGroupAckBitmap();
+            m_txPkt = nullptr;;
+        }
         else if(macHdr.IsAcknowledgment() && macHdr.IsIEListPresent() && m_groupAckPolicy == GROUP_ACK_ENHANCED)
         {
             NS_LOG_DEBUG("Successfully sent a Enhanced Group Ack packet.");
             ResetEnhancedGroupAckBitmap();
             m_txPkt = nullptr;;
         }
-        else if(macHdr.IsAcknowledgment() && macHdr.IsIEListPresent() && m_groupAckPolicy == GROUP_ACK_LEGACY)
+        else if(macHdr.IsAcknowledgment() && macHdr.IsIEListPresent() && m_groupAckPolicy == GROUP_ACK_DSME_GTS)
         {
             // TODO 
-            NS_LOG_DEBUG("Successfully sent a Legacy Group Ack packet.");
-            ResetLegacyGroupAckBitmap();
+            NS_LOG_DEBUG("Successfully sent a DSME-GTS Group Ack packet.");
+            ResetDsmeGtsGackPayloads();
             m_txPkt = nullptr;;
         }
         else 
@@ -9877,8 +10004,7 @@ uint32_t LrWpanMac::DoQuadraticProb(uint32_t key, uint32_t count)
     }
 
     NS_LOG_DEBUG("Found key " << key << " collision");
-
-    uint32_t newKey = key + (count ^ 2);  // ! May excceed to limit of table size, need check
+    uint32_t newKey = key + (count * count);  // ! May excceed to limit of table size, need check
     return DoQuadraticProb(newKey, count + 1);
 }
 
@@ -10008,6 +10134,114 @@ void LrWpanMac::SendEnhancedGroupAck()
     m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
 }
 
+void LrWpanMac::SendDsmeGtsGroupAck()
+{
+    NS_LOG_FUNCTION(this);
+    // NS_LOG_DEBUG("m_lrWpanMacState - " << m_lrWpanMacState);
+    NS_ASSERT(m_lrWpanMacState == MAC_GTS); // If error check here
+    NS_ASSERT(m_groupAckPolicy == GROUP_ACK_DSME_GTS);
+
+    if(m_macPanId == 0xffff) // TODO : This is a workaround !! Root cause do not found yet ..
+    {                        // After a device leave the PAN (disassociation), the PAN id is set to 0xffff.
+        return;
+    }
+
+    Ptr<Packet> dsmeGtsGroupAckPacket = Create<Packet>();
+
+    LrWpanMacHeader macHdr;                         // Enhanced Group Ack MDR
+                                                    // Enhanced Group Ack has no payload
+
+    /**
+     *  Set MHD Frame control field
+     */
+
+    macHdr.SetType(LrWpanMacHeader::LRWPAN_MAC_ACKNOWLEDGMENT); // Frame Type
+    macHdr.SetSecDisable(); // Security Enabled
+    // Frame pending
+    if (m_indTxQueue.size()) 
+    {
+        macHdr.SetFrmPend();  // DSME-TODO : Set the Pending Address Fields
+    }
+    macHdr.SetNoAckReq(); // AR
+    macHdr.SetNoPanIdComp(); // PAN ID compression
+    macHdr.SetNoSeqNumSup() ;
+    macHdr.SetIEListPresent(); // If there is a IE , set to one
+    macHdr.SetDstAddrMode(LrWpanMacHeader::SHORTADDR);
+    macHdr.SetFrameVer(LrWpanMacHeader::IEEE_802_15_4);
+    macHdr.SetSrcAddrMode(LrWpanMacHeader::SHORTADDR);
+
+    /**
+     *  Set Sequence Number field
+     */
+    macHdr.SetSeqNum(m_macDsn.GetValue());
+    m_macDsn++;
+
+    /**
+     *  Set Destination addr
+     */
+    macHdr.SetDstAddrFields(GetPanId(), Mac16Address("ff:ff")); // broadcast packet
+
+    /**
+     *  Set Source addr
+     */
+    if (GetShortAddress() == Mac16Address("ff:fe")) 
+    {
+        macHdr.SetSrcAddrMode(LrWpanMacHeader::EXTADDR);
+        macHdr.SetSrcAddrFields(GetPanId(), GetExtendedAddress());
+    } 
+    else 
+    {
+        macHdr.SetSrcAddrFields(GetPanId(), GetShortAddress());
+    }
+
+
+    /**
+     * Set DSME-GTS Group Payload IE 
+    */
+    PayloadIETermination plIETermination;
+    dsmeGtsGroupAckPacket->AddHeader(plIETermination);     
+
+    /**
+     * Set DSME-GTS Header IE 
+    */
+
+    HeaderIETermination hdrIETermination;
+    dsmeGtsGroupAckPacket->AddHeader(hdrIETermination);
+
+    DsmeGtsGroupAckDescriptorIE dsmeGtsGroupAckDescriptorIE;
+
+    m_dsmeGtsGackPayloadLength = m_dsmeGtsGackPayloads.size();
+
+    dsmeGtsGroupAckDescriptorIE.SetPayloadsNumber(m_dsmeGtsGackPayloadLength);
+    dsmeGtsGroupAckDescriptorIE.SetDsmeGtsGackPayload(m_dsmeGtsGackPayloads);
+
+    dsmeGtsGroupAckDescriptorIE.SetIELength(dsmeGtsGroupAckDescriptorIE.GetSerializedSize()); // TODO !!
+    dsmeGtsGroupAckDescriptorIE.SetHeaderIEDescriptor(); 
+
+    // Add Header IE
+    dsmeGtsGroupAckPacket->AddHeader(dsmeGtsGroupAckDescriptorIE);
+
+    // Add Header
+    dsmeGtsGroupAckPacket->AddHeader(macHdr); 
+
+    LrWpanMacTrailer macTrailer;
+    // Calculate FCS if the global attribute ChecksumEnable is set.
+    if (Node::ChecksumEnabled()) {
+        macTrailer.EnableFcs(true);
+        macTrailer.SetFcs(dsmeGtsGroupAckPacket);
+    }
+
+    dsmeGtsGroupAckPacket->AddTrailer(macTrailer);
+
+    // Set the Beacon packet to be transmitted
+    m_txPkt = dsmeGtsGroupAckPacket;
+
+    NS_LOG_DEBUG("Send a DSME-GTS Group Ack Packet");
+
+    ChangeMacState(MAC_GTS_SENDING);
+    m_phy->PlmeSetTRXStateRequest(IEEE_802_15_4_PHY_TX_ON);
+}
+
 void LrWpanMac::ResetEnhancedGroupAckBuffer()
 {
     m_groupAckPktBuffer.clear();
@@ -10127,6 +10361,20 @@ void LrWpanMac::ResetLegacyGroupAckBuffer()
     m_legacyGackGTSIdxBuffer.clear();
 }
 
+void LrWpanMac::SetDsmeGtsPayloadLength(uint8_t len)
+{
+    m_dsmeGtsGackPayloadLength = len;
+}
+
+void LrWpanMac::ResetDsmeGtsGackPayloads()
+{
+    m_dsmeGtsGackPayloads.clear();
+}
+
+void LrWpanMac::ResetDsmeGtsGackPayloadLength()
+{
+    m_dsmeGtsGackPayloadLength = 0;
+}
 
 
 } // namespace ns3

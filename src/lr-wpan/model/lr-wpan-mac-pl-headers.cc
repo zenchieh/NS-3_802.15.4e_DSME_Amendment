@@ -2471,12 +2471,14 @@ void DsmeGtsGroupAckDescriptorIE::AdjustBitmapSize(DsmeGtsGackPayload &gtsGackPa
     gtsGackPayload.bitmap.resize(gtsGackPayload.bitmapLength);
 }
 
-void DsmeGtsGroupAckDescriptorIE::SetDsmeGtsGackPayload(DsmeGtsGackPayload &gtsGackPayload, Mac16Address addr, uint8_t bitmapLen, uint8_t seqNum, std::vector<uint8_t> bmp)
+void DsmeGtsGroupAckDescriptorIE::SetDsmeGtsGackPayload(std::vector<DsmeGtsGackPayload> payloads)
 {
-    gtsGackPayload.nodeAddr = addr;
-    gtsGackPayload.bitmapLength = bitmapLen;
-    gtsGackPayload.sequenceNumber = seqNum;
-    gtsGackPayload.bitmap = bmp;
+    m_payloads.assign(payloads.begin(), payloads.end());
+}
+
+void DsmeGtsGroupAckDescriptorIE::GetDsmeGtsGackPayload(std::vector<DsmeGtsGackPayload> &payloads)
+{
+    payloads.assign(m_payloads.begin(), m_payloads.end());
 }
 
 uint32_t DsmeGtsGroupAckDescriptorIE::GetPayloadTotalSize() const

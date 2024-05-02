@@ -60,7 +60,8 @@ typedef enum
     GROUP_ACK_DISABLED = 0,     //!< GROUP_ACK_DISABLED (disable group ack feature)
     GROUP_ACK_LEGACY = 1,       //!< GROUP_ACK_LEGACY
     GROUP_ACK_ENHANCED = 2,     //!< GROUP_ACK_ENHANCED (Self-designed)
-    GROUP_ACK_RESERVED = 3,     //!< GROUP_ACK_RESERVED
+    GROUP_ACK_DSME_GTS = 3,     //!< GROUP_ACK_DSME_GTS
+    GROUP_ACK_RESERVED = 4      //!< GROUP_ACK_RESERVED
 
 } LrWpanGroupAckPolicy;
 
@@ -2825,44 +2826,14 @@ class LrWpanMac : public Object
     int32_t m_multisuperframeSeq = -1;
 
     /**
-     * The enhanced group ack bitmap store at LrWpanMac (device MAC).
-    */
-    uint64_t m_enhancedGACKBitmap;
-
-    /**
      * Indicate the group ack policy that the decice currently used.
     */
     LrWpanGroupAckPolicy m_groupAckPolicy;
-
-    /**
-     * Recording the packet sequence which transmit before receive a Enhanced Group Ack bitmap.
-    */
-    std::vector<uint32_t> m_groupAckPktBuffer;
-    void ResetEnhancedGroupAckBuffer();
     
     /**
      * The scheduled event to add superframeIDx.
     */
     void SetGroupAckPolicy(LrWpanGroupAckPolicy policy); 
-
-    /**
-     * (Input) addr + pkt seq  ---> Hash function --- > (output) hash table key
-    */
-    uint64_t GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSeq);
-
-    /**
-     * Check the hash key is collision or not.
-    */
-    bool IsHashTableKeyCollision(uint32_t inputHashTableKey);
-
-    uint32_t CheckCollision(uint32_t Key, uint64_t hashedVal);
-    uint32_t DoDoubleHash(uint32_t Key, uint64_t hashedVal);
-    uint32_t DoQuadraticProb(uint32_t key, uint32_t count);
-
-    /**
-     * The IEEE 802.15.4e legacy group ack field infos.
-    */
-    GroupACK m_legacyGroupAck;
 
     /**
      * The scheduled event to add superframeIDx.
@@ -3118,14 +3089,7 @@ class LrWpanMac : public Object
     Mac16Address ConvertExtAddrToShortAddr(Mac64Address ExtAddr);
 
     /**
-     * Enhanced Group Ack 
-    */
-    void PrintGroupAckBitmap();
-    void ResetEnhancedGroupAckBitmap();
-    void SendEnhancedGroupAck();
-
-    /**
-     * Legacy Group Ack 
+     *! Legacy Group Ack 
     */
     uint16_t m_legacyGackBitmap;
     uint8_t  m_legacyGackDevList;
@@ -3139,9 +3103,77 @@ class LrWpanMac : public Object
     */
     std::vector<uint32_t> m_legacyGackGTSIdxBuffer;
 
+    /**
+     * The IEEE 802.15.4e legacy group ack field infos.
+    */
+    GroupACK m_legacyGroupAck;
+
     void SendLegacyGroupAck();
     void ResetLegacyGroupAckBitmap();
     void ResetLegacyGroupAckBuffer();
+
+    /**
+     *! Enhanced Group Ack 
+    */
+
+       /**
+     * The enhanced group ack bitmap store at LrWpanMac (device MAC).
+    */
+    uint64_t m_enhancedGACKBitmap;
+
+    /**
+     * Recording the packet sequence which transmit before receive a Enhanced Group Ack bitmap.
+    */
+    std::vector<uint32_t> m_groupAckPktBuffer;
+    
+    /**
+     * (Input) addr + pkt seq  ---> Hash function --- > (output) hash table key
+    */
+    uint64_t GenerateHashTableKey(Mac16Address devAddr, uint32_t packetSeq);
+
+    /**
+     * Check the hash key is collision or not.
+    */
+    bool IsHashTableKeyCollision(uint32_t inputHashTableKey);
+
+    uint32_t CheckCollision(uint32_t Key, uint64_t hashedVal);
+    uint32_t DoDoubleHash(uint32_t Key, uint64_t hashedVal); // TODO
+    uint32_t DoQuadraticProb(uint32_t key, uint32_t count);
+    void ResetEnhancedGroupAckBuffer();
+    void PrintGroupAckBitmap();
+    void ResetEnhancedGroupAckBitmap();
+    void SendEnhancedGroupAck();
+
+    /**
+     *! DSME GTS Group Ack 
+    */
+
+    /**
+    * Set the payload length for the DSME-GTS Group Ack packet field.
+    */
+    void SetDsmeGtsPayloadLength(uint8_t len);
+
+    /**
+    * Reset the payloads the DSME-GTS Group Ack structure.
+   */
+    void ResetDsmeGtsGackPayloads();
+
+    /**
+    * Reset the payloads the DSME-GTS Group Ack structure.
+   */
+    void ResetDsmeGtsGackPayloadLength();
+
+    /**
+     * Recording the packet sequence which transmit before receive a DSME-GTS Group Ack bitmap.
+    */
+    std::vector<uint32_t> m_dsmeGtsGroupAckPktBuffer;
+
+    uint8_t m_dsmeGtsGackPayloadLength;
+    std::vector<DsmeGtsGackPayload> m_dsmeGtsGackPayloads;
+
+    void SendDsmeGtsGroupAck();
+
+
 
   protected:
     // Inherited from Object.

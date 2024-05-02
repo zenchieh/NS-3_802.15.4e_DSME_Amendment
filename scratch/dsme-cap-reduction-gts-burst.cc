@@ -165,8 +165,8 @@ int main(int argc, char** argv) {
         // Cap Reduction setting
         dev->GetMac()->SetCAPReduction(capReduction);
 
-        // Set the group ack policy to GROUP_ACK_DSME_GTS.
-        dev->GetMac()->SetGroupAckPolicy(LrWpanGroupAckPolicy::GROUP_ACK_DSME_GTS);
+        // Disable the group ack.
+        dev->GetMac()->SetGroupAckPolicy(LrWpanGroupAckPolicy::GROUP_ACK_DISABLED);
     }
 
     /**
@@ -305,50 +305,20 @@ int main(int argc, char** argv) {
             {
                 int childLrWpanDevIdx = childLrWpanDevIdxQueue.front(); // Peek the first element from queue.
                 
-                if(slotIdx == 6 || slotIdx == 14)
-                {
-                    // when slotIdx == 6 do nothing
-                    // when slotIdx == 14, allocate the enhenced group ack GTS slots (slot 6 and slot 14) at the same time.
-                    if(slotIdx == 14) // which is the last slot in CFP
-                    {
-                        // Setting coordinator
-                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
-                                    channelOffsets[coordLrWpanDevIdx], superframeID, 6); 
-                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
-                                                channelOffsets[coordLrWpanDevIdx], superframeID, 14);  
+                // Setting the GTS slot for the corresponding RFD.
+                lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1, // Coord for RX
+                                        channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);               
 
-                        // Setting RFDs
-                        int queueSize = childLrWpanDevIdxQueue.size();
-                        for(int i = 0; i < queueSize; i++)
-                        {
-                            // std::cout << "childLrWpanDevIdxQueue.size() " << childLrWpanDevIdxQueue.size() << std::endl;
-                            childLrWpanDevIdx = childLrWpanDevIdxQueue.front();     
+                lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Devices for TX
+                                        channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);    
 
-                            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
-                                                    channelOffsets[coordLrWpanDevIdx], superframeID, 6); 
-                            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
-                                                    channelOffsets[coordLrWpanDevIdx], superframeID, 14); 
+                // Call traffic API to keep sending packet to test maximum thruoghput.
+                lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childLrWpanDevIdx), lrwpanDevices.Get(coordLrWpanDevIdx)->GetAddress(), pktSize, setTime, 0.005, 0.0001);  
 
-                            childLrWpanDevIdxQueue.pop();
-                        }
-                    }
-                }
-                else
-                {
-                    // Setting the GTS slot for the corresponding RFD.
-                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1, // Coord for RX
-                                            channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);               
-
-                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Devices for TX
-                                            channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);    
-
-                    // Call traffic API to keep sending packet to test maximum thruoghput.
-                    lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childLrWpanDevIdx), lrwpanDevices.Get(coordLrWpanDevIdx)->GetAddress(), pktSize, setTime, 0.005, 0.0001);  
-
-                    // move the first element to the end of the queue and remove it from start.
-                    childLrWpanDevIdxQueue.push(childLrWpanDevIdxQueue.front()); 
+                // move the first element to the end of the queue and remove it from start.
+                childLrWpanDevIdxQueue.push(childLrWpanDevIdxQueue.front()); 
                     childLrWpanDevIdxQueue.pop();
-                }
+                
                 setTime += slotTimeInterval; // add for the next GTS slot.
             }
             setTime += slotTimeInterval; // need to bypass the first slot for beacon before process next superframe.
