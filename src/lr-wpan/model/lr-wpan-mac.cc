@@ -4304,6 +4304,10 @@ void LrWpanMac::StartGTS(SuperframeType superframeType, uint16_t superframeID, i
         endGtsTime = Seconds((double)gtsDuration / symbolRate) - NanoSeconds(10); 
         // endGtsTime = Seconds((double)gtsDuration / symbolRate);
     }
+    else if(m_groupAckPolicy == GROUP_ACK_DSME_GTS && m_macDsmeACT[superframeID][idx].m_slotID == 5)
+    {
+        endGtsTime = Seconds((double)gtsDuration / symbolRate) - NanoSeconds(10);
+    }
     else 
     {
         endGtsTime = Seconds((double)gtsDuration / symbolRate) - NanoSeconds(1);
@@ -5571,12 +5575,14 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                         }
                         else if(m_groupAckPolicy == GROUP_ACK_DSME_GTS)
                         {
+
                             NS_LOG_DEBUG("DSME-GTS Group Ack enabled, aggregate acks into Group Acks");
+                            
                             // TODO
 
                             // 0. Check payload addr is exist or not
                             bool isFindEntity = false;
-                            for(int index = 0; index < m_dsmeGtsGackPayloads.size(); index++)
+                            for(int index = 0; index < (int)m_dsmeGtsGackPayloads.size(); index++)
                             {
                                 if(m_dsmeGtsGackPayloads[index].nodeAddr == receivedMacHdr.GetShortSrcAddr()) // addr exist
                                 {
@@ -5601,7 +5607,8 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                                 payloadEntity.nodeAddr = receivedMacHdr.GetShortSrcAddr();
                                 payloadEntity.bitmapLength = 1; // Default 1 bytes;
                                 payloadEntity.sequenceNumber = receivedMacHdr.GetSeqNum();
-                                payloadEntity.bitmap[0] = 1;
+                                payloadEntity.bitmap.push_back(1);
+                                m_dsmeGtsGackPayloads.push_back(payloadEntity);
                             }
 
                             if (m_incGtsEvent.IsRunning() || m_gtsEvent.IsRunning()) 
@@ -6890,7 +6897,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     p->RemoveHeader(receivedDsmeGtsGroupAckIE);
                     std::vector<DsmeGtsGackPayload> receivedPayloads;
                     receivedDsmeGtsGroupAckIE.GetDsmeGtsGackPayload(receivedPayloads);
-                    for(int i = 0; i < receivedPayloads.size(); i++)
+                    for(int i = 0; i < (int)receivedPayloads.size(); i++)
                     {
                         NS_LOG_DEBUG("Node addr : " << receivedPayloads[i].nodeAddr << "\n"
                                   << "Bitmap Length = " << receivedPayloads[i].bitmapLength << "\n"
@@ -6902,7 +6909,7 @@ void LrWpanMac::PdDataIndication(uint32_t psduLength, Ptr<Packet> p, uint8_t lqi
                     }
 
                     NS_LOG_DEBUG("Starting Check received Group Ack bitmap");
-                    for (int index = 0; index < receivedPayloads.size(); index++) 
+                    for (int index = 0; index < (int)receivedPayloads.size(); index++) 
                     {
                         if(receivedPayloads[index].nodeAddr == m_shortAddress)
                         {

@@ -34,8 +34,8 @@ using namespace ns3;
 #define SO 3
 #define MO 5
 
-#define TREE_DEGREE 3 // The maximum degree of a node in the tree.
-#define NUM_COORD 4 // The number of coord, PAN-C need to be included.
+#define TREE_DEGREE 1 // The maximum degree of a node in the tree.
+#define NUM_COORD 2 // The number of coord, PAN-C need to be included.
 #define NUM_RFD (NUM_COORD - 1) * TREE_DEGREE // The number of RFD.
 #define ROUND_ROBIN_FACTOR TREE_DEGREE
 
@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
     uint16_t multisuperfrmOrder = MO;
     uint16_t superfrmOrder = SO;
     uint8_t channelNum = 11;
-    bool capReduction = true;
+    bool capReduction = false;
 
     for (unsigned int i = 0; i < lrwpanDevices.GetN(); ++i) 
     {
@@ -284,7 +284,7 @@ int main(int argc, char** argv) {
         // Setting parameters of sending the data packets.
         // This will continuously TX packet in the setting interval with non-stop transmission , in order to test max throuhgput.
 
-        double slot_0_StartTime = 1.11578;
+        double slot_0_StartTime = 1.177216;
         // double slot_7_StartTime = 1.16928;
         /**
          * slotTimeInterval (aka. slot time or aBaseSlotDuration) calculated by 
@@ -294,43 +294,33 @@ int main(int argc, char** argv) {
         */
         double setTime = slot_0_StartTime;
         double slotTimeInterval = 0.00768; // slot time
-        
+        double superframe_0_startTime = 1.10592;
+        double superframeTime = 0.12288;
         for(int superframeID = 1; superframeID < 4; superframeID++)
         {
             /**
              * According to the topology to push the RFD lrWpanDeviceIdx into queue.
             */
             GenerateRoundRobinQueue(&childLrWpanDevIdxQueue, coorIDx);
-            for(int slotIdx = 0; slotIdx < 15; slotIdx++)
+            for(int slotIdx = 0; slotIdx < 6; slotIdx++)
             {
                 int childLrWpanDevIdx = childLrWpanDevIdxQueue.front(); // Peek the first element from queue.
                 
-                if(slotIdx == 6 || slotIdx == 14)
+                if(slotIdx == 5)
                 {
-                    // when slotIdx == 6 do nothing
-                    // when slotIdx == 14, allocate the enhenced group ack GTS slots (slot 6 and slot 14) at the same time.
-                    if(slotIdx == 14) // which is the last slot in CFP
+                    // Setting coordinator
+                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
+                                channelOffsets[coordLrWpanDevIdx], superframeID, 5);  
+
+                    // Setting RFDs
+                    int queueSize = childLrWpanDevIdxQueue.size();
+                    for(int i = 0; i < queueSize; i++)
                     {
-                        // Setting coordinator
-                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
-                                    channelOffsets[coordLrWpanDevIdx], superframeID, 6); 
-                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
-                                                channelOffsets[coordLrWpanDevIdx], superframeID, 14);  
-
-                        // Setting RFDs
-                        int queueSize = childLrWpanDevIdxQueue.size();
-                        for(int i = 0; i < queueSize; i++)
-                        {
-                            // std::cout << "childLrWpanDevIdxQueue.size() " << childLrWpanDevIdxQueue.size() << std::endl;
-                            childLrWpanDevIdx = childLrWpanDevIdxQueue.front();     
-
-                            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
-                                                    channelOffsets[coordLrWpanDevIdx], superframeID, 6); 
-                            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
-                                                    channelOffsets[coordLrWpanDevIdx], superframeID, 14); 
-
-                            childLrWpanDevIdxQueue.pop();
-                        }
+                        // std::cout << "childLrWpanDevIdxQueue.size() " << childLrWpanDevIdxQueue.size() << std::endl;
+                        childLrWpanDevIdx = childLrWpanDevIdxQueue.front();   
+                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
+                                                channelOffsets[coordLrWpanDevIdx], superframeID, 5); 
+                        childLrWpanDevIdxQueue.pop();
                     }
                 }
                 else
@@ -344,14 +334,13 @@ int main(int argc, char** argv) {
 
                     // Call traffic API to keep sending packet to test maximum thruoghput.
                     lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childLrWpanDevIdx), lrwpanDevices.Get(coordLrWpanDevIdx)->GetAddress(), pktSize, setTime, 0.005, 0.0001);  
-
                     // move the first element to the end of the queue and remove it from start.
                     childLrWpanDevIdxQueue.push(childLrWpanDevIdxQueue.front()); 
                     childLrWpanDevIdxQueue.pop();
                 }
                 setTime += slotTimeInterval; // add for the next GTS slot.
             }
-            setTime += slotTimeInterval; // need to bypass the first slot for beacon before process next superframe.
+            setTime += (10 * slotTimeInterval);
         }
         ClearRoundRobinQueue(&childLrWpanDevIdxQueue); // Reset (clear) queue.
     }

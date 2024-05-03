@@ -2485,11 +2485,12 @@ uint32_t DsmeGtsGroupAckDescriptorIE::GetPayloadTotalSize() const
 {
     uint32_t totalSize = 0;
     // Calculate the total payload size
-    for(int index = 0; index < m_payloads.size(); index++)
+    for(int index = 0; index < (int)m_payloads.size(); index++)
     {
         // node addr (2) + bitmap len (1) + seqNum (1) + bitmap (dynamic)
         totalSize = 2 + 1 + 1 + m_payloads[index].bitmap.size(); 
     }
+    return totalSize;
 }
 
 uint32_t DsmeGtsGroupAckDescriptorIE::GetSerializedSize() const
@@ -2535,6 +2536,7 @@ uint32_t DsmeGtsGroupAckDescriptorIE::Deserialize(Buffer::Iterator start)
             m_payloads[index].bitmap[bmpidx] = i.ReadU8();
         }
     }
+    return i.GetDistanceFrom(start);
 }
 
 } // namespace ns3

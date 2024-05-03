@@ -8,7 +8,7 @@
             "name": "(gdb) Launch from scratch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/scratch/ns3.37-dsme-cap-reduction-legacy-GACK-default",
+            "program": "${workspaceFolder}/build/scratch/ns3.37-dsme-cap-reduction-DSME-GTS-GACK-default",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
