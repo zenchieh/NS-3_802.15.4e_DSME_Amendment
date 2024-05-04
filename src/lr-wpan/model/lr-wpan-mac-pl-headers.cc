@@ -2507,7 +2507,7 @@ void DsmeGtsGroupAckDescriptorIE::Serialize(Buffer::Iterator start) const
     Buffer::Iterator i = start;
     i.WriteU8(m_payloadsNumber);
 
-    for(int index = 0; index < m_payloadsNumber; index++)
+    for(int index = 0; index < (int)m_payloadsNumber; index++)
     {
         WriteTo(i, m_payloads[index].nodeAddr);
         i.WriteU8(m_payloads[index].bitmapLength);
@@ -2525,17 +2525,20 @@ uint32_t DsmeGtsGroupAckDescriptorIE::Deserialize(Buffer::Iterator start)
     Buffer::Iterator i = start;
     m_payloadsNumber = i.ReadU8();
 
-    for(int index = 0; index < m_payloadsNumber; index++)
+    for(int index = 0; index < (int)m_payloadsNumber; index++)
     {
-        ReadFrom(i, m_payloads[index].nodeAddr);
-        m_payloads[index].bitmapLength = i.ReadU8();
-        m_payloads[index].sequenceNumber = i.ReadU8();
+        DsmeGtsGackPayload payloadEntity;
+        ReadFrom(i, payloadEntity.nodeAddr);
+        payloadEntity.bitmapLength = i.ReadU8();
+        payloadEntity.sequenceNumber = i.ReadU8();
 
-        for(int bmpidx = 0; bmpidx < m_payloads[index].bitmapLength; bmpidx++)
+        for(int bmpidx = 0; bmpidx < payloadEntity.bitmapLength; bmpidx++)
         {
-            m_payloads[index].bitmap[bmpidx] = i.ReadU8();
+            payloadEntity.bitmap.push_back(i.ReadU8());
         }
+        m_payloads.push_back(payloadEntity);
     }
+
     return i.GetDistanceFrom(start);
 }
 

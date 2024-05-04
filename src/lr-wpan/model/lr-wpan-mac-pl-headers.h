@@ -374,7 +374,7 @@ std::ostream& operator << (std::ostream &os, const EnhancedGroupAckDescriptorIE&
 typedef struct 
 {
     Mac16Address nodeAddr;
-    uint8_t bitmapLength = 8; // Default 8 bytes = 64 bits
+    uint8_t bitmapLength = 1; // Default 1 bytes
     uint8_t sequenceNumber;
     std::vector<uint8_t> bitmap;
     

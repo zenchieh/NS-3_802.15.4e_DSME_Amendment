@@ -49,6 +49,7 @@
 */ 
 #define ENHANCED_GROUP_ACK_FIRST_SLOT 6
 #define ENHANCED_GROUP_ACK_SECOND_SLOT 14
+#define DSME_GTS_GROUP_ACK_SLOT 5
 namespace ns3
 {
 
@@ -3173,6 +3174,15 @@ class LrWpanMac : public Object
 
     void SendDsmeGtsGroupAck();
 
+    /**
+     * Reset packet buffer which stores the packet send at GTS.
+     **/
+    void ResetDsmeGtsGroupAckBuffer();
+
+    /**
+     * Check the addr is already exist in the payload field or not.
+     **/
+    bool CheckAddrExist(Mac16Address addr);
 
 
   protected:
