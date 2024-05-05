@@ -294,8 +294,7 @@ int main(int argc, char** argv) {
         */
         double setTime = slot_0_StartTime;
         double slotTimeInterval = 0.00768; // slot time
-        double superframe_0_startTime = 1.10592;
-        double superframeTime = 0.12288;
+
         for(int superframeID = 1; superframeID < 4; superframeID++)
         {
             /**
@@ -306,6 +305,7 @@ int main(int argc, char** argv) {
             {
                 int childLrWpanDevIdx = childLrWpanDevIdxQueue.front(); // Peek the first element from queue.
                 
+                // Slot 5 is GACK slot for DSME-GTS GACK policy
                 if(slotIdx == 5)
                 {
                     // Setting coordinator
@@ -340,7 +340,7 @@ int main(int argc, char** argv) {
                 }
                 setTime += slotTimeInterval; // add for the next GTS slot.
             }
-            setTime += (10 * slotTimeInterval);
+            setTime += (10 * slotTimeInterval); // Because CAP reduction is disabled, we need to calculate next GTS time. Bypass 10 slot time to get the correct GTS time of next superframe.
         }
         ClearRoundRobinQueue(&childLrWpanDevIdxQueue); // Reset (clear) queue.
     }
