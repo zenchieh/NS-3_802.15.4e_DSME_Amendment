@@ -275,7 +275,14 @@ int main(int argc, char** argv) {
                                                                                               superfrmOrder);
     }
 
-    int pktSize = 10;
+    // int pktSize = 10;
+
+    /**
+     * Use argv (user input) here to change packet size.
+     * example command : ./ns3 run dsme-cap-reduction-EGACK-tree -- 30 > log.log 2>&1
+     * 30 means to 30 bytes packet in the simulation.
+    */
+    int pktSize = atoi(argv[1]);
 
     /**
      * This is a Queue for round robin purpose. (Stores the RFD lrWpanDeviceIdx)
