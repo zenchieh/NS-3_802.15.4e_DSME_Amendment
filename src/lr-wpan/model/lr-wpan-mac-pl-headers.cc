@@ -2488,7 +2488,7 @@ uint32_t DsmeGtsGroupAckDescriptorIE::GetPayloadTotalSize() const
     for(int index = 0; index < (int)m_payloads.size(); index++)
     {
         // node addr (2) + bitmap len (1) + seqNum (1) + bitmap (dynamic)
-        totalSize = 2 + 1 + 1 + m_payloads[index].bitmap.size(); 
+        totalSize += 2 + 1 + 1 + m_payloads[index].bitmap.size(); 
     }
     return totalSize;
 }

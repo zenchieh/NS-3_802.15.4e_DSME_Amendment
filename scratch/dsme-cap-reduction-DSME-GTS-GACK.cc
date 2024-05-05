@@ -34,8 +34,8 @@ using namespace ns3;
 #define SO 3
 #define MO 5
 
-#define TREE_DEGREE 1 // The maximum degree of a node in the tree.
-#define NUM_COORD 2 // The number of coord, PAN-C need to be included.
+#define TREE_DEGREE 3 // The maximum degree of a node in the tree.
+#define NUM_COORD 4 // The number of coord, PAN-C need to be included.
 #define NUM_RFD (NUM_COORD - 1) * TREE_DEGREE // The number of RFD.
 #define ROUND_ROBIN_FACTOR TREE_DEGREE
 
@@ -348,7 +348,7 @@ int main(int argc, char** argv) {
     AsciiTraceHelper ascii;
     lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Gack.tr"));
     lrWpanHelper.EnablePcapAll(std::string("Gack"), true);
-    Simulator::Stop(Seconds(1.96607));
+    Simulator::Stop(Seconds(1.469056274));
     Simulator::Run();
 
     std::cout << "pktSent: " << pktSent << std::endl;
