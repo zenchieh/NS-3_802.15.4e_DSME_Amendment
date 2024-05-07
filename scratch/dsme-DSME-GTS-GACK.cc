@@ -26,6 +26,7 @@
 #include "ns3/sixlowpan-module.h"
 #include "ns3/spectrum-module.h"
 #include <fstream>
+#include <queue>
 
 using namespace ns3;
 
@@ -33,22 +34,18 @@ using namespace ns3;
 #define SO 3
 #define MO 5
 
-#define NUM_COORD 4 // The number of coord, PAN-C need to be included.
 #define TREE_DEGREE 3 // The maximum degree of a node in the tree.
+#define NUM_COORD 4 // The number of coord, PAN-C need to be included.
 #define NUM_RFD (NUM_COORD - 1) * TREE_DEGREE // The number of RFD.
 #define ROUND_ROBIN_FACTOR TREE_DEGREE
 
-#define GACK_1_CHANNEL_IDX 3
-#define GACK_2_CHANNEL_IDX 3
-#define GACK_1_SPF_IDX 1
-#define GACK_2_SPF_IDX 3
-#define GACK_1_SLOT_IDX 5
-#define GACK_2_SLOT_IDX 5
+
 
 #define BIT(X) (1 << 2^X)
 
 static double pktRecv = 0;
 static double pktSent = 0;
+// static double throughput = 0;
 
 typedef enum
 {
@@ -86,7 +83,7 @@ dataSentMacConfirm(McpsDataConfirmParams params) // McpsDataConfirmCallBack
 
 static void dataIndication(McpsDataIndicationParams params, Ptr<Packet> p) {
     NS_LOG_UNCOND(Simulator::Now().GetSeconds()
-                  << " secs | Received DATA packet of size " << p->GetSize());
+                  << " secs | The RX higher layer received DATA packet of size " << p->GetSize() << " bytes");
     pktRecv += 1;
 }
 
@@ -155,9 +152,10 @@ int main(int argc, char** argv) {
     uint16_t multisuperfrmOrder = MO;
     uint16_t superfrmOrder = SO;
     uint8_t channelNum = 11;
-    bool capReduction = true;
+    bool capReduction = false;
 
-    for (unsigned int i = 0; i < lrwpanDevices.GetN(); ++i) {
+    for (unsigned int i = 0; i < lrwpanDevices.GetN(); ++i) 
+    {
         Ptr<LrWpanNetDevice> dev = lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>();
         dev->GetMac()->SetMcpsDataConfirmCallback(cb1);
         dev->GetMac()->SetMcpsDataIndicationCallback(cb2);
@@ -167,11 +165,13 @@ int main(int argc, char** argv) {
         // Cap Reduction setting
         dev->GetMac()->SetCAPReduction(capReduction);
 
-        // Set the group ack policy to IEEE 802.15.4e legacy group ack.
-        dev->GetMac()->SetGroupAckPolicy(LrWpanGroupAckPolicy::GROUP_ACK_LEGACY);
+        // Set the group ack policy to GROUP_ACK_DSME_GTS.
+        dev->GetMac()->SetGroupAckPolicy(LrWpanGroupAckPolicy::GROUP_ACK_DSME_GTS);
     }
 
-    // Pan Coord mlme-start.request params
+    /**
+     * Pan Coord Settings
+     */ 
     MlmeStartRequestParams startParams;
     startParams.m_panCoor = true;
     startParams.m_PanId = panId;
@@ -196,21 +196,8 @@ int main(int argc, char** argv) {
     dsmeSuperframeField.SetMultiSuperframeOrder(multisuperfrmOrder);
     dsmeSuperframeField.SetChannelDiversityMode(CHANNEL_HOPPING);
     dsmeSuperframeField.SetCAPReductionFlag(capReduction);
-    dsmeSuperframeField.SetGACKFlag(true);
-    startParams.m_dsmeSuperframeSpec = dsmeSuperframeField;
 
-    /**
-     * GroupACK field will be sent at PAN descriptor header IE (aka. a field in Enhanced beacon)
-    */
-    GroupACK groupAckField;
-    groupAckField.SetGACK1ChannelID(GACK_1_CHANNEL_IDX);
-    groupAckField.SetGACK1SlotID(GACK_1_SLOT_IDX);   
-    //  GACK 1 located at Superframe ID = 1 & slot 5    
-    groupAckField.SetGACK1SuperframeID(GACK_1_SPF_IDX);
-    groupAckField.SetGACK2ChannelID(GACK_1_CHANNEL_IDX);
-    //  GACK 1 located at Superframe ID = 3 & slot 5 
-    groupAckField.SetGACK2SlotID(GACK_2_SLOT_IDX);
-    groupAckField.SetGACK2SuperframeID(GACK_2_SPF_IDX);
+    startParams.m_dsmeSuperframeSpec = dsmeSuperframeField;
 
     lrWpanHelper.AssociateToBeaconPan(lrwpanDevices
                                         , Mac16Address("00:01")
@@ -248,7 +235,6 @@ int main(int argc, char** argv) {
         panDescriptor.m_coorPanId = panId;
         panDescriptor.m_coorShortAddr = Mac16Address("00:01");
         panDescriptor.m_logCh = channelNum;
-        panDescriptor.m_gACKSpec = groupAckField;
 
         SuperframeField superframeField;
         superframeField.SetSuperframeOrder(superfrmOrder);
@@ -265,16 +251,19 @@ int main(int argc, char** argv) {
     }
     
     // GTSs setting
-    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) {
+    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) 
+    {
         lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>()->SetMcpsDataReqGts(true);
     }
 
-    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) {
+    for (unsigned int i = 0 ; i < lrwpanDevices.GetN(); ++i) 
+    {
         lrwpanDevices.Get(i)->GetObject<LrWpanNetDevice>()->GetMac()->ResizeScheduleGTSsEvent(bcnOrder, 
                                                                                               multisuperfrmOrder, 
                                                                                               superfrmOrder);
     }
 
+    // Setting packet size
     // int pktSize = 10;
 
     /**
@@ -288,7 +277,7 @@ int main(int argc, char** argv) {
      * This is a Queue for round robin purpose. (Stores the RFD lrWpanDeviceIdx)
      * Beacuse the device need to allocate GTS fairly, so here choose round robin algorithm to implement.
     */
-    std::queue<int> childLrWpanDevIdxQueue;  
+    std::queue<int> childLrWpanDevIdxQueue;
 
     for(int coorIDx = 0; coorIDx < NUM_COORD - 1; coorIDx++) // minus one beacause of PAN-C 
     {
@@ -297,7 +286,10 @@ int main(int argc, char** argv) {
         /**
          *! TX & packet traffic settings
         */
-        double slot_0_StartTime = 1.11578;
+        // Setting parameters of sending the data packets.
+        // This will continuously TX packet in the setting interval with non-stop transmission , in order to test max throuhgput.
+
+        double slot_0_StartTime = 1.177216;
         // double slot_7_StartTime = 1.16928;
         /**
          * slotTimeInterval (aka. slot time or aBaseSlotDuration) calculated by 
@@ -307,69 +299,53 @@ int main(int argc, char** argv) {
         */
         double setTime = slot_0_StartTime;
         double slotTimeInterval = 0.00768; // slot time
-        
+
         for(int superframeID = 1; superframeID < 4; superframeID++)
         {
             /**
              * According to the topology to push the RFD lrWpanDeviceIdx into queue.
             */
             GenerateRoundRobinQueue(&childLrWpanDevIdxQueue, coorIDx);
-            for(int slotIdx = 0; slotIdx < 15; slotIdx++)
+            for(int slotIdx = 0; slotIdx < 6; slotIdx++)
             {
                 int childLrWpanDevIdx = childLrWpanDevIdxQueue.front(); // Peek the first element from queue.
                 
-                if(superframeID == 1 || superframeID == 3)
+                // Slot 5 is GACK slot for DSME-GTS GACK policy
+                if(slotIdx == 5)
                 {
-                    if(slotIdx < 4) // We want to allocate slot 0 ~ slot 3
+                    // Setting coordinator
+                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
+                                channelOffsets[coordLrWpanDevIdx], superframeID, 5);  
+
+                    // Setting RFDs
+                    int queueSize = childLrWpanDevIdxQueue.size();
+                    for(int i = 0; i < queueSize; i++)
                     {
-                        // Setting the GTS slot for the corresponding RFD.
-                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1, // Coord for RX
-                                                channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);               
-
-                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Devices for TX
-                                                channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx); 
-
-                        // Call traffic API , in this case only needs to send one packet.
-                        lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childLrWpanDevIdx), lrwpanDevices.Get(coordLrWpanDevIdx)->GetAddress(), pktSize, setTime, 100.0, 10000.0); 
-                        // move the first element to the end of the queue and remove it from start.
-                        childLrWpanDevIdxQueue.push(childLrWpanDevIdxQueue.front()); 
+                        // std::cout << "childLrWpanDevIdxQueue.size() " << childLrWpanDevIdxQueue.size() << std::endl;
+                        childLrWpanDevIdx = childLrWpanDevIdxQueue.front();   
+                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
+                                                channelOffsets[coordLrWpanDevIdx], superframeID, 5); 
                         childLrWpanDevIdxQueue.pop();
                     }
-                    else if((superframeID == GACK_1_SPF_IDX) && slotIdx == 14) // Allocate GACK at last slot in the loop
-                    {
-                        // Setting coordinator
-                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
-                                    channelOffsets[coordLrWpanDevIdx], GACK_1_SPF_IDX, GACK_1_SLOT_IDX); 
-                                                // Setting RFDs
-                        int queueSize = childLrWpanDevIdxQueue.size();
-                        // Setting the devices GTS 
-                        for(int i = 0; i < queueSize; i++)
-                        {
-                            childLrWpanDevIdx = childLrWpanDevIdxQueue.front();     
-                            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
-                                                    channelOffsets[coordLrWpanDevIdx], GACK_1_SPF_IDX, GACK_1_SLOT_IDX); 
-                            childLrWpanDevIdxQueue.pop();
-                        }
-                    }
-                    else if ((superframeID == GACK_2_SPF_IDX) && slotIdx == 14)
-                    {
-                        // Setting coordinator
-                        lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
-                                    channelOffsets[coordLrWpanDevIdx], GACK_2_SPF_IDX, GACK_2_SLOT_IDX); 
-                        int queueSize = childLrWpanDevIdxQueue.size();
-                        // Setting the devices GTS 
-                        for(int i = 0; i < queueSize; i++)
-                        {
-                            childLrWpanDevIdx = childLrWpanDevIdxQueue.front();     
-                            lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
-                                                    channelOffsets[coordLrWpanDevIdx], GACK_2_SPF_IDX, GACK_2_SLOT_IDX); 
-                            childLrWpanDevIdxQueue.pop();
-                        }
-                    }
+                }
+                else
+                {
+                    // Setting the GTS slot for the corresponding RFD.
+                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1, // Coord for RX
+                                            channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);               
+
+                    lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Devices for TX
+                                            channelOffsets[coordLrWpanDevIdx], superframeID, slotIdx);    
+
+                    // Call traffic API to keep sending packet to test maximum thruoghput.
+                    lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childLrWpanDevIdx), lrwpanDevices.Get(coordLrWpanDevIdx)->GetAddress(), pktSize, setTime, 0.005, 0.0001);  
+                    // move the first element to the end of the queue and remove it from start.
+                    childLrWpanDevIdxQueue.push(childLrWpanDevIdxQueue.front()); 
+                    childLrWpanDevIdxQueue.pop();
                 }
                 setTime += slotTimeInterval; // add for the next GTS slot.
             }
-            setTime += slotTimeInterval; // need to bypass the first slot for beacon before process next superframe.
+            setTime += (10 * slotTimeInterval); // Because CAP reduction is disabled, we need to calculate next GTS time. Bypass 10 slot time to get the correct GTS time of next superframe.
         }
         ClearRoundRobinQueue(&childLrWpanDevIdxQueue); // Reset (clear) queue.
     }
@@ -377,12 +353,9 @@ int main(int argc, char** argv) {
     AsciiTraceHelper ascii;
     lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Gack.tr"));
     lrWpanHelper.EnablePcapAll(std::string("Gack"), true);
-
-    // Simulator::Stop(Seconds(1.96607));
-    Simulator::Stop(Seconds(1.35));
-    // Simulator::Stop(Seconds(1.22));
-    // Simulator::Stop(Seconds(50));
-
+    Simulator::Stop(Seconds(1.469056274));
+    // Simulator::Stop(Seconds(1.346176274));
+    // Simulator::Stop(Seconds(1.223296274));
     Simulator::Run();
 
     std::cout << "pktSent: " << pktSent << std::endl;

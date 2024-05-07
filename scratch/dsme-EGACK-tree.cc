@@ -165,8 +165,8 @@ int main(int argc, char** argv) {
         // Cap Reduction setting
         dev->GetMac()->SetCAPReduction(capReduction);
 
-        // Set the group ack policy to GROUP_ACK_DSME_GTS.
-        dev->GetMac()->SetGroupAckPolicy(LrWpanGroupAckPolicy::GROUP_ACK_DSME_GTS);
+        // Set the group ack policy to self-designed enhanced group ack.
+        dev->GetMac()->SetGroupAckPolicy(LrWpanGroupAckPolicy::GROUP_ACK_ENHANCED);
     }
 
     /**
@@ -273,6 +273,7 @@ int main(int argc, char** argv) {
     */
     int pktSize = atoi(argv[1]);
 
+
     /**
      * This is a Queue for round robin purpose. (Stores the RFD lrWpanDeviceIdx)
      * Beacuse the device need to allocate GTS fairly, so here choose round robin algorithm to implement.
@@ -289,7 +290,7 @@ int main(int argc, char** argv) {
         // Setting parameters of sending the data packets.
         // This will continuously TX packet in the setting interval with non-stop transmission , in order to test max throuhgput.
 
-        double slot_0_StartTime = 1.177216;
+        double slot_0_StartTime = 1.177217;
         // double slot_7_StartTime = 1.16928;
         /**
          * slotTimeInterval (aka. slot time or aBaseSlotDuration) calculated by 
@@ -299,34 +300,35 @@ int main(int argc, char** argv) {
         */
         double setTime = slot_0_StartTime;
         double slotTimeInterval = 0.00768; // slot time
-
+        
         for(int superframeID = 1; superframeID < 4; superframeID++)
         {
             /**
              * According to the topology to push the RFD lrWpanDeviceIdx into queue.
             */
             GenerateRoundRobinQueue(&childLrWpanDevIdxQueue, coorIDx);
-            for(int slotIdx = 0; slotIdx < 6; slotIdx++)
+            for(int slotIdx = 0; slotIdx < 7; slotIdx++)
             {
                 int childLrWpanDevIdx = childLrWpanDevIdxQueue.front(); // Peek the first element from queue.
                 
-                // Slot 5 is GACK slot for DSME-GTS GACK policy
-                if(slotIdx == 5)
+                if(slotIdx == 6)
                 {
                     // Setting coordinator
                     lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(coordLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), false, 1, // Coord for TX
-                                channelOffsets[coordLrWpanDevIdx], superframeID, 5);  
+                                channelOffsets[coordLrWpanDevIdx], superframeID, 6);  
 
                     // Setting RFDs
                     int queueSize = childLrWpanDevIdxQueue.size();
                     for(int i = 0; i < queueSize; i++)
                     {
                         // std::cout << "childLrWpanDevIdxQueue.size() " << childLrWpanDevIdxQueue.size() << std::endl;
-                        childLrWpanDevIdx = childLrWpanDevIdxQueue.front();   
+                        childLrWpanDevIdx = childLrWpanDevIdxQueue.front();     
+
                         lrWpanHelper.AddGtsInCfp(lrwpanDevices.Get(childLrWpanDevIdx)->GetObject<LrWpanNetDevice>(), true, 1,  // Devices for RX
-                                                channelOffsets[coordLrWpanDevIdx], superframeID, 5); 
+                                                channelOffsets[coordLrWpanDevIdx], superframeID, 6); 
+
                         childLrWpanDevIdxQueue.pop();
-                    }
+                    }                    
                 }
                 else
                 {
@@ -339,13 +341,14 @@ int main(int argc, char** argv) {
 
                     // Call traffic API to keep sending packet to test maximum thruoghput.
                     lrWpanHelper.GenerateTraffic(lrwpanDevices.Get(childLrWpanDevIdx), lrwpanDevices.Get(coordLrWpanDevIdx)->GetAddress(), pktSize, setTime, 0.005, 0.0001);  
+
                     // move the first element to the end of the queue and remove it from start.
                     childLrWpanDevIdxQueue.push(childLrWpanDevIdxQueue.front()); 
                     childLrWpanDevIdxQueue.pop();
                 }
                 setTime += slotTimeInterval; // add for the next GTS slot.
             }
-            setTime += (10 * slotTimeInterval); // Because CAP reduction is disabled, we need to calculate next GTS time. Bypass 10 slot time to get the correct GTS time of next superframe.
+            setTime += (9 * slotTimeInterval); // Because CAP reduction is disabled, we need to calculate next GTS time. Bypass 10 slot time to get the correct GTS time of next superframe.
         }
         ClearRoundRobinQueue(&childLrWpanDevIdxQueue); // Reset (clear) queue.
     }
@@ -353,7 +356,7 @@ int main(int argc, char** argv) {
     AsciiTraceHelper ascii;
     lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Gack.tr"));
     lrWpanHelper.EnablePcapAll(std::string("Gack"), true);
-    Simulator::Stop(Seconds(1.469056274));
+    Simulator::Stop(Seconds(1.474559997));
     Simulator::Run();
 
     std::cout << "pktSent: " << pktSent << std::endl;

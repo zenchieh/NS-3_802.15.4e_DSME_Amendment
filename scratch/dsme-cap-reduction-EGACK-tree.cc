@@ -366,6 +366,8 @@ int main(int argc, char** argv) {
     lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Gack.tr"));
     lrWpanHelper.EnablePcapAll(std::string("Gack"), true);
     Simulator::Stop(Seconds(1.474559997));
+    // Simulator::Stop(Seconds(1.35167999));
+    // Simulator::Stop(Seconds(1.22879999));
     Simulator::Run();
 
     std::cout << "pktSent: " << pktSent << std::endl;
